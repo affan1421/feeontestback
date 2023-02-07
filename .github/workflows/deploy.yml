@@ -1,0 +1,30 @@
+name: EC2 DEPLOY
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  Copy_Files_To_EC2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v3
+      - run: pwd    
+      - name: "Copying Files"
+        uses: garygrossgarten/github-action-scp@release
+        with:
+          local: /home/runner/work/erp-backend/erp-backend/
+          remote: /home/ubuntu/erp-backend/
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+      
+  Restarting_Backend: 
+    runs-on: self-hosted
+    needs: Copy_Files_To_EC2
+    steps: 
+      - run: npm install
+      - run: pm2 restart index
