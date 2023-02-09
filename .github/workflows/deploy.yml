@@ -44,7 +44,7 @@ jobs:
          - name: SonarQube Qality Gate check
            uses: sonarsource/sonarqube-quality-gate-action@master
            with:
-              scanMetadataReportFile: /home/runner/work/feeOn_backend/feeOn_backend/.scannerwork/report-task.txt
+              scanMetadataReportFile: /home/runner/work/feeOn_backend/.scannerwork/report-task.txt
            env:
             SONAR_TOKEN: squ_c68ae36462d5193f722227de85fae459285b558a
             SONAR_HOST_URL: http://65.0.97.30:9000 
