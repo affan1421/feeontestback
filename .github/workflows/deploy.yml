@@ -82,7 +82,7 @@ jobs:
       
   Restarting_Backend: 
     runs-on: self-hosted
-    needs: Copy_Files_To_EC2
+    needs: Build_And_Copy_files_to_EC2
     steps: 
       - run: npm install
       - run: pm2 restart index
@@ -90,7 +90,7 @@ jobs:
        
   Deployed_To_EC2:
     runs-on: ubuntu-latest
-    needs: Build_And_Copy_files_to_EC2
+    needs: Restarting_Backend
     steps:
       - name: Notify slack success
         if: success()
