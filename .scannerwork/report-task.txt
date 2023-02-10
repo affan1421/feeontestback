@@ -2,5 +2,5 @@ projectKey=feeOn-Backend
 serverUrl=http://65.0.97.30:9000
 serverVersion=9.7.1.62043
 dashboardUrl=http://65.0.97.30:9000/dashboard?id=feeOn-Backend
-ceTaskId=AYY1qzrdkJ4yWlqcd7LR
-ceTaskUrl=http://65.0.97.30:9000/api/ce/task?id=AYY1qzrdkJ4yWlqcd7LR
+ceTaskId=AYY6LOq6kJ4yWlqcd7Lc
+ceTaskUrl=http://65.0.97.30:9000/api/ce/task?id=AYY6LOq6kJ4yWlqcd7Lc
