@@ -84,7 +84,6 @@ jobs:
     runs-on: self-hosted
     needs: Build_And_Copy_files_to_EC2
     steps: 
-      - run: cd feeOn-backend
       - run: pwd
       - run: npm install
       - run: pm2 restart index
