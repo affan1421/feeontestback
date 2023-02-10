@@ -46,7 +46,7 @@ jobs:
            with:
               scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
            env:
-            SONAR_TOKEN: squ_c68ae36462d5193f722227de85fae459285b558a
+            SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
             SONAR_HOST_URL: http://65.0.97.30:9000 
 
   Slack_Notifications:
