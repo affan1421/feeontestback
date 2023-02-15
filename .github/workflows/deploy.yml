@@ -26,11 +26,8 @@ jobs:
       needs: Slack_Notification
       steps:
          - name: Checkout the files
-           uses: actions/checkout@v3
-           
-         - name: SETUP NODE.JS ENVIRONMENT
-           uses: actions/setup-node@v3.3.0
-           
+           uses: actions/checkout@v3         
+          
          - name: NPM INSTALL & NPM BUILD
            run: |
               cd /home/runner/work/feeOn-backend/feeOn-backend
