@@ -25,13 +25,23 @@ jobs:
       runs-on: ubuntu-latest
       needs: Slack_Notification
       steps:
-         - name: Checkout the files
-           uses: actions/checkout@v3
-         - name: Sonar-Scanner
-           uses: sonarsource/sonarqube-scan-action@master
-           with:
-             fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-           env:
+      - name: Checkout the files
+        uses: actions/checkout@v3   
+      
+      - name: SETUP NODE.JS ENVIRONMENT
+        uses: actions/setup-node@v3.3.0
+          
+      - name: NPM INSTALL & NPM BUILD
+        run: |
+            cd /home/runner/work/feeOn-backend/feeOn-backend
+            npm install
+            npm run test
+              
+      - name: Sonar-Scanner
+        uses: sonarsource/sonarqube-scan-action@master
+        with:
+           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+        env:
             SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
             SONAR_HOST_URL: http://65.0.97.30:9000
             
@@ -41,6 +51,8 @@ jobs:
       steps:
          - name: Checkout the files
            uses: actions/checkout@v3
+           
+         
          - name: SonarQube Qality Gate check
            uses: sonarsource/sonarqube-quality-gate-action@master
            with:
