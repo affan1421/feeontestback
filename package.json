@@ -9,20 +9,18 @@
     "test": "jest --coverage --config=./jest.config.js",
     "test": "jest"
   },
-  
   "jest": {
-		"testEnvironment": "node",
-		"coveragePathIgnorePatterns": [
-			"/node_modules/"
-		],
-    
-  "testResultsProcessor": "jest-sonar-reporter"
-	},
-	"jestSonar": {
-		"reportPath": "coverage",
-		"reportFile": "test-reporter.xml",
-		"indent": 4
-	},
+	  "testEnvironment": "node",
+	  "coveragePathIgnorePatterns": [
+	 	  "/node_modules/"
+	  ],
+          "testResultsProcessor": "jest-sonar-reporter"
+  },	
+  "jestSonar": {
+	  "reportPath": "coverage",
+	  "reportFile": "test-reporter.xml",
+	  "indent": 4
+  },
     
   "keywords": [],
   "author": "",
