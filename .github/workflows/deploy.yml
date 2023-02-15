@@ -32,7 +32,7 @@ jobs:
            with:
              fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
            env:
-            SONAR_TOKEN: sqp_1b908137d9dcc92b9b6f3246c4e22fffdfea4c5c
+            SONAR_TOKEN: sqa_d4f9ee751dbaa6a3b4d9eb2a1ec55fdb20edc9a1
             SONAR_HOST_URL: http://65.0.97.30:9000
             
   Quality_Gate_Check:
