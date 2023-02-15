@@ -27,6 +27,16 @@ jobs:
       steps:
          - name: Checkout the files
            uses: actions/checkout@v3
+           
+         - name: SETUP NODE.JS ENVIRONMENT
+           uses: actions/setup-node@v3.3.0
+           
+         - name: NPM INSTALL & NPM BUILD
+           run: |
+              cd /home/runner/work/feeOn-backend/feeOn-backend
+              npm install
+              npm run test
+              
          - name: Sonar-Scanner
            uses: sonarsource/sonarqube-scan-action@master
            with:
@@ -42,14 +52,7 @@ jobs:
          - name: Checkout the files
            uses: actions/checkout@v3
            
-         - name: SETUP NODE.JS ENVIRONMENT
-           uses: actions/setup-node@v3.3.0
-           
-         - name: NPM INSTALL & NPM BUILD
-           run: |
-              cd /home/runner/work/feeOn-backend/feeOn-backend
-              npm install
-              npm run test
+         
          - name: SonarQube Qality Gate check
            uses: sonarsource/sonarqube-quality-gate-action@master
            with:
