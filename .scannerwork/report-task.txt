@@ -1,6 +1,6 @@
-projectKey=feeOn-Backend-Preprod
+projectKey=feeOn-Backend-Prod
 serverUrl=http://65.0.97.30:9000
 serverVersion=9.7.1.62043
-dashboardUrl=http://65.0.97.30:9000/dashboard?id=feeOn-Backend-Preprod
-ceTaskId=AYZUk3BbkJ4yWlqcd7RA
-ceTaskUrl=http://65.0.97.30:9000/api/ce/task?id=AYZUk3BbkJ4yWlqcd7RA
+dashboardUrl=http://65.0.97.30:9000/dashboard?id=feeOn-Backend-Prod
+ceTaskId=AYZYt4OnkJ4yWlqcd7RT
+ceTaskUrl=http://65.0.97.30:9000/api/ce/task?id=AYZYt4OnkJ4yWlqcd7RT
