@@ -2,7 +2,7 @@ name: Prod -Backend
 on: 
   push:
     branches:
-    - prod
+    - main
   pull_request:
     branches:
     - main
