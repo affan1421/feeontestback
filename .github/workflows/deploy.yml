@@ -96,6 +96,8 @@ jobs:
     runs-on: self-hosted
     needs: Build_And_Copy_files_to_EC2
     steps: 
+      - name: "Checkout repository"
+        uses: actions/checkout@v3
       - run: pwd
       - run: cd /home/ubuntu/feeOn-backend/
       - run: npm install
