@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testExecutions version="1">
     <file path="C:\Users\Akif\Desktop\feeOn-Backend\feeOn-backend\index.test.js">
-        <testCase name="GET / responds with &quot;Servers is Running&quot;" duration="100">
-            <failure message="Error: expect(received).toEqual(expected) // deep equality"><![CDATA[Error: expect(received).toEqual(expected) // deep equality
-
-Expected: "Server is Running"
-Received: "Servers is Running"
-    at Object.toEqual (C:\Users\Akif\Desktop\feeOn-Backend\feeOn-backend\index.test.js:7:27)
-    at processTicksAndRejections (internal/process/task_queues.js:95:5)]]></failure>
-        </testCase>
+        <testCase name="GET / responds with &quot;Servers is Running&quot;" duration="83"/>
     </file>
 </testExecutions>
