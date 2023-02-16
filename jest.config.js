@@ -109,7 +109,7 @@ module.exports = {
   // reporters: undefined,
 
   // Automatically reset mock state before every test
-  // resetMocks: false,
+  // resetMocks: true,
 
   // Reset the module registry before running each individual test
   // resetModules: false,
@@ -118,7 +118,7 @@ module.exports = {
   // resolver: undefined,
 
   // Automatically restore mock state and implementation before every test
-  // restoreMocks: false,
+  // restoreMocks: true,
 
   // The root directory that Jest should scan for tests and modules within
   // rootDir: undefined,
@@ -153,12 +153,11 @@ module.exports = {
   // testLocationInResults: false,
 
   // The glob patterns Jest uses to detect test files
-  // testMatch: [
-  //   "**/__tests__/**/*.[jt]s?(x)",
-  //   "**/?(*.)+(spec|test).[tj]s?(x)"
-  // ],
+  testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[tj]s?(x)'],
+  //testMatch: ["**/__tests__/**/*.[jt]s?(x)","**/?(*.)+(spec|test).[tj]s?(x)"],
 
   // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
+  testPathIgnorePatterns: ['\\\\node_modules\\\\'],
   // testPathIgnorePatterns: [
   //   "\\\\node_modules\\\\"
   // ],
@@ -167,6 +166,7 @@ module.exports = {
   // testRegex: [],
 
   // This option allows the use of a custom results processor
+  testResultsProcessor: 'jest-sonar-reporter',
   // testResultsProcessor: undefined,
 
   // This option allows use of a custom test runner
