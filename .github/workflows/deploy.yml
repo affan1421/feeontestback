@@ -99,7 +99,8 @@ jobs:
       - run: pwd
       - run: cd /home/ubuntu/feeOn-backend/
       - run: npm install
-      - run: pm2 restart /home/ubuntu/feeOn-backend/index.js --update-env
+      - run: pwd
+      - run: pm2 restart index.js
 
        
   Deployed_To_EC2:
