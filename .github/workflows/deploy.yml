@@ -1,30 +1,103 @@
-name: EC2 DEPLOY
-
-on:
+name: Prod -Backend
+on: 
   push:
-    branches: [ "main" ]
+    branches:
+    - prod
   pull_request:
-    branches: [ "main" ]
-
+    branches:
+    - main
 jobs:
-  Copy_Files_To_EC2:
+  Slack_Notification:
     runs-on: ubuntu-latest
     steps:
+      - name: Notify slack success
+        if: success()
+        id: slack # IMPORTANT: reference this step ID value in future Slack steps
+        env:
+          SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
+        uses: voxmedia/github-action-slack-notify-build@v1.1.2
+        with:
+           channel: actions_notification
+           status: STARTING
+           color: 0000FF
+        
+  Code_Analysis:
+      runs-on: ubuntu-latest
+      needs: Slack_Notification
+      steps:
+         - name: Checkout the files
+           uses: actions/checkout@v3
+         - name: Sonar-Scanner
+           uses: sonarsource/sonarqube-scan-action@master
+           with:
+             fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+           env:
+            SONAR_TOKEN: sqa_6f9050b5ddc3abf2cbaa079d134a9fd8cff8d92f
+            SONAR_HOST_URL: http://65.0.97.30:9000
+            
+  Quality_Gate_Check:
+      runs-on: ubuntu-latest
+      needs: Code_Analysis
+      steps:
+         - name: Checkout the files
+           uses: actions/checkout@v3
+         - name: SonarQube Qality Gate check
+           uses: sonarsource/sonarqube-quality-gate-action@master
+           env:
+            SONAR_TOKEN: squ_0c26aa9de14842c74fc9041a77892ae7e9a67d49
+            SONAR_HOST_URL: http://65.0.97.30:9000 
+
+  Slack_Notifications:
+    runs-on: ubuntu-latest
+    needs: Quality_Gate_Check
+    steps:
+      - name: Notify slack success
+        if: success()
+        id: slack # IMPORTANT: reference this step ID value in future Slack steps
+        env:
+          SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
+        uses: voxmedia/github-action-slack-notify-build@v1.1.2
+        with:
+           channel: actions_notification
+           status: Quality Gate Passed
+           color: 0000FF
+            
+  Build_And_Copy_files_to_EC2:
+   runs-on: ubuntu-latest
+   needs: Slack_Notifications
+   steps:
       - name: "Checkout repository"
         uses: actions/checkout@v3
       - run: pwd    
       - name: "Copying Files"
         uses: garygrossgarten/github-action-scp@release
         with:
-          local: /home/runner/work/erp-backend/erp-backend/
-          remote: /home/ubuntu/erp-backend/
-          host: ${{ secrets.HOST_DNS }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
+          local: /home/runner/work/feeOn-backend/feeOn-backend/
+          remote: /home/ubuntu/feeOn-backend/
+          host: 65.1.196.45 
+          username: ubuntu
+          password: erp1234
       
   Restarting_Backend: 
     runs-on: self-hosted
-    needs: Copy_Files_To_EC2
+    needs: Build_And_Copy_files_to_EC2
     steps: 
+      - run: pwd
       - run: npm install
       - run: pm2 restart index
+
+       
+  Deployed_To_EC2:
+    runs-on: ubuntu-latest
+    needs: Restarting_Backend
+    steps:
+      - name: Notify slack success
+        if: success()
+        id: slack # IMPORTANT: reference this step ID value in future Slack steps
+        env:
+          SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
+        uses: voxmedia/github-action-slack-notify-build@v1.1.2
+        with:
+           channel: actions_notification
+           status: SUCCESS
+           color: 0000FF
