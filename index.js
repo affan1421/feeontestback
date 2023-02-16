@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
-  res.send('Server is Running.....');
+  res.send('Servers is Running');
 });
 
 const port = process.env.PORT || 3000;
