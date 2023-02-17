@@ -92,7 +92,7 @@ jobs:
           password: erp1234
       
   Restarting_Backend: 
-    runs-on: self-hosted
+    runs-on: staging
     needs: Build_And_Copy_files_to_EC2
     steps: 
       - run: pwd
