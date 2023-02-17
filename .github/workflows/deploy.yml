@@ -84,7 +84,7 @@ jobs:
     steps: 
       - run: pwd
       - run: npm install
-      - run: pm2 restart index
+      - run: pm2 restart backend
 
        
   Deployed_To_EC2:
