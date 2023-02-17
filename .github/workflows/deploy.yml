@@ -79,12 +79,13 @@ jobs:
           password: erp1234
       
   Restarting_Backend: 
-    runs-on: self-hosted
+    runs-on: prod
     needs: Build_And_Copy_files_to_EC2
     steps: 
       - run: pwd
       - run: cd /home/ubuntu/feeOn-backend/
       - run: npm install
+      - run: pm2 status
       - run: pm2 restart backend
 
        
