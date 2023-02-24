@@ -33,7 +33,7 @@ jobs:
              fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
            env:
             SONAR_TOKEN: sqa_6f9050b5ddc3abf2cbaa079d134a9fd8cff8d92f
-            SONAR_HOST_URL: http://65.0.97.30:9000
+            SONAR_HOST_URL: https://sonar.growon.app/
             
   Quality_Gate_Check:
       runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
            uses: sonarsource/sonarqube-quality-gate-action@master
            env:
             SONAR_TOKEN: squ_0c26aa9de14842c74fc9041a77892ae7e9a67d49
-            SONAR_HOST_URL: http://65.0.97.30:9000 
+            SONAR_HOST_URL: https://sonar.growon.app/
 
   Slack_Notifications:
     runs-on: ubuntu-latest
