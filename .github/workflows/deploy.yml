@@ -20,7 +20,12 @@ jobs:
            channel: actions_notification
            status: STARTING
            color: 0000FF
-        
+      - name: Approval
+        uses: trstringer/manual-approval@v1
+        with:
+         timeout-minutes: 1
+         secret: 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
+         approvers: nawaz-cumin,HafizIkram
   Code_Analysis:
       runs-on: ubuntu-latest
       needs: Slack_Notification
