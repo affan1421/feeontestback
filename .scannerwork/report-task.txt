@@ -2,5 +2,5 @@ projectKey=feeOn-Backend
 serverUrl=https://sonar.growon.app/
 serverVersion=9.7.1.62043
 dashboardUrl=https://sonar.growon.app/dashboard?id=feeOn-Backend
-ceTaskId=AYac-njFkRyRPC4KjkKC
-ceTaskUrl=https://sonar.growon.app/api/ce/task?id=AYac-njFkRyRPC4KjkKC
+ceTaskId=AYag8XrakRyRPC4KjkKw
+ceTaskUrl=https://sonar.growon.app/api/ce/task?id=AYag8XrakRyRPC4KjkKw
