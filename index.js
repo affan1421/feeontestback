@@ -27,6 +27,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/v1/user', require('./router/user'));
+app.use('/api/v1/feetype', require('./router/feeType'));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

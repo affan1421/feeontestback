@@ -1,4 +1,4 @@
-const Feetype = require('../models/feetype');
+const Feetype = require('../models/feeType');
 
 // CREATE
 exports.create = async (req, res) => {
