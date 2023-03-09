@@ -1,20 +1,27 @@
 const express = require('express');
+
 const router = express.Router();
-const feetypeController = require('../controller/feeType');
+const {
+	getTypes,
+	create,
+	read,
+	update,
+	feeDelete,
+} = require('../controller/feeType');
+
+// GET
+router.get('/', getTypes);
 
 // CREATE
-router.post('/', feetypeController.create);
+router.post('/', create);
 
 // READ
-router.get('/:id', feetypeController.read);
+router.get('/:id', read);
 
 // UPDATE
-router.put('/:id', feetypeController.update);
+router.put('/:id', update);
 
 // DELETE
-router.delete('/:id', feetypeController.delete);
-
-// LIST
-router.get('/', feetypeController.list);
+router.delete('/:id', feeDelete);
 
 module.exports = router;

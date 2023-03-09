@@ -1,0 +1,466 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "FeeOn APIs",
+    "description": "Documentation of All the APIs in FeeOn"
+  },
+  "basePath": "/api/v1",
+  "schemes": ["http", "https"],
+  "tags": [
+    {
+      "name": "Fee Type",
+      "description": "Endpoints related to Fee Type"
+    }
+  ],
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "JWT Bearer token"
+    }
+  },
+  "paths": {
+    "/feetype": {
+      "get": {
+        "tags": ["Fee Type"],
+        "summary": "This API fetches all the list of fee types available with pagination.",
+        "parameters": [
+          {
+            "name": "school",
+            "in": "query",
+            "description": "School Id",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "accountType",
+            "in": "query",
+            "description": "Account type to filter the types",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page number",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of documents to limit number",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "array"
+                },
+                "resultCount": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Fee Types Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["Fee Type"],
+        "summary": "Create a new feetype",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "Admission Fee"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "This is admission fee"
+          },
+          {
+            "name": "accountType",
+            "in": "formData",
+            "description": "The account type of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "Assets"
+          },
+          {
+            "name": "school",
+            "in": "formData",
+            "description": "The school of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "62430d9eea0eaa0bc3e6127e"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created Successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "success"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "_id": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Admission Fee"
+                    },
+                    "description": {
+                      "type": "string",
+                      "example": "Fee charged during admission"
+                    },
+                    "accountType": {
+                      "type": "string",
+                      "example": "Assets"
+                    },
+                    "school": {
+                      "type": "string",
+                      "example": "62430d9eea0eaa0bc3e6127e"
+                    },
+                    "createdAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    },
+
+                    "updatedAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Created Successfully"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "input validation failed",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "input validation failed"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Error creating feetype"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/feetype/{id}": {
+      "get": {
+        "tags": ["Fee Type"],
+        "summary": "This API fetches a single feetype by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feetype",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Admission Fee"
+                    },
+                    "description": {
+                      "type": "string",
+                      "example": "Fee charged during admission"
+                    },
+                    "accountType": {
+                      "type": "string",
+                      "example": "Assets"
+                    },
+                    "school": {
+                      "type": "string",
+                      "example": "62430d9eea0eaa0bc3e6127e"
+                    },
+                    "createdAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    },
+
+                    "updatedAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Fee Type Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": ["Fee Type"],
+        "summary": "This API updates a single feetype by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feetype",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "Admission Fee"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "This is admission fee"
+          },
+          {
+            "name": "accountType",
+            "in": "formData",
+            "description": "The account type of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "income"
+          },
+          {
+            "name": "school",
+            "in": "formData",
+            "description": "The school of the feetype",
+            "required": true,
+            "type": "string",
+            "example": "4f4f4f4f4fefefefeefefefef"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Admission Fee"
+                    },
+                    "description": {
+                      "type": "string",
+                      "example": "Fee charged during admission"
+                    },
+                    "accountType": {
+                      "type": "string",
+                      "example": "Assets"
+                    },
+                    "school": {
+                      "type": "string",
+                      "example": "62430d9eea0eaa0bc3e6127e"
+                    },
+                    "createdAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    },
+                    "updatedAt": {
+                      "type": "date",
+                      "example": "2023-03-09T11:00:12.639Z"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Updated Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Fee Type Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": ["Fee Type"],
+        "summary": "This API deletes a single feetype by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feetype",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "undefined",
+                  "example": null
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Deleted Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Fee Type Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  }
+}

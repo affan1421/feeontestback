@@ -2,13 +2,29 @@ const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const bodyParser = require('body-parser');
+const swaggerDocument = require('./swagger.json');
+const authenticateUser = require('./middleware/authorize');
 
 const app = express();
-const bodyParser = require('body-parser');
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
+
+const options = {
+	explorer: true,
+	swaggerOptions: {
+		validatorUrl: null,
+	},
+};
+
+app.use(
+	'/api-docs',
+	swaggerUi.serve,
+	swaggerUi.setup(swaggerDocument, options)
+);
 
 mongoose
 	.connect(process.env.MONGO_URI, {
@@ -26,12 +42,13 @@ app.get('/', (req, res) => {
 	res.send('Server is up and Running👨‍💻👩‍💻');
 });
 
-app.use('/api/v1/user', require('./router/user'));
+app.use(authenticateUser);
+
 app.use('/api/v1/feetype', require('./router/feeType'));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-	console.log(`Servers is listening on port ${port}`);
+	console.log(`Servers is listening on http://localhost:${port}`);
 });
 
 module.exports = app;
