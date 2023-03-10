@@ -5,10 +5,10 @@ const SuccessResponse = require('../utils/successResponse');
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	const { school, accountType, page = 0, limit = 10 } = req.query;
+	const { schoolId, accountType, page = 0, limit = 10 } = req.query;
 	const payload = {};
-	if (school) {
-		payload.school = school;
+	if (schoolId) {
+		payload.schoolId = schoolId;
 	}
 	if (accountType) {
 		payload.accountType = accountType;
@@ -21,23 +21,24 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	}
 	res
 		.status(200)
-		.json(
-			new SuccessResponse(feetypes, feetypes.length, 'Fetched Successfully')
-		);
+		.json(SuccessResponse(feetypes, feetypes.length, 'Fetched Successfully'));
 });
 
 // CREATE
 exports.create = catchAsync(async (req, res, next) => {
-	const { name, description, accountType, school } = req.body;
-	console.log('hit', req.body);
-	if (!name || !description || !accountType || !school) {
+	const { feeType, description, accountType, schoolId } = req.body;
+	const isExists = await Feetype.findOne({ feeType, schoolId });
+	if (isExists) {
+		return next(new ErrorResponse('Fee type already exists', 400));
+	}
+	if (!feeType || !description || !accountType || !schoolId) {
 		return next(new ErrorResponse('Please enter all fields', 204));
 	}
 	const newFeetype = await Feetype.create({
-		name,
+		feeType,
 		description,
 		accountType,
-		school,
+		schoolId,
 	});
 	if (!newFeetype) {
 		return next(new ErrorResponse('Error creating feetype', 400));
@@ -58,10 +59,10 @@ exports.read = catchAsync(async (req, res, next) => {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { name, description, accountType, school } = req.body;
+	const { feeType, description, accountType, schoolId } = req.body;
 	const feetype = await Feetype.findByIdAndUpdate(
 		id,
-		{ name, description, accountType, school },
+		{ feeType, description, accountType, schoolId },
 		{ new: true }
 	);
 	if (feetype === null) {

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const feetypeSchema = new mongoose.Schema(
 	{
-		name: {
+		feeType: {
 			type: String,
 			required: [true, 'Please enter feetype name'],
 		},
@@ -29,7 +29,7 @@ const feetypeSchema = new mongoose.Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
-		school: {
+		schoolId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'Please enter school id'],

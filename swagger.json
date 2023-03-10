@@ -28,18 +28,18 @@
         "summary": "This API fetches all the list of fee types available with pagination.",
         "parameters": [
           {
-            "name": "school",
+            "name": "schoolId",
             "in": "query",
             "description": "School Id",
             "required": false,
-            "type": "integer"
+            "type": "string"
           },
           {
             "name": "accountType",
             "in": "query",
             "description": "Account type to filter the types",
             "required": false,
-            "type": "integer"
+            "type": "string"
           },
           {
             "name": "page",
@@ -95,7 +95,7 @@
         "summary": "Create a new feetype",
         "parameters": [
           {
-            "name": "name",
+            "name": "feeType",
             "in": "formData",
             "description": "The name of the feetype",
             "required": true,
@@ -119,7 +119,7 @@
             "example": "Assets"
           },
           {
-            "name": "school",
+            "name": "schoolId",
             "in": "formData",
             "description": "The school of the feetype",
             "required": true,
@@ -144,7 +144,7 @@
                       "type": "string",
                       "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
                     },
-                    "name": {
+                    "feeType": {
                       "type": "string",
                       "example": "Admission Fee"
                     },
@@ -156,7 +156,7 @@
                       "type": "string",
                       "example": "Assets"
                     },
-                    "school": {
+                    "schoolId": {
                       "type": "string",
                       "example": "62430d9eea0eaa0bc3e6127e"
                     },
@@ -251,7 +251,7 @@
                       "type": "string",
                       "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
                     },
-                    "name": {
+                    "feeType": {
                       "type": "string",
                       "example": "Admission Fee"
                     },
@@ -263,7 +263,7 @@
                       "type": "string",
                       "example": "Assets"
                     },
-                    "school": {
+                    "schoolId": {
                       "type": "string",
                       "example": "62430d9eea0eaa0bc3e6127e"
                     },
@@ -314,7 +314,7 @@
             "type": "string"
           },
           {
-            "name": "name",
+            "name": "feeType",
             "in": "formData",
             "description": "The name of the feetype",
             "required": true,
@@ -338,7 +338,7 @@
             "example": "income"
           },
           {
-            "name": "school",
+            "name": "schoolId",
             "in": "formData",
             "description": "The school of the feetype",
             "required": true,
@@ -362,7 +362,7 @@
                       "type": "string",
                       "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
                     },
-                    "name": {
+                    "feeType": {
                       "type": "string",
                       "example": "Admission Fee"
                     },
@@ -374,7 +374,7 @@
                       "type": "string",
                       "example": "Assets"
                     },
-                    "school": {
+                    "schoolId": {
                       "type": "string",
                       "example": "62430d9eea0eaa0bc3e6127e"
                     },
