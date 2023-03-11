@@ -20,12 +20,12 @@ jobs:
           channel: actions_notification
           status: STARTING
           color: 0000FF
-      - name: Approval
-        uses: trstringer/manual-approval@v1
-        timeout-minutes: 1
-        with:
-          secret: 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
-          approvers: nawaz-cumin, hafiz-ikram
+      # - name: Approval
+      #   uses: trstringer/manual-approval@v1
+      #   timeout-minutes: 1
+      #   with:
+      #     secret: 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
+      #     approvers: nawaz-cumin, hafiz-ikram
 
   Code_Analysis:
     runs-on: ubuntu-latest
