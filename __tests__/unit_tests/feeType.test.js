@@ -177,6 +177,7 @@ describe('Fee type controller', () => {
 				400
 			);
 		});
+
 		// it('should return a fee type created', async () => {
 		// 	const req = (mockRequest().body = {
 		// 		body: {
