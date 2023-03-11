@@ -1,11 +1,11 @@
 name: Staging -Backend
-on: 
+on:
   push:
     branches:
-    - dev
+      - dev
   pull_request:
     branches:
-    - main
+      - main
 jobs:
   Slack_Notification:
     runs-on: ubuntu-latest
@@ -17,53 +17,54 @@ jobs:
           SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
         uses: voxmedia/github-action-slack-notify-build@v1.1.2
         with:
-           channel: actions_notification
-           status: STARTING
-           color: 0000FF
+          channel: actions_notification
+          status: STARTING
+          color: 0000FF
       - name: Approval
         uses: trstringer/manual-approval@v1
         timeout-minutes: 1
         with:
-         secret: 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
-         approvers: nawaz-cumin, hafiz-ikram
+          secret: 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
+          approvers: nawaz-cumin, hafiz-ikram
+
   Code_Analysis:
-      runs-on: ubuntu-latest
-      needs: Slack_Notification
-      steps:
+    runs-on: ubuntu-latest
+    needs: Slack_Notification
+    steps:
       - name: Checkout the files
-        uses: actions/checkout@v3   
-      
+        uses: actions/checkout@v3
+
       - name: SETUP NODE.JS ENVIRONMENT
         uses: actions/setup-node@v3.3.0
-          
+
       - name: NPM INSTALL & NPM BUILD
         run: |
-            cd /home/runner/work/feeOn-backend/feeOn-backend
-            npm install
-            npm run test
-              
+          cd /home/runner/work/feeOn-backend/feeOn-backend
+          npm install
+          npm run test
+
       - name: Sonar-Scanner
         uses: sonarsource/sonarqube-scan-action@master
         with:
-           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
         env:
-            SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
-            SONAR_HOST_URL: https://sonar.growon.app/
-            
+          SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
+          SONAR_HOST_URL: https://sonar.growon.app/
+
   Quality_Gate_Check:
-      runs-on: ubuntu-latest
-      needs: Code_Analysis
-      steps:
-         - name: Checkout the files
-           uses: actions/checkout@v3
-         
-         - name: SonarQube Qality Gate check
-           uses: sonarsource/sonarqube-quality-gate-action@master
-           with:
-              scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
-           env:
-            SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
-            SONAR_HOST_URL: https://sonar.growon.app/ 
+    runs-on: ubuntu-latest
+    needs: Code_Analysis
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v3
+
+      - name: SonarQube Qality Gate check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
+        env:
+          SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
+          SONAR_HOST_URL: https://sonar.growon.app/
 
   Slack_Notifications:
     runs-on: ubuntu-latest
@@ -76,17 +77,17 @@ jobs:
           SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
         uses: voxmedia/github-action-slack-notify-build@v1.1.2
         with:
-           channel: actions_notification
-           status: Quality Gate Passed
-           color: 0000FF
-            
+          channel: actions_notification
+          status: Quality Gate Passed
+          color: 0000FF
+
   Build_And_Copy_files_to_EC2:
-   runs-on: ubuntu-latest
-   needs: Slack_Notifications
-   steps:
+    runs-on: ubuntu-latest
+    needs: Slack_Notifications
+    steps:
       - name: "Checkout repository"
         uses: actions/checkout@v3
-      - run: pwd    
+      - run: pwd
       - name: "Copying Files"
         uses: garygrossgarten/github-action-scp@release
         with:
@@ -95,18 +96,17 @@ jobs:
           host: 65.2.123.21
           username: ubuntu
           password: erp1234
-      
-  Restarting_Backend: 
+
+  Restarting_Backend:
     runs-on: staging
     needs: Build_And_Copy_files_to_EC2
-    steps: 
+    steps:
       - run: pwd
       - run: npm install
       - run: pwd
       - run: pm2 status
       - run: pm2 restart backend
 
-       
   Deployed_To_EC2:
     runs-on: ubuntu-latest
     needs: Restarting_Backend
@@ -118,6 +118,6 @@ jobs:
           SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
         uses: voxmedia/github-action-slack-notify-build@v1.1.2
         with:
-           channel: actions_notification
-           status: SUCCESS
-           color: 0000FF
+          channel: actions_notification
+          status: SUCCESS
+          color: 0000FF
