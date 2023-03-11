@@ -6,7 +6,7 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
 const swaggerDocument = require('./swagger.json');
-const authenticateUser = require('./middleware/authorize');
+const { authenticateUser } = require('./middleware/authorize');
 
 const app = express();
 

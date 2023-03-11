@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testExecutions version="1">
-    <file path="C:\Users\Akif\Desktop\feeOn-Backend\feeOn-backend\index.test.js">
-        <testCase name="GET / responds with &quot;Server is up and Running👨‍💻👩‍💻&quot;" duration="97"/>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit_tests\authorize.js">
+        <testCase name="authenticateUser middleware should return 401 error if Authorization header is missing" duration="6"/>
+        <testCase name="authenticateUser middleware should return 401 error if token is not in Bearer format" duration="2"/>
+        <testCase name="authenticateUser middleware should return 401 error if token is invalid" duration="2"/>
+        <testCase name="authenticateUser middleware should return 401 error if user is not found" duration="67"/>
+        <testCase name="authenticateUser middleware should attach user to the request object and cache the user" duration="12"/>
+        <testCase name="authenticateUser middleware should use cached user if available" duration="12"/>
     </file>
 </testExecutions>
