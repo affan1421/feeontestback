@@ -27,12 +27,12 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // CREATE
 exports.create = catchAsync(async (req, res, next) => {
 	const { feeType, description, accountType, schoolId } = req.body;
+	if (!feeType || !description || !accountType || !schoolId) {
+		return next(new ErrorResponse('Please enter all fields', 204));
+	}
 	const isExists = await Feetype.findOne({ feeType, schoolId });
 	if (isExists) {
 		return next(new ErrorResponse('Fee type already exists', 400));
-	}
-	if (!feeType || !description || !accountType || !schoolId) {
-		return next(new ErrorResponse('Please enter all fields', 204));
 	}
 	const newFeetype = await Feetype.create({
 		feeType,
@@ -40,9 +40,11 @@ exports.create = catchAsync(async (req, res, next) => {
 		accountType,
 		schoolId,
 	});
+	console.log(newFeetype);
 	if (!newFeetype) {
 		return next(new ErrorResponse('Error creating feetype', 400));
 	}
+	console.log('hit');
 	res.status(201).json(SuccessResponse(newFeetype, 1, 'Created Successfully'));
 });
 
