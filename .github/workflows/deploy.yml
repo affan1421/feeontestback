@@ -24,8 +24,8 @@ jobs:
         uses: trstringer/manual-approval@v1
         timeout-minutes: 1
         with:
-           secret: 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
-           approvers: nawaz-cumin,hafiz-ikram
+          secret: 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
+          approvers: hafiz-ikram
 
   Code_Analysis:
     runs-on: ubuntu-latest
@@ -40,8 +40,8 @@ jobs:
       - name: NPM INSTALL & NPM BUILD
         run: |
           cd /home/runner/work/feeOn-backend/feeOn-backend
-          npm install
-          npm run test
+          npm install --verbose
+          npm run test --verbose
 
       - name: Sonar-Scanner
         uses: sonarsource/sonarqube-scan-action@master
