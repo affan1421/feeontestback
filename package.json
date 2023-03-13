@@ -7,7 +7,7 @@
     "sonar": "node sonar-project.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "jest --coverage --config=./jest.config.js --forceExit --watchAll"
+    "test": "jest --coverage --config=./jest.config.js --forceExit"
   },
   "jest": {
     "testEnvironment": "node",
