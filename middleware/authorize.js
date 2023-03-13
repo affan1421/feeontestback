@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const ErrorResponse = require('../utils/errorResponse');
 
 const cache = new Map();
 
@@ -51,7 +52,10 @@ const authenticateUser = async (req, res, next) => {
 
 		next();
 	} catch (error) {
-		next(error.message);
+		next(
+			// If an error occurs, return a 401 Unauthorized response
+			res.status(401).json(new ErrorResponse('Unauthorized', 401))
+		);
 	}
 };
 module.exports = { authenticateUser, cache };
