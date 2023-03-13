@@ -39,7 +39,6 @@ const authenticateUser = async (req, res, next) => {
 			`${process.env.GROWON_BASE_URL}/auth/erp?userId=${id}`
 		);
 		const user = response.data;
-
 		if (!user) {
 			return res.status(401).json({ message: 'Unauthorized' });
 		}
@@ -54,7 +53,7 @@ const authenticateUser = async (req, res, next) => {
 	} catch (error) {
 		next(
 			// If an error occurs, return a 401 Unauthorized response
-			res.status(401).json(new ErrorResponse('Unauthorized', 401))
+			res.status(401).json({ message: error.message })
 		);
 	}
 };
