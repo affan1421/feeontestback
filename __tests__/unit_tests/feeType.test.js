@@ -149,10 +149,10 @@ describe('Fee type controller', () => {
 			});
 			const res = mockResponse();
 			await create(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(204);
+			expect(res.status).toHaveBeenCalledWith(422);
 			expect(ErrorResponse).toHaveBeenCalledWith(
 				'Please enter all fields',
-				204
+				422
 			);
 		});
 		it('should return fee type already exists', async () => {
