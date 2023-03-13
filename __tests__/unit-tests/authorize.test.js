@@ -53,7 +53,7 @@ describe('authenticateUser middleware', () => {
 		jest.spyOn(jwt, 'verify').mockResolvedValueOnce(null);
 		await authenticateUser(req, res, mockNext);
 		expect(res.status).toHaveBeenCalledWith(401);
-		expect(res.json).toHaveBeenCalledWith({ message: 'invalid token' });
+		expect(res.json).toHaveBeenCalledWith({ message: 'Invalid Token' });
 	});
 
 	it('should return 401 error if user is not found', async () => {

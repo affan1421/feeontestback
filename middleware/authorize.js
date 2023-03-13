@@ -20,7 +20,7 @@ const authenticateUser = async (req, res, next) => {
 		const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
 
 		if (!decodedToken) {
-			return res.status(401).json({ message: 'invalid token' });
+			return res.status(401).json({ message: 'Invalid Token' });
 		}
 
 		// Extract the user's ID from the decoded token
