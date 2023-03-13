@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1678697993213" clover="3.2.0">
-  <project timestamp="1678697993213" name="All files">
+<coverage generated="1678698631024" clover="3.2.0">
+  <project timestamp="1678698631025" name="All files">
     <metrics statements="120" coveredstatements="110" conditionals="38" coveredconditionals="26" methods="15" coveredmethods="12" elements="173" coveredelements="148" complexity="0" loc="120" ncloc="120" packages="6" files="8" classes="8"/>
     <package name="feeOn-backend">
       <metrics statements="26" coveredstatements="24" conditionals="2" coveredconditionals="1" methods="4" coveredmethods="2"/>

@@ -48,7 +48,7 @@ describe('Fee type controller', () => {
 			}));
 			await getTypes(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(404);
-			expect(ErrorResponse).toHaveBeenCalledWith('No feetype found', 404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		it('should return all fees type', async () => {
 			const req = (mockRequest().query = {
@@ -102,7 +102,7 @@ describe('Fee type controller', () => {
 			jest.spyOn(FeeType, 'findById').mockResolvedValueOnce(null);
 			await read(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(404);
-			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		it('should return a fee type', async () => {
 			const req = (mockRequest().params = {
@@ -151,7 +151,7 @@ describe('Fee type controller', () => {
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(422);
 			expect(ErrorResponse).toHaveBeenCalledWith(
-				'Please enter all fields',
+				'Please Enter All Fields',
 				422
 			);
 		});
@@ -175,7 +175,7 @@ describe('Fee type controller', () => {
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(400);
 			expect(ErrorResponse).toHaveBeenCalledWith(
-				'Fee type already exists',
+				'Fee Type Already Exists',
 				400
 			);
 		});
@@ -232,7 +232,7 @@ describe('Fee type controller', () => {
 			jest.spyOn(FeeType, 'findByIdAndUpdate').mockResolvedValueOnce(null);
 			await update(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(404);
-			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		// it('should return a fee type updated', async () => {
 		// 	const req = (mockRequest().body = {
@@ -280,7 +280,7 @@ describe('Fee type controller', () => {
 			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce(null);
 			await feeDelete(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(404);
-			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		// it('should return a fee type deleted', async () => {
 		// 	const req = (mockRequest().body = {
