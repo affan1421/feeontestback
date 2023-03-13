@@ -68,11 +68,12 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { feeType, description, accountType, schoolId } = req.body;
-	const feetype = await Feetype.findByIdAndUpdate(
-		id,
-		{ feeType, description, accountType, schoolId },
-		{ new: true }
-	);
+	const feetype = await Feetype.findByIdAndUpdate(id, {
+		feeType,
+		description,
+		accountType,
+		schoolId,
+	});
 	if (feetype === null) {
 		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
 	}

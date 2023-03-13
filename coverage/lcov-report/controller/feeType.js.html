@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">74.46% </span>
+                <span class="strong">82.97% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>35/47</span>
+                <span class='fraction'>39/47</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">58.33% </span>
+                <span class="strong">62.5% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>14/24</span>
+                <span class='fraction'>15/24</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">74.46% </span>
+                <span class="strong">82.97% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>35/47</span>
+                <span class='fraction'>39/47</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -147,7 +147,14 @@
 <a name='L82'></a><a href='#L82'>82</a>
 <a name='L83'></a><a href='#L83'>83</a>
 <a name='L84'></a><a href='#L84'>84</a>
-<a name='L85'></a><a href='#L85'>85</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -179,9 +186,13 @@
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -193,6 +204,8 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -210,14 +223,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -250,7 +264,7 @@ exports.getTypes = catchAsync(async (req, res, next) =&gt; {
 		.skip(page * limit)
 		.limit(limit);
 	if (feetypes.length === 0) {
-		return next(new ErrorResponse('No feetype found', 404));
+		return res.status(404).json(new ErrorResponse('No feetype found', 404));
 	}
 	res
 		.status(200)
@@ -261,11 +275,15 @@ exports.getTypes = catchAsync(async (req, res, next) =&gt; {
 exports.create = catchAsync(async (req, res, next) =&gt; {
 	const { feeType, description, accountType, schoolId } = req.body;
 	if (!feeType || !description || !accountType || !schoolId) {
-		return next(new ErrorResponse('Please enter all fields', 204));
+		return res
+			.status(204)
+			.json(new ErrorResponse('Please enter all fields', 204));
 	}
 	const isExists = await Feetype.findOne({ feeType, schoolId });
 	<span class="missing-if-branch" title="else path not taken" >E</span>if (isExists) {
-		return next(new ErrorResponse('Fee type already exists', 400));
+		return res
+			.status(400)
+			.json(new ErrorResponse('Fee type already exists', 400));
 	}
 	const newFeetype = <span class="cstat-no" title="statement not covered" >await Feetype.create({</span>
 		feeType,
@@ -275,7 +293,9 @@ exports.create = catchAsync(async (req, res, next) =&gt; {
 	});
 <span class="cstat-no" title="statement not covered" >	console.log(newFeetype);</span>
 <span class="cstat-no" title="statement not covered" >	if (!newFeetype) {</span>
-<span class="cstat-no" title="statement not covered" >		return next(new ErrorResponse('Error creating feetype', 400));</span>
+<span class="cstat-no" title="statement not covered" >		return res</span>
+			.status(400)
+			.json(new ErrorResponse('Error creating feetype', 400));
 	}
 <span class="cstat-no" title="statement not covered" >	console.log('hit');</span>
 <span class="cstat-no" title="statement not covered" >	res.status(201).json(SuccessResponse(newFeetype, 1, 'Created Successfully'));</span>
@@ -286,7 +306,7 @@ exports.read = catchAsync(async (req, res, next) =&gt; {
 	const { id } = req.params;
 	const feetype = await Feetype.findById(id);
 	if (feetype === null) {
-		return next(new ErrorResponse('Feetype not found', 404));
+		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
 	}
 	res.status(200).json(SuccessResponse(feetype, 1, 'Fetched Successfully'));
 });
@@ -294,14 +314,15 @@ exports.read = catchAsync(async (req, res, next) =&gt; {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) =&gt; {
 	const { id } = req.params;
-	const { feeType, description, accountType, schoolId } = <span class="cstat-no" title="statement not covered" >req.body;</span>
-	const feetype = <span class="cstat-no" title="statement not covered" >await Feetype.findByIdAndUpdate(</span>
-		id,
-		{ feeType, description, accountType, schoolId },
-		{ new: true }
-	);
-<span class="cstat-no" title="statement not covered" >	if (feetype === null) {</span>
-<span class="cstat-no" title="statement not covered" >		return next(new ErrorResponse('Feetype not found', 404));</span>
+	const { feeType, description, accountType, schoolId } = req.body;
+	const feetype = await Feetype.findByIdAndUpdate(id, {
+		feeType,
+		description,
+		accountType,
+		schoolId,
+	});
+	<span class="missing-if-branch" title="else path not taken" >E</span>if (feetype === null) {
+		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
 	}
 <span class="cstat-no" title="statement not covered" >	res.status(200).json(SuccessResponse(feetype, 1, 'Updated Successfully'));</span>
 });
@@ -311,7 +332,7 @@ exports.feeDelete = catchAsync(async (req, res, next) =&gt; {
 	const { id } = req.params;
 	const feetype = await Feetype.findByIdAndDelete(id);
 	<span class="missing-if-branch" title="else path not taken" >E</span>if (feetype === null) {
-		return next(new ErrorResponse('Feetype not found', 404));
+		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
 	}
 <span class="cstat-no" title="statement not covered" >	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));</span>
 });
@@ -322,7 +343,7 @@ exports.feeDelete = catchAsync(async (req, res, next) =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2023-03-13T04:25:58.004Z
+                at 2023-03-13T05:16:31.283Z
             </div>
         <script src="../prettify.js"></script>
         <script>

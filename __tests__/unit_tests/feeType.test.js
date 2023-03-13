@@ -47,7 +47,8 @@ describe('Fee type controller', () => {
 				}),
 			}));
 			await getTypes(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(404);
+			expect(ErrorResponse).toHaveBeenCalledWith('No feetype found', 404);
 		});
 		it('should return all fees type', async () => {
 			const req = (mockRequest().query = {
@@ -100,7 +101,8 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findById').mockResolvedValueOnce(null);
 			await read(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
 		});
 		it('should return a fee type', async () => {
 			const req = (mockRequest().params = {
@@ -147,7 +149,7 @@ describe('Fee type controller', () => {
 			});
 			const res = mockResponse();
 			await create(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(204);
 			expect(ErrorResponse).toHaveBeenCalledWith(
 				'Please enter all fields',
 				204
@@ -171,7 +173,7 @@ describe('Fee type controller', () => {
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			await create(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(400);
 			expect(ErrorResponse).toHaveBeenCalledWith(
 				'Fee type already exists',
 				400
@@ -216,6 +218,9 @@ describe('Fee type controller', () => {
 	describe('PUT - /:id', () => {
 		it('should return no fee type found', async () => {
 			const req = (mockRequest().body = {
+				params: {
+					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
 				body: {
 					feeType: 'Tuition',
 					description: 'Tuition fee',
@@ -226,7 +231,8 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findByIdAndUpdate').mockResolvedValueOnce(null);
 			await update(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
 		});
 		// it('should return a fee type updated', async () => {
 		// 	const req = (mockRequest().body = {
@@ -273,7 +279,8 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce(null);
 			await feeDelete(req, res, mockNext);
-			expect(mockNext).toHaveBeenCalled();
+			expect(res.status).toHaveBeenCalledWith(404);
+			expect(ErrorResponse).toHaveBeenCalledWith('Feetype not found', 404);
 		});
 		// it('should return a fee type deleted', async () => {
 		// 	const req = (mockRequest().body = {
