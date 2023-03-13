@@ -40,12 +40,14 @@ describe('Fee type controller', () => {
 				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'find').mockImplementationOnce(() => ({
-				skip: jest.fn().mockReturnThis(),
-				limit: jest.fn().mockResolvedValueOnce({
-					length: 0,
-				}),
-			}));
+			jest.spyOn(FeeType, 'aggregate').mockResolvedValueOnce([
+				{
+					data: [],
+					count: {
+						length: 0,
+					},
+				},
+			]);
 			await getTypes(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(404);
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
@@ -56,22 +58,28 @@ describe('Fee type controller', () => {
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 					accountType: 'income',
 					page: 0,
-					limit: 10,
+					limit: 1,
 				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'find').mockImplementationOnce(() => ({
-				skip: jest.fn().mockReturnThis(),
-				limit: jest.fn().mockResolvedValueOnce([
-					{
-						_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-						feeType: 'Tuition',
-						description: 'Tuition fee',
-						accountType: 'income',
-						schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-					},
-				]),
-			}));
+			jest.spyOn(FeeType, 'aggregate').mockResolvedValueOnce([
+				{
+					data: [
+						{
+							_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+							feeType: 'Tuition',
+							description: 'Tuition fee',
+							accountType: 'income',
+							schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+						},
+					],
+					count: [
+						{
+							count: 6,
+						},
+					],
+				},
+			]);
 			await getTypes(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.json).toHaveBeenCalledWith(
@@ -85,7 +93,7 @@ describe('Fee type controller', () => {
 							schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 						},
 					],
-					1,
+					6,
 					'Fetched Successfully'
 				)
 			);

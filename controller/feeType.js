@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Feetype = require('../models/feeType');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
@@ -5,25 +6,34 @@ const SuccessResponse = require('../utils/successResponse');
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	const { schoolId, accountType, page = 0, limit = 10 } = req.query;
+	let { schoolId, accountType, page, limit } = req.query;
+	page = parseInt(page, 0);
+	limit = parseInt(limit, 10);
 	const payload = {};
 	if (schoolId) {
-		payload.schoolId = schoolId;
+		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
 	if (accountType) {
 		payload.accountType = accountType;
 	}
-	const feetypes = await Feetype.find(payload)
-		.skip(page * limit)
-		.limit(limit);
-	if (feetypes.length === 0) {
+	const feeTypes = await Feetype.aggregate([
+		{
+			$facet: {
+				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
+				count: [{ $match: payload }, { $count: 'count' }],
+			},
+		},
+	]);
+	const { data, count } = feeTypes[0];
+
+	if (count.length === 0) {
 		return res
 			.status(404)
 			.json(new ErrorResponse('Fee Type Not Found', 404).toJSON());
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(feetypes, feetypes.length, 'Fetched Successfully'));
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
 // CREATE
