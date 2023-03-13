@@ -3,6 +3,13 @@ class ErrorResponse extends Error {
 		super(message);
 		this.statusCode = statusCode;
 	}
+
+	toJSON() {
+		return {
+			statusCode: this.statusCode,
+			message: this.message,
+		};
+	}
 }
 
 module.exports = ErrorResponse;

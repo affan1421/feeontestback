@@ -17,7 +17,9 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 		.skip(page * limit)
 		.limit(limit);
 	if (feetypes.length === 0) {
-		return res.status(404).json(new ErrorResponse('No feetype found', 404));
+		return res
+			.status(404)
+			.json(new ErrorResponse('No feetype found', 404).toJSON());
 	}
 	res
 		.status(200)
@@ -29,29 +31,31 @@ exports.create = catchAsync(async (req, res, next) => {
 	const { feeType, description, accountType, schoolId } = req.body;
 	if (!feeType || !description || !accountType || !schoolId) {
 		return res
-			.status(204)
-			.json(new ErrorResponse('Please enter all fields', 204));
+			.status(422)
+			.json(new ErrorResponse('Please enter all fields', 422).toJSON());
 	}
+
 	const isExists = await Feetype.findOne({ feeType, schoolId });
 	if (isExists) {
 		return res
 			.status(400)
-			.json(new ErrorResponse('Fee type already exists', 400));
+			.json(new ErrorResponse('Fee type already exists', 400).toJSON());
 	}
+
 	const newFeetype = await Feetype.create({
 		feeType,
 		description,
 		accountType,
 		schoolId,
 	});
-	console.log(newFeetype);
 	if (!newFeetype) {
 		return res
 			.status(400)
-			.json(new ErrorResponse('Error creating feetype', 400));
+			.json(new ErrorResponse('Error creating feetype', 400).toJSON());
 	}
-	console.log('hit');
-	res.status(201).json(SuccessResponse(newFeetype, 1, 'Created Successfully'));
+	return res
+		.status(201)
+		.json(SuccessResponse(newFeetype, 1, 'Created Successfully'));
 });
 
 // READ
@@ -59,7 +63,9 @@ exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const feetype = await Feetype.findById(id);
 	if (feetype === null) {
-		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
+		return res
+			.status(404)
+			.json(new ErrorResponse('Feetype not found', 404).toJSON());
 	}
 	res.status(200).json(SuccessResponse(feetype, 1, 'Fetched Successfully'));
 });
@@ -75,7 +81,9 @@ exports.update = catchAsync(async (req, res, next) => {
 		schoolId,
 	});
 	if (feetype === null) {
-		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
+		return res
+			.status(404)
+			.json(new ErrorResponse('Feetype not found', 404).toJSON());
 	}
 	res.status(200).json(SuccessResponse(feetype, 1, 'Updated Successfully'));
 });
@@ -85,7 +93,9 @@ exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const feetype = await Feetype.findByIdAndDelete(id);
 	if (feetype === null) {
-		return res.status(404).json(new ErrorResponse('Feetype not found', 404));
+		return res
+			.status(404)
+			.json(new ErrorResponse('Feetype not found', 404).toJSON());
 	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
