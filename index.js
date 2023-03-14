@@ -37,6 +37,7 @@ mongoose
 	})
 	.catch(err => {
 		console.log(err);
+		process.exit(1);
 	});
 
 app.get('/', (req, res) => {
@@ -46,6 +47,7 @@ app.get('/', (req, res) => {
 app.use(authenticateUser);
 
 app.use('/api/v1/feetype', require('./router/feeType'));
+app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
