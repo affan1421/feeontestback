@@ -687,6 +687,270 @@
           }
         }
       }
+    },
+    "/feeschedule/{id}": {
+      "get": {
+        "tags": ["Fee Schedule"],
+        "summary": "This API fetches a feeschedule by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feeschedule",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "example": {
+                    "_id": "6410502d0661f387bf3a0cf1",
+                    "scheduleName": "Test2",
+                    "description": "Test",
+                    "scheduleType": "Monthly",
+                    "startDate": "2023-04-30T18:30:00.000Z",
+                    "endDate": "2024-02-29T18:30:00.000Z",
+                    "interval": 3,
+                    "scheduledDates": [
+                      "2023-04-30T18:30:00.000Z",
+                      "2023-07-31T18:30:00.000Z",
+                      "2023-10-31T18:30:00.000Z",
+                      "2024-01-31T18:30:00.000Z"
+                    ],
+                    "createdAt": "2023-03-14T10:45:01.488Z",
+                    "updatedAt": "2023-03-14T10:45:01.488Z"
+                  },
+                  "properties": {
+                    "scheduleName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "scheduleType": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    },
+                    "scheduledDates": {
+                      "type": "array"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Fee Schedule Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Fee Schedule"],
+        "summary": "This API updates a feeschedule by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "scheduleName",
+            "in": "formData",
+            "description": "The name of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "scheduleType",
+            "in": "formData",
+            "description": "The type of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "startDate",
+            "in": "formData",
+            "description": "The start date of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "endDate",
+            "in": "formData",
+            "description": "The end date of the feeschedule",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "interval",
+            "in": "formData",
+            "description": "The interval of the feeschedule",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "scheduledDates",
+            "in": "formData",
+            "description": "The scheduled dates of the feeschedule",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "example": {
+                    "_id": "6410502d0661f387bf3a0cf1",
+                    "scheduleName": "Test2",
+                    "description": "Test",
+                    "scheduleType": "Monthly",
+                    "startDate": "2023-04-30T18:30:00.000Z",
+                    "endDate": "2024-02-29T18:30:00.000Z",
+                    "interval": 3,
+                    "scheduledDates": [
+                      "2023-04-30T18:30:00.000Z",
+                      "2023-07-31T18:30:00.000Z",
+                      "2023-10-31T18:30:00.000Z",
+                      "2024-01-31T18:30:00.000Z"
+                    ],
+                    "createdAt": "2023-03-14T10:45:01.488Z",
+                    "updatedAt": "2023-03-14T10:45:01.488Z"
+                  },
+                  "properties": {
+                    "scheduleName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "scheduleType": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "string"
+                    },
+                    "endDate": {
+                      "type": "string"
+                    },
+                    "interval": {
+                      "type": "integer"
+                    },
+                    "scheduledDates": {
+                      "type": "array"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Updated Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Fee Schedule Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Fee Schedule"],
+        "summary": "This API deletes a feeschedule by id.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the feeschedule",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "undefined",
+                  "example": null
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Deleted Successfully"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Fee Schedule Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
     }
   }
 }

@@ -290,39 +290,32 @@ describe('Fee type controller', () => {
 			expect(res.status).toHaveBeenCalledWith(404);
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
-		// it('should return a fee type deleted', async () => {
-		// 	const req = (mockRequest().body = {
-		// 		body: {
-		// 			feeType: 'Tuition',
-		// 			description: 'Tuition fee',
-		// 			account: 'income',
-		// 			schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		},
-		// 	});
-		// 	const res = mockResponse();
-		// 	jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce({
-		// 		_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		feeType: 'Tuition',
-		// 		description: 'Tuition fee',
-		// 		account: 'income',
-		// 		schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 	});
+		it('should return a fee type deleted', async () => {
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
+				body: {
+					feeType: 'Tuition',
+					description: 'Tuition fee',
+					account: 'income',
+					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce({
+				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				feeType: 'Tuition',
+				description: 'Tuition fee',
+				account: 'income',
+				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+			});
 
-		// 	await feeDelete(req, res, mockNext);
-		// 	expect(res.status).toHaveBeenCalledWith(200);
-		// 	expect(res.json).toHaveBeenCalledWith(
-		// 		SuccessResponse(
-		// 			{
-		// 				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 				feeType: 'Tuition',
-		// 				description: 'Tuition fee',
-		// 				account: 'income',
-		// 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 			},
-		// 			1,
-		// 			'Deleted Successfully'
-		// 		)
-		// 	);
-		// });
+			await feeDelete(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith(
+				SuccessResponse(null, 1, 'Deleted Successfully')
+			);
+		});
 	});
 });

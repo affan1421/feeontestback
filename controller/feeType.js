@@ -63,6 +63,7 @@ exports.create = catchAsync(async (req, res, next) => {
 			.status(400)
 			.json(new ErrorResponse('Error Creating Feetype', 400).toJSON());
 	}
+	console.log('hit', res);
 	return res
 		.status(201)
 		.json(SuccessResponse(newFeetype, 1, 'Created Successfully'));
