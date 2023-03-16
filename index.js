@@ -1,12 +1,12 @@
 const NODE_ENV = 'development';
 const express = require('express');
-const mongoose = require('mongoose');
 require('dotenv').config({ path: `.${NODE_ENV}.env` });
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
 const swaggerDocument = require('./swagger.json');
 const { authenticateUser } = require('./middleware/authorize');
+const connectDatabase = require('./utils/dbConnection');
 
 const app = express();
 
@@ -27,18 +27,7 @@ app.use(
 	swaggerUi.setup(swaggerDocument, options)
 );
 
-mongoose
-	.connect(process.env.MONGO_URI, {
-		useNewUrlParser: true,
-		useUnifiedTopology: true,
-	})
-	.then(() => {
-		console.log('Database Connected');
-	})
-	.catch(err => {
-		console.log(err);
-		process.exit(1);
-	});
+connectDatabase();
 
 app.get('/', (req, res) => {
 	res.send('Server is up and Running👨‍💻👩‍💻');
@@ -48,6 +37,13 @@ app.use(authenticateUser);
 
 app.use('/api/v1/feetype', require('./router/feeType'));
 app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
+
+app.use((err, req, res, next) => {
+	res.status(err.statusCode || 500).json({
+		status: err.status || 'error',
+		message: err.message,
+	});
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

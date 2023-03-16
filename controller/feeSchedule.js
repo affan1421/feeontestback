@@ -18,11 +18,7 @@ exports.create = catchAsync(async (req, res, next) => {
 		interval = 1,
 	} = req.body;
 	if (!scheduleName || !scheduleType || !startDate || !endDate || !schoolId) {
-		return res
-			.status(422)
-			.json(
-				new ErrorResponse('Please Provide All Required Fields', 422).toJSON()
-			);
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
 	const isExists = await FeeSchedule.findOne({
 		scheduleName,
@@ -30,9 +26,7 @@ exports.create = catchAsync(async (req, res, next) => {
 		scheduleType,
 	});
 	if (isExists) {
-		return res
-			.status(400)
-			.json(new ErrorResponse('Fee Schedule Already Exists', 400).toJSON());
+		return next(new ErrorResponse('Fee Schedule Already Exists', 400));
 	}
 	let initialDate = new Date(startDate);
 	const scheduledDates = [];
@@ -85,9 +79,7 @@ exports.getAll = catchAsync(async (req, res, next) => {
 	const { data, count } = feeSchedules[0];
 
 	if (count.length === 0) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Schedules Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Schedules Not Found', 404));
 	}
 	res
 		.status(200)
@@ -100,9 +92,7 @@ exports.getAll = catchAsync(async (req, res, next) => {
 exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 	const feeSchedule = await FeeSchedule.findById(req.params.id);
 	if (!feeSchedule) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Schedule Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(feeSchedule, 1, 'Fetched Successfully'));
 });
@@ -116,9 +106,7 @@ exports.update = catchAsync(async (req, res, next) => {
 		req.body
 	);
 	if (!feeSchedule) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Schedule Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(feeSchedule, 1, 'Updated Successfully'));
 });
@@ -129,9 +117,7 @@ exports.update = catchAsync(async (req, res, next) => {
 exports.deleteFeeSchedule = catchAsync(async (req, res, next) => {
 	const feeSchedule = await FeeSchedule.findByIdAndDelete(req.params.id);
 	if (!feeSchedule) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Schedule Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
