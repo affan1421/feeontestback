@@ -4,6 +4,33 @@ const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 
+// CREATE
+exports.create = async (req, res, next) => {
+	const { feeType, accountType, schoolId, description } = req.body;
+	if (!feeType || !accountType || !schoolId || !description) {
+		return next(new ErrorResponse('All Fields are Mandatory', 422));
+	}
+
+	const isExist = await Feetype.findOne({ feeType, schoolId });
+	if (isExist) {
+		return next(new ErrorResponse('Fee Type Already Exist', 400));
+	}
+	let newFeeType;
+	try {
+		newFeeType = await Feetype.create({
+			feeType,
+			accountType,
+			schoolId,
+			description,
+		});
+	} catch (error) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+	return res
+		.status(201)
+		.json(SuccessResponse(newFeeType, 1, 'Created Successfully'));
+};
+
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
 	let { schoolId, accountType, page, limit } = req.query;
@@ -27,45 +54,11 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	const { data, count } = feeTypes[0];
 
 	if (count.length === 0) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Type Not Found', 404).toJSON());
+		return next(new ErrorResponse('No Fee Type Found', 404));
 	}
 	res
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
-});
-
-// CREATE
-exports.create = catchAsync(async (req, res, next) => {
-	const { feeType, description, accountType, schoolId } = req.body;
-	if (!feeType || !description || !accountType || !schoolId) {
-		return res
-			.status(422)
-			.json(new ErrorResponse('Please Enter All Fields', 422).toJSON());
-	}
-
-	const isExists = await Feetype.findOne({ feeType, schoolId });
-	if (isExists) {
-		return res
-			.status(400)
-			.json(new ErrorResponse('Fee Type Already Exists', 400).toJSON());
-	}
-
-	const newFeetype = await Feetype.create({
-		feeType,
-		description,
-		accountType,
-		schoolId,
-	});
-	if (!newFeetype) {
-		return res
-			.status(400)
-			.json(new ErrorResponse('Error Creating Feetype', 400).toJSON());
-	}
-	return res
-		.status(201)
-		.json(SuccessResponse(newFeetype, 1, 'Created Successfully'));
 });
 
 // READ
@@ -73,9 +66,7 @@ exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const feetype = await Feetype.findById(id);
 	if (feetype === null) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Type Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(feetype, 1, 'Fetched Successfully'));
 });
@@ -91,9 +82,7 @@ exports.update = catchAsync(async (req, res, next) => {
 		schoolId,
 	});
 	if (feetype === null) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Type Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(feetype, 1, 'Updated Successfully'));
 });
@@ -103,9 +92,7 @@ exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const feetype = await Feetype.findByIdAndDelete(id);
 	if (feetype === null) {
-		return res
-			.status(404)
-			.json(new ErrorResponse('Fee Type Not Found', 404).toJSON());
+		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });

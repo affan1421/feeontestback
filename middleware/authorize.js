@@ -11,7 +11,7 @@ const authenticateUser = async (req, res, next) => {
 
 		// If the Authorization header is missing or the token is not in the Bearer format, return an error
 		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return res.status(401).json({ message: 'Unauthorized' });
+			return next(new ErrorResponse('Unauthorized Access', 401));
 		}
 
 		const token = authHeader.substring(7);
@@ -20,7 +20,7 @@ const authenticateUser = async (req, res, next) => {
 		const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
 
 		if (!decodedToken) {
-			return res.status(401).json({ message: 'Invalid Token' });
+			return next(new ErrorResponse('Invalid Token', 401));
 		}
 
 		// Extract the user's ID from the decoded token
@@ -40,7 +40,7 @@ const authenticateUser = async (req, res, next) => {
 		);
 		const user = response.data;
 		if (!user) {
-			return res.status(401).json({ message: 'Unauthorized' });
+			return next(new ErrorResponse('Unauthorized Access', 401));
 		}
 
 		// Attach the user to the request object
@@ -53,7 +53,7 @@ const authenticateUser = async (req, res, next) => {
 	} catch (error) {
 		next(
 			// If an error occurs, return a 401 Unauthorized response
-			res.status(401).json({ message: error.message })
+			new ErrorResponse('Unauthorized Access', 401)
 		);
 	}
 };

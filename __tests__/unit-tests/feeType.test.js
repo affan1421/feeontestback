@@ -49,8 +49,8 @@ describe('Fee type controller', () => {
 				},
 			]);
 			await getTypes(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(404);
-			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('No Fee Type Found', 404);
 		});
 		it('should return all fees type', async () => {
 			const req = (mockRequest().query = {
@@ -109,7 +109,7 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findById').mockResolvedValueOnce(null);
 			await read(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(404);
+			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		it('should return a fee type', async () => {
@@ -143,7 +143,42 @@ describe('Fee type controller', () => {
 			);
 		});
 	});
+
 	describe('POST - /', () => {
+		it('should create a fee type', async () => {
+			const req = (mockRequest().body = {
+				body: {
+					feeType: 'Tuition',
+					description: 'Tuition fee',
+					accountType: 'Income',
+					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeType, 'create').mockResolvedValueOnce({
+				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				feeType: 'Tuition',
+				description: 'Tuition fee',
+				accountType: 'Income',
+				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+			});
+			jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce(null);
+			await create(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(201);
+			expect(res.json).toHaveBeenCalledWith(
+				SuccessResponse(
+					{
+						_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+						feeType: 'Tuition',
+						description: 'Tuition fee',
+						accountType: 'Income',
+						schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+					},
+					1,
+					'Created Successfully'
+				)
+			);
+		});
 		it('should return all required fields', async () => {
 			const req = (mockRequest().body = {
 				body: {
@@ -157,9 +192,9 @@ describe('Fee type controller', () => {
 			});
 			const res = mockResponse();
 			await create(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(422);
+			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith(
-				'Please Enter All Fields',
+				'All Fields are Mandatory',
 				422
 			);
 		});
@@ -181,47 +216,9 @@ describe('Fee type controller', () => {
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			await create(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(400);
-			expect(ErrorResponse).toHaveBeenCalledWith(
-				'Fee Type Already Exists',
-				400
-			);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Already Exist', 400);
 		});
-
-		// it('should return a fee type created', async () => {
-		// 	const req = (mockRequest().body = {
-		// 		body: {
-		// 			feeType: 'Tuition',
-		// 			description: 'Tuition fee',
-		// 			accountType: 'income',
-		// 			schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		},
-		// 	});
-		// 	const res = mockResponse();
-		// 	jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce(null);
-		// 	jest.spyOn(FeeType, 'create').mockResolvedValueOnce({
-		// 		_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		feeType: 'Tuition',
-		// 		description: 'Tuition fee',
-		// 		accountType: 'income',
-		// 		schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 	});
-		// 	await create(req, res, mockNext);
-		// 	expect(res.status).toHaveBeenCalledWith(201);
-		// 	expect(res.json).toHaveBeenCalledWith(
-		// 		SuccessResponse(
-		// 			{
-		// 				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 				feeType: 'Tuition',
-		// 				description: 'Tuition fee',
-		// 				accountType: 'income',
-		// 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 			},
-		// 			1,
-		// 			'Created Successfully'
-		// 		)
-		// 	);
-		// });
 	});
 	describe('PUT - /:id', () => {
 		it('should return no fee type found', async () => {
@@ -239,7 +236,7 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findByIdAndUpdate').mockResolvedValueOnce(null);
 			await update(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(404);
+			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		// it('should return a fee type updated', async () => {
@@ -287,42 +284,35 @@ describe('Fee type controller', () => {
 			const res = mockResponse();
 			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce(null);
 			await feeDelete(req, res, mockNext);
-			expect(res.status).toHaveBeenCalledWith(404);
+			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
-		// it('should return a fee type deleted', async () => {
-		// 	const req = (mockRequest().body = {
-		// 		body: {
-		// 			feeType: 'Tuition',
-		// 			description: 'Tuition fee',
-		// 			account: 'income',
-		// 			schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		},
-		// 	});
-		// 	const res = mockResponse();
-		// 	jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce({
-		// 		_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 		feeType: 'Tuition',
-		// 		description: 'Tuition fee',
-		// 		account: 'income',
-		// 		schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 	});
+		it('should return a fee type deleted', async () => {
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
+				body: {
+					feeType: 'Tuition',
+					description: 'Tuition fee',
+					account: 'income',
+					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce({
+				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				feeType: 'Tuition',
+				description: 'Tuition fee',
+				account: 'income',
+				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+			});
 
-		// 	await feeDelete(req, res, mockNext);
-		// 	expect(res.status).toHaveBeenCalledWith(200);
-		// 	expect(res.json).toHaveBeenCalledWith(
-		// 		SuccessResponse(
-		// 			{
-		// 				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 				feeType: 'Tuition',
-		// 				description: 'Tuition fee',
-		// 				account: 'income',
-		// 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
-		// 			},
-		// 			1,
-		// 			'Deleted Successfully'
-		// 		)
-		// 	);
-		// });
+			await feeDelete(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(res.json).toHaveBeenCalledWith(
+				SuccessResponse(null, 1, 'Deleted Successfully')
+			);
+		});
 	});
 });
