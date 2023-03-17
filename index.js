@@ -33,7 +33,7 @@ app.get('/', (req, res) => {
 	res.send('Server is up and Running👨‍💻👩‍💻');
 });
 
-app.use(authenticateUser);
+// app.use(authenticateUser);
 
 app.use('/api/v1/feetype', require('./router/feeType'));
 app.use('/api/v1/feeschedule', require('./router/feeSchedule'));

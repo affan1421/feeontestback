@@ -7,7 +7,8 @@ const SuccessResponse = require('../utils/successResponse');
 // @desc    Create a new fee schedule
 // @route   POST /api/v1/feeSchedule
 // @access  Private
-exports.create = catchAsync(async (req, res, next) => {
+exports.create = async (req, res, next) => {
+	let feeSchedule = null;
 	const {
 		scheduleName,
 		description,
@@ -40,19 +41,22 @@ exports.create = catchAsync(async (req, res, next) => {
 	} else {
 		scheduledDates.push(initialDate);
 	}
-
-	const feeSchedule = await FeeSchedule.create({
-		scheduleName,
-		description,
-		scheduleType,
-		schoolId,
-		scheduledDates,
-		startDate,
-		endDate,
-		interval,
-	});
+	try {
+		feeSchedule = await FeeSchedule.create({
+			scheduleName,
+			description,
+			scheduleType,
+			schoolId,
+			scheduledDates,
+			startDate,
+			endDate,
+			interval,
+		});
+	} catch (error) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
 	res.status(201).json(SuccessResponse(feeSchedule, 1, 'Created Successfully'));
-});
+};
 
 // @desc    Get all fee schedules
 // @route   GET /api/v1/feeSchedule
@@ -72,18 +76,18 @@ exports.getAll = catchAsync(async (req, res, next) => {
 		{
 			$facet: {
 				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
-				count: [{ $match: payload }, { $count: 'count' }],
+				docCount: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
 	]);
-	const { data, count } = feeSchedules[0];
+	const { data, docCount } = feeSchedules[0];
 
-	if (count.length === 0) {
+	if (docCount.length === 0) {
 		return next(new ErrorResponse('Fee Schedules Not Found', 404));
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+		.json(SuccessResponse(data, docCount[0].count, 'Fetched Successfully'));
 });
 
 // @desc    Get a fee schedule
@@ -100,16 +104,18 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @desc    Update a fee schedule
 // @route   PUT /api/v1/feeSchedule/:id
 // @access  Private
-exports.update = catchAsync(async (req, res, next) => {
-	const feeSchedule = await FeeSchedule.findByIdAndUpdate(
-		req.params.id,
-		req.body
-	);
+exports.update = async (req, res, next) => {
+	let feeSchedule = null;
+	try {
+		feeSchedule = await FeeSchedule.findByIdAndUpdate(req.params.id, req.body);
+	} catch (error) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(feeSchedule, 1, 'Updated Successfully'));
-});
+};
 
 // @desc    Delete a fee schedule
 // @route   DELETE /api/v1/feeSchedule/:id

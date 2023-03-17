@@ -1,36 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testExecutions version="1">
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\authorize.test.js">
-        <testCase name="authenticateUser middleware should return 401 error if Authorization header is missing" duration="10"/>
-        <testCase name="authenticateUser middleware should return 401 error if token is not in Bearer format" duration="1"/>
+        <testCase name="authenticateUser middleware should return 401 error if Authorization header is missing" duration="6"/>
+        <testCase name="authenticateUser middleware should return 401 error if token is not in Bearer format" duration="2"/>
         <testCase name="authenticateUser middleware should return 401 error if token is invalid" duration="3"/>
         <testCase name="authenticateUser middleware should return 401 error if user is not found" duration="2"/>
-        <testCase name="authenticateUser middleware should attach user to the request object and cache the user" duration="2"/>
+        <testCase name="authenticateUser middleware should attach user to the request object and cache the user" duration="12"/>
         <testCase name="authenticateUser middleware should use cached user if available" duration="2"/>
     </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\successResponse.test.js">
-        <testCase name="SuccessResponse returns an object with the correct properties and values" duration="6"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\errorResponse.test.js">
-        <testCase name="ErrorResponse should create an error response with the provided message and status code" duration="5"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\catchAsync.test.js">
-        <testCase name="catchAsync should call next with an error if fn throws an error" duration="4"/>
-        <testCase name="catchAsync should call fn with req, res, and next" duration="1"/>
-    </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeType.test.js">
-        <testCase name="Fee type controller GET - / should return no fees type found" duration="6"/>
+        <testCase name="Fee type controller GET - / should return no fees type found" duration="9"/>
         <testCase name="Fee type controller GET - / should return all fees type" duration="2"/>
         <testCase name="Fee type controller GET - /:id should return no fee type found" duration="2"/>
         <testCase name="Fee type controller GET - /:id should return a fee type" duration="1"/>
-        <testCase name="Fee type controller POST - / should create a fee type" duration="3"/>
-        <testCase name="Fee type controller POST - / should return all required fields" duration="2"/>
-        <testCase name="Fee type controller POST - / should return fee type already exists" duration="2"/>
-        <testCase name="Fee type controller PUT - /:id should return no fee type found" duration="2"/>
-        <testCase name="Fee type controller DELETE - /:id should return no fee type found" duration="2"/>
-        <testCase name="Fee type controller DELETE - /:id should return a fee type deleted" duration="1"/>
+        <testCase name="Fee type controller POST - / should create a fee type" duration="2"/>
+        <testCase name="Fee type controller POST - / should return all required fields" duration="1"/>
+        <testCase name="Fee type controller POST - / should return fee type already exists" duration="1"/>
+        <testCase name="Fee type controller PUT - /:id should return no fee type found" duration="1"/>
+        <testCase name="Fee type controller DELETE - /:id should return no fee type found" duration="1"/>
+        <testCase name="Fee type controller DELETE - /:id should return a fee type deleted" duration="2"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\successResponse.test.js">
+        <testCase name="SuccessResponse returns an object with the correct properties and values" duration="8"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeSchedule.test.js">
+        <testCase name="Fee Schedule Controller Create Fee Schedule should return 422 if all required fields are not provided" duration="7"/>
+        <testCase name="Fee Schedule Controller Create Fee Schedule should return 400 if fee schedule already exists" duration="1"/>
+        <testCase name="Fee Schedule Controller Create Fee Schedule should return 201 if fee schedule created successfully" duration="3"/>
+        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 404 if no fee schedules found" duration="2"/>
+        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 200 if get all fee schedules successfully" duration="2"/>
+        <testCase name="Fee Schedule Controller Get Fee Schedule By Id should return 404 if fee schedule not found" duration="2"/>
+        <testCase name="Fee Schedule Controller Get Fee Schedule By Id should return 200 if get fee schedule by id successfully" duration="2"/>
+        <testCase name="Fee Schedule Controller Update Fee Schedule should return 404 if fee schedule not found" duration="1"/>
+        <testCase name="Fee Schedule Controller Update Fee Schedule should return 200 if update fee schedule successfully" duration="2"/>
+        <testCase name="Fee Schedule Controller Delete Fee Schedule should return 404 if fee schedule not found" duration="1"/>
+        <testCase name="Fee Schedule Controller Delete Fee Schedule should return 200 if delete fee schedule successfully" duration="11"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\catchAsync.test.js">
+        <testCase name="catchAsync should call next with an error if fn throws an error" duration="7"/>
+        <testCase name="catchAsync should call fn with req, res, and next" duration="1"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\errorResponse.test.js">
+        <testCase name="ErrorResponse should create an error response with the provided message and status code" duration="4"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\e2e\feeType-e2e.test.js">
-        <testCase name="FeeType API POST /api/feeType should return server is running" duration="57"/>
+        <testCase name="FeeType API POST /api/feeType should return server is running" duration="61"/>
     </file>
 </testExecutions>

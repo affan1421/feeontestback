@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1678963251193" clover="3.2.0">
-  <project timestamp="1678963251193" name="All files">
-    <metrics statements="193" coveredstatements="146" conditionals="64" coveredconditionals="29" methods="21" coveredmethods="13" elements="278" coveredelements="188" complexity="0" loc="193" ncloc="193" packages="6" files="12" classes="12"/>
+<coverage generated="1679056130206" clover="3.2.0">
+  <project timestamp="1679056130206" name="All files">
+    <metrics statements="198" coveredstatements="188" conditionals="64" coveredconditionals="50" methods="21" coveredmethods="18" elements="283" coveredelements="256" complexity="0" loc="198" ncloc="198" packages="6" files="12" classes="12"/>
     <package name="feeOn-backend">
-      <metrics statements="27" coveredstatements="26" conditionals="6" coveredconditionals="1" methods="3" coveredmethods="2"/>
+      <metrics statements="26" coveredstatements="25" conditionals="6" coveredconditionals="1" methods="3" coveredmethods="2"/>
       <file name="index.js" path="G:\ERP\feeOn-backend\index.js">
-        <metrics statements="27" coveredstatements="26" conditionals="6" coveredconditionals="1" methods="3" coveredmethods="2"/>
+        <metrics statements="26" coveredstatements="25" conditionals="6" coveredconditionals="1" methods="3" coveredmethods="2"/>
         <line num="1" count="1" type="stmt"/>
         <line num="2" count="1" type="stmt"/>
         <line num="3" count="1" type="stmt"/>
@@ -24,7 +24,6 @@
         <line num="30" count="1" type="stmt"/>
         <line num="32" count="1" type="stmt"/>
         <line num="33" count="1" type="stmt"/>
-        <line num="36" count="1" type="stmt"/>
         <line num="38" count="1" type="stmt"/>
         <line num="39" count="1" type="stmt"/>
         <line num="41" count="1" type="stmt"/>
@@ -36,59 +35,65 @@
       </file>
     </package>
     <package name="feeOn-backend.controller">
-      <metrics statements="99" coveredstatements="57" conditionals="44" coveredconditionals="17" methods="10" coveredmethods="5"/>
+      <metrics statements="105" coveredstatements="100" conditionals="44" coveredconditionals="38" methods="10" coveredmethods="10"/>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\controller\feeSchedule.js">
-        <metrics statements="50" coveredstatements="10" conditionals="24" coveredconditionals="0" methods="5" coveredmethods="0"/>
-        <line num="1" count="1" type="stmt"/>
-        <line num="2" count="1" type="stmt"/>
-        <line num="3" count="1" type="stmt"/>
-        <line num="4" count="1" type="stmt"/>
-        <line num="5" count="1" type="stmt"/>
-        <line num="10" count="1" type="stmt"/>
-        <line num="19" count="0" type="stmt"/>
-        <line num="20" count="0" type="cond" truecount="0" falsecount="7"/>
-        <line num="21" count="0" type="stmt"/>
-        <line num="27" count="0" type="stmt"/>
-        <line num="32" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="33" count="0" type="stmt"/>
-        <line num="37" count="0" type="stmt"/>
-        <line num="38" count="0" type="stmt"/>
-        <line num="39" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="40" count="0" type="stmt"/>
-        <line num="41" count="0" type="stmt"/>
+        <metrics statements="56" coveredstatements="53" conditionals="24" coveredconditionals="21" methods="5" coveredmethods="5"/>
+        <line num="1" count="2" type="stmt"/>
+        <line num="2" count="2" type="stmt"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="4" count="2" type="stmt"/>
+        <line num="5" count="2" type="stmt"/>
+        <line num="10" count="2" type="stmt"/>
+        <line num="11" count="3" type="stmt"/>
+        <line num="20" count="3" type="stmt"/>
+        <line num="21" count="3" type="cond" truecount="7" falsecount="0"/>
+        <line num="22" count="1" type="stmt"/>
+        <line num="24" count="2" type="stmt"/>
+        <line num="29" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="32" count="1" type="stmt"/>
+        <line num="33" count="1" type="stmt"/>
+        <line num="34" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="35" count="1" type="stmt"/>
+        <line num="36" count="3" type="stmt"/>
+        <line num="37" count="3" type="stmt"/>
         <line num="42" count="0" type="stmt"/>
-        <line num="47" count="0" type="stmt"/>
-        <line num="50" count="0" type="stmt"/>
-        <line num="60" count="0" type="stmt"/>
-        <line num="66" count="1" type="stmt"/>
-        <line num="67" count="0" type="stmt"/>
-        <line num="68" count="0" type="stmt"/>
-        <line num="69" count="0" type="stmt"/>
-        <line num="70" count="0" type="stmt"/>
-        <line num="71" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="72" count="0" type="stmt"/>
-        <line num="74" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="75" count="0" type="stmt"/>
-        <line num="77" count="0" type="stmt"/>
-        <line num="85" count="0" type="stmt"/>
-        <line num="87" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="88" count="0" type="stmt"/>
-        <line num="92" count="0" type="stmt"/>
-        <line num="100" count="1" type="stmt"/>
-        <line num="101" count="0" type="stmt"/>
-        <line num="102" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="103" count="0" type="stmt"/>
-        <line num="107" count="0" type="stmt"/>
-        <line num="113" count="1" type="stmt"/>
-        <line num="114" count="0" type="stmt"/>
-        <line num="118" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="119" count="0" type="stmt"/>
-        <line num="123" count="0" type="stmt"/>
-        <line num="129" count="1" type="stmt"/>
-        <line num="130" count="0" type="stmt"/>
-        <line num="131" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="132" count="0" type="stmt"/>
-        <line num="136" count="0" type="stmt"/>
+        <line num="44" count="1" type="stmt"/>
+        <line num="45" count="1" type="stmt"/>
+        <line num="56" count="0" type="stmt"/>
+        <line num="58" count="1" type="stmt"/>
+        <line num="64" count="2" type="stmt"/>
+        <line num="65" count="2" type="stmt"/>
+        <line num="66" count="2" type="stmt"/>
+        <line num="67" count="2" type="stmt"/>
+        <line num="68" count="2" type="stmt"/>
+        <line num="69" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="70" count="2" type="stmt"/>
+        <line num="72" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="73" count="2" type="stmt"/>
+        <line num="75" count="2" type="stmt"/>
+        <line num="83" count="2" type="stmt"/>
+        <line num="85" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="86" count="1" type="stmt"/>
+        <line num="88" count="1" type="stmt"/>
+        <line num="96" count="2" type="stmt"/>
+        <line num="97" count="2" type="stmt"/>
+        <line num="98" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="99" count="1" type="stmt"/>
+        <line num="101" count="1" type="stmt"/>
+        <line num="107" count="2" type="stmt"/>
+        <line num="108" count="2" type="stmt"/>
+        <line num="109" count="2" type="stmt"/>
+        <line num="110" count="2" type="stmt"/>
+        <line num="112" count="0" type="stmt"/>
+        <line num="114" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="115" count="1" type="stmt"/>
+        <line num="117" count="1" type="stmt"/>
+        <line num="123" count="2" type="stmt"/>
+        <line num="124" count="2" type="stmt"/>
+        <line num="125" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="126" count="1" type="stmt"/>
+        <line num="128" count="1" type="stmt"/>
       </file>
       <file name="feeType.js" path="G:\ERP\feeOn-backend\controller\feeType.js">
         <metrics statements="49" coveredstatements="47" conditionals="20" coveredconditionals="17" methods="5" coveredmethods="5"/>
@@ -180,10 +185,10 @@
       <metrics statements="8" coveredstatements="8" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\models\feeSchedule.js">
         <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
-        <line num="1" count="1" type="stmt"/>
-        <line num="3" count="1" type="stmt"/>
-        <line num="5" count="1" type="stmt"/>
-        <line num="49" count="1" type="stmt"/>
+        <line num="1" count="2" type="stmt"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="5" count="2" type="stmt"/>
+        <line num="49" count="2" type="stmt"/>
       </file>
       <file name="feeType.js" path="G:\ERP\feeOn-backend\models\feeType.js">
         <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
@@ -220,9 +225,9 @@
       <metrics statements="18" coveredstatements="15" conditionals="4" coveredconditionals="1" methods="7" coveredmethods="5"/>
       <file name="catchAsync.js" path="G:\ERP\feeOn-backend\utils\catchAsync.js">
         <metrics statements="3" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
-        <line num="1" count="15" type="stmt"/>
-        <line num="2" count="9" type="stmt"/>
-        <line num="5" count="3" type="stmt"/>
+        <line num="1" count="16" type="stmt"/>
+        <line num="2" count="15" type="stmt"/>
+        <line num="5" count="4" type="stmt"/>
       </file>
       <file name="dbConnection.js" path="G:\ERP\feeOn-backend\utils\dbConnection.js">
         <metrics statements="7" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="1"/>
@@ -241,12 +246,12 @@
         <line num="6" count="1" type="cond" truecount="1" falsecount="1"/>
         <line num="7" count="1" type="stmt"/>
         <line num="9" count="1" type="stmt"/>
-        <line num="13" count="4" type="stmt"/>
+        <line num="13" count="5" type="stmt"/>
       </file>
       <file name="successResponse.js" path="G:\ERP\feeOn-backend\utils\successResponse.js">
         <metrics statements="2" coveredstatements="2" conditionals="2" coveredconditionals="0" methods="1" coveredmethods="1"/>
-        <line num="1" count="3" type="cond" truecount="0" falsecount="2"/>
-        <line num="8" count="3" type="stmt"/>
+        <line num="1" count="4" type="cond" truecount="0" falsecount="2"/>
+        <line num="8" count="4" type="stmt"/>
       </file>
     </package>
   </project>
