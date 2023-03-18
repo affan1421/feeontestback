@@ -105,14 +105,53 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @route   PUT /api/v1/feeSchedule/:id
 // @access  Private
 exports.update = async (req, res, next) => {
-	let feeSchedule = null;
-	try {
-		feeSchedule = await FeeSchedule.findByIdAndUpdate(req.params.id, req.body);
-	} catch (error) {
-		return next(new ErrorResponse('Something Went Wrong', 500));
-	}
+	const { id } = req.params;
+	console.log(req.body);
+	const {
+		scheduleName,
+		description,
+		scheduleType,
+		startDate,
+		endDate,
+		schoolId,
+		interval,
+	} = req.body;
+	const scheduledDates = [];
+	let initialDate = new Date(startDate);
+	let feeSchedule = await FeeSchedule.findById(id).lean();
+
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
+	}
+	if (
+		feeSchedule.startDate.getTime() != new Date(startDate).getTime() ||
+		feeSchedule.endDate.getTime() != new Date(endDate).getTime() ||
+		Number(interval) != Number(feeSchedule.interval)
+	) {
+		while (initialDate <= new Date(endDate)) {
+			scheduledDates.push(new Date(initialDate));
+			initialDate = new Date(initialDate).setMonth(
+				new Date(initialDate).getMonth() + Number(interval)
+			);
+		}
+	}
+	try {
+		feeSchedule = await FeeSchedule.findByIdAndUpdate(
+			id,
+			{
+				scheduleName,
+				description,
+				scheduleType,
+				schoolId,
+				scheduledDates,
+				startDate,
+				endDate,
+				interval,
+			},
+			{ new: true }
+		);
+	} catch (error) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 	res.status(200).json(SuccessResponse(feeSchedule, 1, 'Updated Successfully'));
 };

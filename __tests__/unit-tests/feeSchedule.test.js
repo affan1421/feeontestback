@@ -289,26 +289,44 @@ describe('Fee Schedule Controller', () => {
 	describe('Update Fee Schedule', () => {
 		// fee schedule not found 404
 		it('should return 404 if fee schedule not found', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: '5f9f1b9b9c9d440000a1b0f1',
+				body: {
+					scheduleName: 'Test Schedule',
+					scheduleType: 'Monthly',
+					startDate: 'Mon May 01 2023 00:00:00 GMT+0530 (India Standard Time)',
+					endDate: 'Sat Mar 30 2024 00:00:00 GMT+0530 (India Standard Time)',
+					schoolId: '5f9f1b9b9c9d440000a1b0f1',
+					interval: 5,
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeSchedule, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeSchedule, 'findById').mockImplementationOnce(() => ({
+				lean: jest.fn().mockResolvedValueOnce(null),
+			}));
 			await update(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Schedule Not Found', 404);
 		});
 		// update fee schedule successfully 200
 		it('should return 200 if update fee schedule successfully', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: '5f9f1b9b9c9d440000a1b0f1',
+				body: {
+					scheduleName: 'Test Schedule',
+					scheduleType: 'Monthly',
+					startDate: 'Mon May 01 2023 00:00:00 GMT+0530 (India Standard Time)',
+					endDate: 'Sat Mar 30 2024 00:00:00 GMT+0530 (India Standard Time)',
+					schoolId: '5f9f1b9b9c9d440000a1b0f1',
+					interval: 5,
+				},
 			});
 			const res = mockResponse();
 			const mockFeeSchedule = {
 				scheduleName: 'Test Schedule',
 				scheduleType: 'Monthly',
-				startDate: '2023-04-30T18:30:00.000Z',
-				endDate: '2024-03-29T18:30:00.000Z',
+				startDate: new Date('2023-04-30T18:30:00.000Z'),
+				endDate: new Date('2024-03-29T18:30:00.000Z'),
 				schoolId: '5f9f1b9b9c9d440000a1b0f1',
 				scheduleDates: [
 					'2023-04-30T18:30:00.000Z',
@@ -319,6 +337,9 @@ describe('Fee Schedule Controller', () => {
 				createdAt: '2020-11-03T18:30:00.000Z',
 				updatedAt: '2020-11-03T18:30:00.000Z',
 			};
+			jest.spyOn(FeeSchedule, 'findById').mockImplementationOnce(() => ({
+				lean: jest.fn().mockResolvedValueOnce(mockFeeSchedule),
+			}));
 			jest
 				.spyOn(FeeSchedule, 'findByIdAndUpdate')
 				.mockResolvedValueOnce(mockFeeSchedule);

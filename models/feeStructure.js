@@ -6,12 +6,12 @@ const feeDetailsSchema = new Schema({
 	feeTypeId: {
 		type: Schema.Types.ObjectId,
 		ref: 'FeeType',
-		required: false,
+		required: [true, 'Fee Type is Mandatory']],
 	},
 	scheduleTypeId: {
 		type: Schema.Types.ObjectId,
 		ref: 'FeeSchedule',
-		required: false,
+		required: [true, 'Fee Schedule is Mandatory'],
 	},
 	scheduledDates: {
 		type: [
@@ -32,8 +32,13 @@ const feeStructureSchema = new Schema({
 	},
 	academicYear: {
 		type: String,
-		required: [true, 'Academic Year is Mandatory'],
+		required: false,
 		default: '2023-2024',
+	},
+	schoolId: {
+		type: Schema.Types.ObjectId,
+		ref: 'School',
+		required: [true, 'School is Mandatory'],
 	},
 	classes: {
 		type: [
@@ -49,8 +54,9 @@ const feeStructureSchema = new Schema({
 		default: [],
 	},
 	description: String,
-	fees: {
+	feeDetails: {
 		type: [feeDetailsSchema],
+		required: [true, 'Fee Details are Mandatory']],
 		default: [],
 	},
 

@@ -826,14 +826,11 @@
             "type": "integer"
           },
           {
-            "name": "scheduledDates",
+            "name": "schoolId",
             "in": "formData",
-            "description": "The scheduled dates of the feeschedule",
+            "description": "The schoolId of the feeschedule",
             "required": true,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": "string"
           }
         ],
         "responses": {

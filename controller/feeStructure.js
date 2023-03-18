@@ -1,21 +1,35 @@
 const FeeStructure = require('../models/feeStructure');
+const ErrorResponse = require('../utils/errorResponse');
+const catchAsync = require('../utils/catchAsync');
+const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
+	const {
+		feeStructureName,
+		academicYear = '2023-2024',
+		schoolId,
+		classes,
+		description = '',
+		feeDetails,
+		totalAmount,
+	} = req.body;
+	let feeStructure = null;
+	if (!feeStructureName || !classes || !feeDetails || !totalAmount)
+		return next(new ErrorResponse('Please Provide All Required Fields', 400));
 	try {
-		const feeStructure = new FeeStructure({
-			name: req.body.name,
-			description: req.body.description,
-			academicYear: req.body.academicYear,
-			class: req.body.class,
-			feeDetails: req.body.feeDetails,
-			totalAmount: req.body.totalAmount,
+		feeStructure = await FeeStructure.create({
+			feeStructureName,
+			academicYear,
+			classes,
+			description,
+			feeDetails,
+			totalAmount,
 		});
-		await feeStructure.save();
-		res.status(201).json(feeStructure);
 	} catch (err) {
-		res.status(400).json({ message: err.message });
+		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
+	res.status(201).json(feeStructure);
 };
 
 // READ
