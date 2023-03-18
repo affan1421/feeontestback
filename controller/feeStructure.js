@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
@@ -15,77 +16,108 @@ exports.create = async (req, res, next) => {
 		totalAmount,
 	} = req.body;
 	let feeStructure = null;
-	if (!feeStructureName || !classes || !feeDetails || !totalAmount)
-		return next(new ErrorResponse('Please Provide All Required Fields', 400));
+	if (!feeStructureName || !classes || !feeDetails || !totalAmount || !schoolId)
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+
+	const feeStructureExists = await FeeStructure.findOne({ feeStructureName });
+	if (feeStructureExists) {
+		return next(
+			new ErrorResponse('Fee Structure with this name already exists', 400)
+		);
+	}
 	try {
 		feeStructure = await FeeStructure.create({
 			feeStructureName,
 			academicYear,
+			schoolId,
 			classes,
 			description,
 			feeDetails,
 			totalAmount,
 		});
 	} catch (err) {
+		console.log('error while creating', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
-	res.status(201).json(feeStructure);
+	res
+		.status(201)
+		.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
 };
 
 // READ
-exports.read = async (req, res) => {
-	try {
-		const feeStructure = await FeeStructure.findById(req.params.id).populate(
-			'feeDetails.feeType'
-		);
-		if (!feeStructure) throw new Error('FeeStructure not found');
-		res.json(feeStructure);
-	} catch (err) {
-		res.status(404).json({ message: err.message });
+exports.read = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const feeStructure = await FeeStructure.findById(id)
+		.populate('feeDetails.feeTypeId', 'feeType')
+		.populate('feeDetails.scheduleTypeId', 'scheduleName');
+	if (!feeStructure) {
+		return next(new ErrorResponse('Fee Structure not found', 404));
 	}
-};
+	res
+		.status(200)
+		.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
+});
 
 // UPDATE
-exports.update = async (req, res) => {
+exports.update = async (req, res, next) => {
+	const { id } = req.params;
 	try {
-		const feeStructure = await FeeStructure.findById(req.params.id);
-		if (!feeStructure) throw new Error('FeeStructure not found');
+		let feeStructure = await FeeStructure.findById(id);
+		if (!feeStructure) {
+			return next(new ErrorResponse('Fee Structure not found', 404));
+		}
 
-		feeStructure.name = req.body.name;
-		feeStructure.description = req.body.description;
-		feeStructure.academicYear = req.body.academicYear;
-		feeStructure.class = req.body.class;
-		feeStructure.feeDetails = req.body.feeDetails;
-		feeStructure.totalAmount = req.body.totalAmount;
-
-		await feeStructure.save();
-		res.json(feeStructure);
+		feeStructure = await FeeStructure.findByIdAndUpdate(id, req.body, {
+			new: true,
+			runValidators: true,
+		});
+		res
+			.status(200)
+			.json(SuccessResponse(feeStructure, 1, 'Updated Successfully'));
 	} catch (err) {
-		res.status(400).json({ message: err.message });
+		console.log('error while updating', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
 
 // DELETE
-exports.delete = async (req, res) => {
-	try {
-		const feeStructure = await FeeStructure.findById(req.params.id);
-		if (!feeStructure) throw new Error('FeeStructure not found');
-
-		await feeStructure.remove();
-		res.json({ message: 'FeeStructure deleted' });
-	} catch (err) {
-		res.status(404).json({ message: err.message });
+exports.delete = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const feeStructure = await FeeStructure.findById(id);
+	if (!feeStructure) {
+		return next(new ErrorResponse('Fee Structure not found', 404));
 	}
-};
+
+	await feeStructure.findByIdAndDelete(id);
+	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
+});
 
 // LIST
-exports.list = async (req, res) => {
-	try {
-		const feeStructures = await FeeStructure.find().populate(
-			'feeDetails.feeType'
-		);
-		res.json(feeStructures);
-	} catch (err) {
-		res.status(500).json({ message: err.message });
+exports.list = catchAsync(async (req, res, next) => {
+	const { schoolId, page = 0, limit = 10 } = req.query;
+	const query = {};
+	if (schoolId) {
+		query.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
-};
+
+	const feeTypes = await FeeStructure.aggregate([
+		{
+			$facet: {
+				data: [
+					{ $match: query },
+					{ $skip: +page * +limit },
+					{ $limit: +limit },
+				],
+				count: [{ $match: query }, { $count: 'count' }],
+			},
+		},
+	]);
+	const { data, count } = feeTypes[0];
+
+	if (count.length === 0) {
+		return next(new ErrorResponse('No Fee Type Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});

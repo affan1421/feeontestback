@@ -6,7 +6,7 @@ const feeDetailsSchema = new Schema({
 	feeTypeId: {
 		type: Schema.Types.ObjectId,
 		ref: 'FeeType',
-		required: [true, 'Fee Type is Mandatory']],
+		required: [true, 'Fee Type is Mandatory'],
 	},
 	scheduleTypeId: {
 		type: Schema.Types.ObjectId,

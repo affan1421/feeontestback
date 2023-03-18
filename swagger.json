@@ -15,6 +15,10 @@
     {
       "name": "Fee Schedule",
       "description": "Endpoints related to Fee Schedule"
+    },
+    {
+      "name": "Fee Structure",
+      "description": "Endpoints related to Fee Structure"
     }
   ],
   "securityDefinitions": {
@@ -942,6 +946,219 @@
           },
           "404": {
             "description": "Fee Schedule Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/feestructure": {
+      "post": {
+        "tags": ["Fee Structure"],
+        "summary": "This API creates a new feeschedule.",
+        "parameters": [
+          {
+            "name": "feeStructureName",
+            "in": "formData",
+            "description": "The name of the fee structure",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the fee structure",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "academicYear",
+            "in": "formData",
+            "description": "The fee academic year of the fee structure",
+            "required": false,
+            "type": "string",
+            "example": "2023-2024"
+          },
+          {
+            "name": "classes",
+            "in": "formData",
+            "description": "The classes of students for whom the fee structure is created",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sectionsId": {
+                  "type": "string"
+                }
+              },
+              "required": ["name", "sectionsId"]
+            },
+            "example": [
+              {
+                "name": "class 1A",
+                "sectionsId": "5f5f5f5f5f5f5f5f5f5f5f5f"
+              }
+            ]
+          },
+          {
+            "name": "feeDetails",
+            "in": "formData",
+            "description": "The fee details of the fee structure",
+            "required": true,
+            "type": "array",
+            "collectionFormat": "multi",
+            "items": {
+              "type": "object",
+              "properties": {
+                "feeTypeId": {
+                  "type": "string"
+                },
+                "scheduleTypeId": {
+                  "type": "string"
+                },
+                "scheduledDates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["date", "amount"]
+                  },
+                  "minItems": 1
+                },
+                "totalAmount": {
+                  "type": "number"
+                },
+                "breakdown": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "feeTypeId",
+                "scheduleTypeId",
+                "scheduledDates",
+                "totalAmount",
+                "breakdown"
+              ]
+            },
+            "example": [
+              {
+                "feeTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                "scheduleTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                "scheduledDates": [
+                  {
+                    "date": "2023-03-10T18:30:00.000Z",
+                    "amount": 292
+                  }
+                ],
+                "totalAmount": 3500,
+                "breakdown": 12
+              }
+            ]
+          },
+          {
+            "name": "totalAmount",
+            "in": "formData",
+            "description": "The total amount of the fee structure",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Unprocessable Entity",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Please Provide All Required Fields"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "example": "fail"
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fee Structure with this name already exists"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "feeStructureName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "academicYear": {
+                      "type": "string"
+                    },
+                    "classes": {
+                      "type": "array"
+                    },
+                    "feeDetails": {
+                      "type": "array"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "totalAmount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Created Successfully"
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal Server Error"
