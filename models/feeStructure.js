@@ -56,7 +56,7 @@ const feeStructureSchema = new Schema({
 	description: String,
 	feeDetails: {
 		type: [feeDetailsSchema],
-		required: [true, 'Fee Details are Mandatory']],
+		required: [true, 'Fee Details are Mandatory'],
 		default: [],
 	},
 

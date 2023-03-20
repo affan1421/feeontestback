@@ -15,14 +15,17 @@ exports.create = async (req, res, next) => {
 		feeDetails,
 		totalAmount,
 	} = req.body;
-	let feeStructure = null;
 	if (!feeStructureName || !classes || !feeDetails || !totalAmount || !schoolId)
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	let feeStructure = null;
 
-	const feeStructureExists = await FeeStructure.findOne({ feeStructureName });
+	const feeStructureExists = await FeeStructure.findOne({
+		feeStructureName,
+		schoolId,
+	});
 	if (feeStructureExists) {
 		return next(
-			new ErrorResponse('Fee Structure with this name already exists', 400)
+			new ErrorResponse('Fee Structure With This Name Already Exists', 400)
 		);
 	}
 	try {
@@ -33,7 +36,7 @@ exports.create = async (req, res, next) => {
 			classes,
 			description,
 			feeDetails,
-			totalAmount,
+			totalAmount: Number(totalAmount),
 		});
 	} catch (err) {
 		console.log('error while creating', err.message);
@@ -47,9 +50,9 @@ exports.create = async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feeStructure = await FeeStructure.findById(id)
-		.populate('feeDetails.feeTypeId', 'feeType')
-		.populate('feeDetails.scheduleTypeId', 'scheduleName');
+	const feeStructure = await FeeStructure.findById(id);
+	// .populate('feeDetails.feeTypeId', 'feeType')
+	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure not found', 404));
 	}
@@ -88,7 +91,7 @@ exports.delete = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Fee Structure not found', 404));
 	}
 
-	await feeStructure.findByIdAndDelete(id);
+	await feeStructure.deleteOne({ id });
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
 
