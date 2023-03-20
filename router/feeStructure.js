@@ -13,10 +13,10 @@ router.get('/:id', feeStructureController.read);
 router.put('/:id', feeStructureController.update);
 
 // DELETE
-router.delete('/:id', feeStructureController.delete);
+router.delete('/:id', feeStructureController.deleteFeeStructure);
 
 // LIST
-router.get('/', feeStructureController.list);
+router.get('/', feeStructureController.getByFilter);
 
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);

@@ -84,11 +84,11 @@ exports.update = async (req, res, next) => {
 };
 
 // DELETE
-exports.delete = catchAsync(async (req, res, next) => {
+exports.deleteFeeStructure = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const feeStructure = await FeeStructure.findById(id);
 	if (!feeStructure) {
-		return next(new ErrorResponse('Fee Structure not found', 404));
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 
 	await feeStructure.deleteOne({ id });
@@ -96,7 +96,7 @@ exports.delete = catchAsync(async (req, res, next) => {
 });
 
 // LIST
-exports.list = catchAsync(async (req, res, next) => {
+exports.getByFilter = catchAsync(async (req, res, next) => {
 	const { schoolId, page = 0, limit = 10 } = req.query;
 	const query = {};
 	if (schoolId) {
@@ -118,7 +118,7 @@ exports.list = catchAsync(async (req, res, next) => {
 	const { data, count } = feeTypes[0];
 
 	if (count.length === 0) {
-		return next(new ErrorResponse('No Fee Type Found', 404));
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 	res
 		.status(200)
