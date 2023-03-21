@@ -1,0 +1,22 @@
+use('fms')
+
+// db.feestructures.updateMany({schoolId:ObjectId('5f5f5f5f5f5f5f5f5f5f5f5f')},{ $set: { schoolId: ObjectId('6233335feec609c379b97b7c') } })
+
+// db.feestructures.updateMany({_id: ObjectId('6417e9bd8a9a1948daea4639')}, {
+//   $set: {
+//     "classes": [
+//       {
+//         "name": "class 1A",
+//         "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5f"
+        
+//       },
+//       {
+//         "name": "class 1B",
+//         "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5e"
+        
+//       }
+//     ]
+//   }
+// })
+
+// db.feestructures.find()

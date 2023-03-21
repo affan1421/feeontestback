@@ -54,7 +54,7 @@ exports.read = catchAsync(async (req, res, next) => {
 	// .populate('feeDetails.feeTypeId', 'feeType')
 	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
 	if (!feeStructure) {
-		return next(new ErrorResponse('Fee Structure not found', 404));
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 	res
 		.status(200)
@@ -67,7 +67,7 @@ exports.update = async (req, res, next) => {
 	try {
 		let feeStructure = await FeeStructure.findById(id);
 		if (!feeStructure) {
-			return next(new ErrorResponse('Fee Structure not found', 404));
+			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
 
 		feeStructure = await FeeStructure.findByIdAndUpdate(id, req.body, {
@@ -84,16 +84,20 @@ exports.update = async (req, res, next) => {
 };
 
 // DELETE
-exports.deleteFeeStructure = catchAsync(async (req, res, next) => {
+exports.deleteFeeStructure = async (req, res, next) => {
 	const { id } = req.params;
 	const feeStructure = await FeeStructure.findById(id);
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
-
-	await feeStructure.deleteOne({ id });
+	try {
+		await FeeStructure.findByIdAndDelete({ id });
+	} catch (err) {
+		console.log('error while deleting', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
-});
+};
 
 // LIST
 exports.getByFilter = catchAsync(async (req, res, next) => {
