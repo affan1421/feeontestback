@@ -2,6 +2,29 @@ const mongoose = require('mongoose');
 
 const { Schema, model } = mongoose;
 
+const feeDetailsSchema = new Schema({
+	feeTypeId: {
+		type: Schema.Types.ObjectId,
+		ref: 'FeeType',
+		required: [true, 'Fee Type is Mandatory'],
+	},
+	scheduleTypeId: {
+		type: Schema.Types.ObjectId,
+		ref: 'FeeSchedule',
+		required: [true, 'Fee Schedule is Mandatory'],
+	},
+	scheduledDates: {
+		type: [
+			{
+				date: Date,
+				amount: Number,
+			},
+		],
+	},
+	totalAmount: Number,
+	breakdown: Number,
+});
+
 const feeStructureSchema = new Schema({
 	feeStructureName: {
 		type: String,
@@ -9,7 +32,13 @@ const feeStructureSchema = new Schema({
 	},
 	academicYear: {
 		type: String,
-		required: [true, 'Academic Year is Mandatory'],
+		required: false,
+		default: '2023-2024',
+	},
+	schoolId: {
+		type: Schema.Types.ObjectId,
+		ref: 'School',
+		required: [true, 'School is Mandatory'],
 	},
 	classes: {
 		type: [
@@ -25,28 +54,9 @@ const feeStructureSchema = new Schema({
 		default: [],
 	},
 	description: String,
-	fees: {
-		type: [
-			{
-				feeTypeId: {
-					type: Schema.Types.ObjectId,
-					ref: 'FeeType',
-					required: true,
-				},
-				scheduleTypeId: {
-					type: Schema.Types.ObjectId,
-					ref: 'FeeSchedule',
-					required: true,
-				},
-				dates: [
-					{
-						type: String,
-					},
-				],
-				totalAmount: Number,
-				breakdown: Number,
-			},
-		],
+	feeDetails: {
+		type: [feeDetailsSchema],
+		required: [true, 'Fee Details are Mandatory'],
 		default: [],
 	},
 

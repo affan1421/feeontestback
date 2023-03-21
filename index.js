@@ -37,6 +37,7 @@ app.use(authenticateUser);
 
 app.use('/api/v1/feetype', require('./router/feeType'));
 app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
+app.use('/api/v1/feestructure', require('./router/feeStructure'));
 
 app.use((err, req, res, next) => {
 	res.status(err.statusCode || 500).json({
@@ -45,7 +46,7 @@ app.use((err, req, res, next) => {
 	});
 });
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 4000;
 app.listen(port, () => {
 	console.log(`Servers is listening on http://localhost:${port}`);
 });

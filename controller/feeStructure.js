@@ -1,73 +1,126 @@
+const mongoose = require('mongoose');
 const FeeStructure = require('../models/feeStructure');
+const ErrorResponse = require('../utils/errorResponse');
+const catchAsync = require('../utils/catchAsync');
+const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
-exports.create = async (req, res) => {
-    try {
-        const feeStructure = new FeeStructure({
-            name: req.body.name,
-            description: req.body.description,
-            academicYear: req.body.academicYear,
-            class: req.body.class,
-            feeDetails: req.body.feeDetails,
-            totalAmount: req.body.totalAmount
-        });
-        await feeStructure.save();
-        res.status(201).json(feeStructure);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
+exports.create = async (req, res, next) => {
+	const {
+		feeStructureName,
+		academicYear = '2023-2024',
+		schoolId,
+		classes,
+		description = '',
+		feeDetails,
+		totalAmount,
+	} = req.body;
+	if (!feeStructureName || !classes || !feeDetails || !totalAmount || !schoolId)
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	let feeStructure = null;
+
+	const feeStructureExists = await FeeStructure.findOne({
+		feeStructureName,
+		schoolId,
+	});
+	if (feeStructureExists) {
+		return next(
+			new ErrorResponse('Fee Structure With This Name Already Exists', 400)
+		);
+	}
+	try {
+		feeStructure = await FeeStructure.create({
+			feeStructureName,
+			academicYear,
+			schoolId,
+			classes,
+			description,
+			feeDetails,
+			totalAmount: Number(totalAmount),
+		});
+	} catch (err) {
+		console.log('error while creating', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+	res
+		.status(201)
+		.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
 };
 
 // READ
-exports.read = async (req, res) => {
-    try {
-        const feeStructure = await FeeStructure.findById(req.params.id).populate('feeDetails.feeType');
-        if (!feeStructure) throw new Error('FeeStructure not found');
-        res.json(feeStructure);
-    } catch (err) {
-        res.status(404).json({ message: err.message });
-    }
-};
+exports.read = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const feeStructure = await FeeStructure.findById(id);
+	// .populate('feeDetails.feeTypeId', 'feeType')
+	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
+	if (!feeStructure) {
+		return next(new ErrorResponse('Fee Structure not found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
+});
 
 // UPDATE
-exports.update = async (req, res) => {
-    try {
-        const feeStructure = await FeeStructure.findById(req.params.id);
-        if (!feeStructure) throw new Error('FeeStructure not found');
+exports.update = async (req, res, next) => {
+	const { id } = req.params;
+	try {
+		let feeStructure = await FeeStructure.findById(id);
+		if (!feeStructure) {
+			return next(new ErrorResponse('Fee Structure not found', 404));
+		}
 
-        feeStructure.name = req.body.name;
-        feeStructure.description = req.body.description;
-        feeStructure.academicYear = req.body.academicYear;
-        feeStructure.class = req.body.class;
-        feeStructure.feeDetails = req.body.feeDetails;
-        feeStructure.totalAmount = req.body.totalAmount;
-
-        await feeStructure.save();
-        res.json(feeStructure);
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
+		feeStructure = await FeeStructure.findByIdAndUpdate(id, req.body, {
+			new: true,
+			runValidators: true,
+		});
+		res
+			.status(200)
+			.json(SuccessResponse(feeStructure, 1, 'Updated Successfully'));
+	} catch (err) {
+		console.log('error while updating', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
 };
 
 // DELETE
-exports.delete = async (req, res) => {
-    try {
-        const feeStructure = await FeeStructure.findById(req.params.id);
-        if (!feeStructure) throw new Error('FeeStructure not found');
+exports.deleteFeeStructure = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const feeStructure = await FeeStructure.findById(id);
+	if (!feeStructure) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
 
-        await feeStructure.remove();
-        res.json({ message: 'FeeStructure deleted' });
-    } catch (err) {
-        res.status(404).json({ message: err.message });
-    }
-};
+	await feeStructure.deleteOne({ id });
+	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
+});
 
 // LIST
-exports.list = async (req, res) => {
-    try {
-        const feeStructures = await FeeStructure.find().populate('feeDetails.feeType');
-        res.json(feeStructures);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+exports.getByFilter = catchAsync(async (req, res, next) => {
+	const { schoolId, page = 0, limit = 10 } = req.query;
+	const query = {};
+	if (schoolId) {
+		query.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
+
+	const feeTypes = await FeeStructure.aggregate([
+		{
+			$facet: {
+				data: [
+					{ $match: query },
+					{ $skip: +page * +limit },
+					{ $limit: +limit },
+				],
+				count: [{ $match: query }, { $count: 'count' }],
+			},
+		},
+	]);
+	const { data, count } = feeTypes[0];
+
+	if (count.length === 0) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
