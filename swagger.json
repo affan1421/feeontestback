@@ -1542,6 +1542,280 @@
           }
         }
       },
+      "put": {
+        "tags": ["Fee Structure"],
+        "summary": "Update a fee structure",
+        "description": "Update a fee structure by id",
+        "operationId": "updateFeeStructure",
+        "produces": ["application/json, multipart/form-data"],
+        "parameters": [
+          {
+            "name": "feeStructureName",
+            "in": "formData",
+            "description": "The name of the fee structure",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the fee structure",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "academicYear",
+            "in": "formData",
+            "description": "The fee academic year of the fee structure",
+            "required": false,
+            "type": "string",
+            "example": "2023-2024"
+          },
+          {
+            "name": "schoolId",
+            "in": "formData",
+            "description": "The schoolId of the fee structure",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "classes",
+            "in": "formData",
+            "description": "The classes of students for whom the fee structure is created",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "collectionFormat": "multi",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "sectionId": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name", "sectionId"]
+              }
+            },
+            "example": [
+              {
+                "name": "class 1A",
+                "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5f"
+              },
+              {
+                "name": "class 1B",
+                "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5e"
+              }
+            ]
+          },
+          {
+            "name": "feeDetails",
+            "in": "formData",
+            "description": "The fee details of the fee structure",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "collectionFormat": "multi",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "feeTypeId": {
+                    "type": "string"
+                  },
+                  "scheduleTypeId": {
+                    "type": "string"
+                  },
+                  "scheduledDates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "amount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["date", "amount"]
+                    },
+                    "minItems": 1
+                  },
+                  "totalAmount": {
+                    "type": "number"
+                  },
+                  "breakdown": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "feeTypeId",
+                  "scheduleTypeId",
+                  "scheduledDates",
+                  "totalAmount",
+                  "breakdown"
+                ]
+              }
+            },
+            "example": [
+              {
+                "feeTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                "scheduleTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                "scheduledDates": [
+                  {
+                    "date": "2023-03-10T18:30:00.000Z",
+                    "amount": 292
+                  }
+                ],
+                "totalAmount": 3500,
+                "breakdown": 12
+              }
+            ]
+          },
+          {
+            "name": "totalAmount",
+            "in": "formData",
+            "description": "The total amount of the fee structure",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "No Fee Structure Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Structure not found"
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "feeStructureName": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "academicYear": {
+                      "type": "string"
+                    },
+                    "classes": {
+                      "type": "array"
+                    },
+                    "feeDetails": {
+                      "type": "array"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "totalAmount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "feeStructureName": "Secon  Structure",
+                  "academicYear": "2023-2024",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "classes": [
+                    {
+                      "name": "class 1A",
+                      "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                      "_id": "64181f16b1c774f84228257b"
+                    }
+                  ],
+                  "description": "the description",
+                  "feeDetails": [
+                    {
+                      "feeTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                      "scheduleTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                      "scheduledDates": [
+                        {
+                          "date": "2023-03-20T04:46:44.263Z",
+                          "amount": 289,
+                          "_id": "64181f16b1c774f84228257d"
+                        },
+                        {
+                          "date": "2023-04-20T04:46:44.263Z",
+                          "amount": 289,
+                          "_id": "64181f16b1c774f84228257e"
+                        }
+                      ],
+                      "totalAmount": 578,
+                      "breakdown": 2,
+                      "_id": "64181f16b1c774f84228257c"
+                    },
+                    {
+                      "feeTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                      "scheduleTypeId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                      "scheduledDates": [
+                        {
+                          "date": "2023-03-20T04:46:44.263Z",
+                          "amount": 289,
+                          "_id": "64181f16b1c774f842282580"
+                        },
+                        {
+                          "date": "2023-04-20T04:46:44.263Z",
+                          "amount": 289,
+                          "_id": "64181f16b1c774f842282581"
+                        }
+                      ],
+                      "totalAmount": 578,
+                      "breakdown": 2,
+                      "_id": "64181f16b1c774f84228257f"
+                    }
+                  ],
+                  "totalAmount": 578,
+                  "_id": "64181f16b1c774f84228257a",
+                  "__v": 0
+                },
+                "resultCount": 1,
+                "message": "Created Successfully"
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": ["Fee Structure"],
         "summary": "Delete a fee structure",

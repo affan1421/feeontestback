@@ -6,15 +6,20 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const {
+	let {
 		feeStructureName,
 		academicYear = '2023-2024',
 		schoolId,
-		classes,
+		classes = [],
 		description = '',
-		feeDetails,
+		feeDetails = [],
 		totalAmount,
 	} = req.body;
+	if (typeof classes[0] === 'string' && typeof feeDetails[0] === 'string') {
+		classes = classes.map(JSON.parse);
+		feeDetails = feeDetails.map(JSON.parse);
+	}
+
 	if (!feeStructureName || !classes || !feeDetails || !totalAmount || !schoolId)
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	let feeStructure = null;
@@ -68,6 +73,14 @@ exports.update = async (req, res, next) => {
 		let feeStructure = await FeeStructure.findById(id);
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
+		}
+
+		if (
+			typeof req.body.classes[0] === 'string' &&
+			typeof req.body.feeDetails[0] === 'string'
+		) {
+			req.body.classes = req.body.classes.map(JSON.parse);
+			req.body.feeDetails = req.body.feeDetails.map(JSON.parse);
 		}
 
 		feeStructure = await FeeStructure.findByIdAndUpdate(id, req.body, {
