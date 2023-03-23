@@ -433,7 +433,7 @@ describe('Fee Structure Controller', () => {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
-				body: feeStructureMock,
+				body: feeStructureMock.data,
 			});
 			const res = mockResponse();
 			jest
