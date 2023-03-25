@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const { default: axios } = require('axios');
+const { spawn } = require('child_process');
+const flatted = require('flatted');
 const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
@@ -15,26 +18,26 @@ exports.create = async (req, res, next) => {
 		feeDetails = [],
 		totalAmount,
 	} = req.body;
+
 	if (typeof classes[0] === 'string' && typeof feeDetails[0] === 'string') {
 		classes = classes.map(JSON.parse);
 		feeDetails = feeDetails.map(JSON.parse);
 	}
 
-	if (!feeStructureName || !classes || !feeDetails || !totalAmount || !schoolId)
+	if (
+		!feeStructureName ||
+		!classes ||
+		!feeDetails ||
+		!totalAmount ||
+		!schoolId
+	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
-	let feeStructure = null;
-
-	const feeStructureExists = await FeeStructure.findOne({
-		feeStructureName,
-		schoolId,
-	});
-	if (feeStructureExists) {
-		return next(
-			new ErrorResponse('Fee Structure With This Name Already Exists', 400)
-		);
 	}
+	// TODO: add validation if structure name already exists
+
 	try {
-		feeStructure = await FeeStructure.create({
+		// Attempt to create the fee structure.
+		const feeStructure = await FeeStructure.create({
 			feeStructureName,
 			academicYear,
 			schoolId,
@@ -43,13 +46,48 @@ exports.create = async (req, res, next) => {
 			feeDetails,
 			totalAmount: Number(totalAmount),
 		});
+
+		// Extract the section IDs from the classes array.
+		const sectionIds = classes.map(c => c.sectionId);
+
+		// Fetch the student list from the student API.
+		const studentList = await axios.post(
+			`${process.env.GROWON_BASE_URL}/student/feeOn`,
+			{ classes: sectionIds }
+		);
+		// Spawn child process to insert data into the database
+		const childSpawn = await spawn('node', [
+			'../feeOn-backend/helper/installments.js',
+			flatted.stringify(feeDetails),
+			flatted.stringify(studentList.data.data),
+			flatted.stringify(feeStructure),
+			schoolId,
+			academicYear,
+		]);
+
+		childSpawn.stdout.on('data', data => {
+			console.log(`stdout: ${data}`);
+		});
+
+		childSpawn.stderr.on('data', data => {
+			console.error(`stderr: ${data}`);
+		});
+
+		childSpawn.on('error', error => {
+			console.error(`error: ${error.message}`);
+		});
+
+		childSpawn.on('close', code => {
+			console.log(`child process exited with code ${code}`);
+		});
+
+		res
+			.status(201)
+			.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
 	} catch (err) {
 		console.log('error while creating', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
-	res
-		.status(201)
-		.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
 };
 
 // READ
