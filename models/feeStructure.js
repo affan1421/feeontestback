@@ -58,7 +58,6 @@ const feeStructureSchema = new Schema(
 		feeDetails: {
 			type: [feeDetailsSchema],
 			required: [true, 'Fee Details are Mandatory'],
-			default: [],
 		},
 
 		totalAmount: {
