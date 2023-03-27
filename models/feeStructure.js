@@ -25,45 +25,48 @@ const feeDetailsSchema = new Schema({
 	breakdown: Number,
 });
 
-const feeStructureSchema = new Schema({
-	feeStructureName: {
-		type: String,
-		required: [true, 'Fee Structure Name is Mandatory'],
-	},
-	academicYear: {
-		type: String,
-		required: false,
-		default: '2023-2024',
-	},
-	schoolId: {
-		type: Schema.Types.ObjectId,
-		ref: 'School',
-		required: [true, 'School is Mandatory'],
-	},
-	classes: {
-		type: [
-			{
-				name: String,
-				sectionId: {
-					type: Schema.Types.ObjectId,
-					ref: 'Section',
-					required: true,
+const feeStructureSchema = new Schema(
+	{
+		feeStructureName: {
+			type: String,
+			required: [true, 'Fee Structure Name is Mandatory'],
+		},
+		academicYear: {
+			type: String,
+			required: false,
+			default: '2023-2024',
+		},
+		schoolId: {
+			type: Schema.Types.ObjectId,
+			ref: 'School',
+			required: [true, 'School is Mandatory'],
+		},
+		classes: {
+			type: [
+				{
+					name: String,
+					sectionId: {
+						type: Schema.Types.ObjectId,
+						ref: 'Section',
+						required: true,
+					},
 				},
-			},
-		],
-		default: [],
-	},
-	description: String,
-	feeDetails: {
-		type: [feeDetailsSchema],
-		required: [true, 'Fee Details are Mandatory'],
-		default: [],
-	},
+			],
+			default: [],
+		},
+		description: String,
+		feeDetails: {
+			type: [feeDetailsSchema],
+			required: [true, 'Fee Details are Mandatory'],
+			default: [],
+		},
 
-	totalAmount: {
-		type: Number,
-		required: [true, 'Total Amount is Mandatory'],
+		totalAmount: {
+			type: Number,
+			required: [true, 'Total Amount is Mandatory'],
+		},
 	},
-});
+	{ timestamps: true }
+);
 
 module.exports = model('FeeStructure', feeStructureSchema);
