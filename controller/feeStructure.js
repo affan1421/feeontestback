@@ -57,38 +57,38 @@ exports.create = async (req, res, next) => {
 		});
 
 		// Extract the section IDs from the classes array.
-		const sectionIds = classes.map(c => c.sectionId);
+		// const sectionIds = classes.map(c => c.sectionId);
 
 		// Fetch the student list from the student API.
-		const studentList = await axios.post(
-			`${process.env.GROWON_BASE_URL}/student/feeOn`,
-			{ classes: sectionIds }
-		);
-		// Spawn child process to insert data into the database
-		const childSpawn = spawn('node', [
-			'../feeOn-backend/helper/installments.js',
-			flatted.stringify(feeDetails),
-			flatted.stringify(studentList.data.data),
-			flatted.stringify(feeStructure),
-			schoolId,
-			academicYear,
-		]);
+		// const studentList = await axios.post(
+		// 	`${process.env.GROWON_BASE_URL}/student/feeOn`,
+		// 	{ classes: sectionIds }
+		// );
+		// // Spawn child process to insert data into the database
+		// const childSpawn = spawn('node', [
+		// 	'../feeOn-backend/helper/installments.js',
+		// 	flatted.stringify(feeDetails),
+		// 	flatted.stringify(studentList.data.data),
+		// 	flatted.stringify(feeStructure),
+		// 	schoolId,
+		// 	academicYear,
+		// ]);
 
-		childSpawn.stdout.on('data', data => {
-			console.log(`stdout: ${data}`);
-		});
+		// childSpawn.stdout.on('data', data => {
+		// 	console.log(`stdout: ${data}`);
+		// });
 
-		childSpawn.stderr.on('data', data => {
-			console.error(`stderr: ${data}`);
-		});
+		// childSpawn.stderr.on('data', data => {
+		// 	console.error(`stderr: ${data}`);
+		// });
 
-		childSpawn.on('error', error => {
-			console.error(`error: ${error.message}`);
-		});
+		// childSpawn.on('error', error => {
+		// 	console.error(`error: ${error.message}`);
+		// });
 
-		childSpawn.on('close', code => {
-			console.log(`child process exited with code ${code}`);
-		});
+		// childSpawn.on('close', code => {
+		// 	console.log(`child process exited with code ${code}`);
+		// });
 
 		res
 			.status(201)
