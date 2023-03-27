@@ -1,5 +1,6 @@
 /* eslint-disable no-multi-assign */
 /* eslint-disable no-undef */
+const axios = require('axios');
 const FeeStructure = require('../../models/feeStructure');
 const ErrorResponse = require('../../utils/errorResponse');
 const SuccessResponse = require('../../utils/successResponse');
@@ -14,6 +15,7 @@ const {
 jest.mock('../../models/feeStructure');
 jest.mock('../../utils/errorResponse');
 jest.mock('../../utils/successResponse');
+jest.mock('axios');
 
 beforeEach(() => {
 	jest.clearAllMocks();
@@ -304,6 +306,7 @@ describe('Fee Structure Controller', () => {
 			jest
 				.spyOn(FeeStructure, 'create')
 				.mockResolvedValueOnce(feeStructureMock);
+			jest.spyOn(axios, 'post').mockResolvedValueOnce({ data: { id: 1 } });
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(201);
 			expect(SuccessResponse).toHaveBeenCalledWith(

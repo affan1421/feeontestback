@@ -19,11 +19,6 @@ exports.create = async (req, res, next) => {
 		totalAmount,
 	} = req.body;
 
-	if (typeof classes[0] === 'string' && typeof feeDetails[0] === 'string') {
-		classes = classes.map(JSON.parse);
-		feeDetails = feeDetails.map(JSON.parse);
-	}
-
 	if (
 		!feeStructureName ||
 		!classes ||
@@ -33,6 +28,20 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
+
+	const isExist = await FeeStructure.findOne({ feeStructureName, schoolId });
+
+	if (isExist) {
+		return next(
+			new ErrorResponse('Fee Structure With This Name Already Exists', 400)
+		);
+	}
+
+	if (typeof classes[0] === 'string' && typeof feeDetails[0] === 'string') {
+		classes = classes.map(JSON.parse);
+		feeDetails = feeDetails.map(JSON.parse);
+	}
+
 	// TODO: add validation if structure name already exists
 
 	try {
@@ -56,7 +65,7 @@ exports.create = async (req, res, next) => {
 			{ classes: sectionIds }
 		);
 		// Spawn child process to insert data into the database
-		const childSpawn = await spawn('node', [
+		const childSpawn = spawn('node', [
 			'../feeOn-backend/helper/installments.js',
 			flatted.stringify(feeDetails),
 			flatted.stringify(studentList.data.data),
