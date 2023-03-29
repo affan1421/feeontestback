@@ -7,6 +7,45 @@ const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 
+async function runChildProcess(
+	feeDetails,
+	sectionIds,
+	feeStructure,
+	schoolId,
+	academicYear
+) {
+	// Fetch the student list from the student API.
+	const studentList = await axios.post(
+		`${process.env.GROWON_BASE_URL}/student/feeOn`,
+		{ classes: sectionIds }
+	);
+	// Spawn child process to insert data into the database
+	const childSpawn = spawn('node', [
+		'../feeOn-backend/helper/installments.js',
+		flatted.stringify(feeDetails),
+		flatted.stringify(studentList.data.data),
+		feeStructure,
+		schoolId,
+		academicYear,
+	]);
+
+	childSpawn.stdout.on('data', data => {
+		console.log(`stdout: ${data}`);
+	});
+
+	childSpawn.stderr.on('data', data => {
+		console.error(`stderr: ${data}`);
+	});
+
+	childSpawn.on('error', error => {
+		console.error(`error: ${error.message}`);
+	});
+
+	childSpawn.on('close', code => {
+		console.log(`child process exited with code ${code}`);
+	});
+}
+
 // CREATE
 exports.create = async (req, res, next) => {
 	let {
@@ -58,38 +97,13 @@ exports.create = async (req, res, next) => {
 
 		// Extract the section IDs from the classes array.
 		// const sectionIds = classes.map(c => c.sectionId);
-
-		// Fetch the student list from the student API.
-		// const studentList = await axios.post(
-		// 	`${process.env.GROWON_BASE_URL}/student/feeOn`,
-		// 	{ classes: sectionIds }
-		// );
-		// // Spawn child process to insert data into the database
-		// const childSpawn = spawn('node', [
-		// 	'../feeOn-backend/helper/installments.js',
-		// 	flatted.stringify(feeDetails),
-		// 	flatted.stringify(studentList.data.data),
-		// 	flatted.stringify(feeStructure),
+		// await runChildProcess(
+		// 	feeDetails,
+		// 	sectionIds,
+		// 	feeStructure._id,
 		// 	schoolId,
-		// 	academicYear,
-		// ]);
-
-		// childSpawn.stdout.on('data', data => {
-		// 	console.log(`stdout: ${data}`);
-		// });
-
-		// childSpawn.stderr.on('data', data => {
-		// 	console.error(`stderr: ${data}`);
-		// });
-
-		// childSpawn.on('error', error => {
-		// 	console.error(`error: ${error.message}`);
-		// });
-
-		// childSpawn.on('close', code => {
-		// 	console.log(`child process exited with code ${code}`);
-		// });
-
+		// 	academicYear
+		// );
 		res
 			.status(201)
 			.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
@@ -124,11 +138,44 @@ exports.read = catchAsync(async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
+	const {
+		classes: newClasses,
+		feeDetails: newFeeDetails,
+		isRowAdded = false,
+		isClassAdded = false,
+	} = req.body;
 	try {
-		let feeStructure = await FeeStructure.findById(id);
+		const feeStructure = await FeeStructure.findById(id).lean();
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
+		const { classes, feeDetails, schoolId, academicYear } = feeStructure;
+
+		const sectionIds = new Set(classes.map(c => c.sectionId));
+		// check if any new section is added in the classes array
+		// if (isClassAdded) {
+		// 	const newSections = newClasses
+		// 		.filter(c => !sectionIds.has(c.sectionId) && c.sectionId)
+		// 		.map(c => c.sectionId);
+
+		// 	await runChildProcess(
+		// 		newFeeDetails,
+		// 		newSections,
+		// 		id,
+		// 		schoolId,
+		// 		academicYear
+		// 	);
+		// }
+
+		// check if any new row is added into the feeDetails array
+		// if (isRowAdded) {
+		// 	const feeTypeSet = new Set(feeDetails.map(f => f.feeTypeId));
+		// 	const newRows = req.body.feeDetails
+		// 		.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
+		// 		.map(f => f.feeTypeId);
+
+		// 	await runChildProcess(newRows, sectionIds, id, schoolId, academicYear);
+		// }
 
 		if (
 			typeof req.body.classes[0] === 'string' &&
@@ -138,13 +185,19 @@ exports.update = async (req, res, next) => {
 			req.body.feeDetails = req.body.feeDetails.map(JSON.parse);
 		}
 
-		feeStructure = await FeeStructure.findByIdAndUpdate(id, req.body, {
-			new: true,
-			runValidators: true,
-		});
+		// Update the fee structure in the database in a single call
+		const updatedFeeStructure = await FeeStructure.findByIdAndUpdate(
+			id,
+			req.body,
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
+
 		res
 			.status(200)
-			.json(SuccessResponse(feeStructure, 1, 'Updated Successfully'));
+			.json(SuccessResponse(updatedFeeStructure, 1, 'Updated Successfully'));
 	} catch (err) {
 		console.log('error while updating', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
