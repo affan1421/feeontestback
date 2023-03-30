@@ -420,6 +420,10 @@ describe('Fee Structure Controller', () => {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				body: {
+					classes: [],
+					feeDetails: [],
+				},
 			});
 			const res = mockResponse();
 			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
@@ -441,14 +445,14 @@ describe('Fee Structure Controller', () => {
 			const res = mockResponse();
 			jest
 				.spyOn(FeeStructure, 'findById')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
 				.spyOn(FeeStructure, 'findByIdAndUpdate')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			await update(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(SuccessResponse).toHaveBeenCalledWith(
-				feeStructureMock,
+				feeStructureMock.data,
 				1,
 				'Updated Successfully'
 			);

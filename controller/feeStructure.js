@@ -138,19 +138,18 @@ exports.read = catchAsync(async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
-	const {
+	let {
 		classes: newClasses,
 		feeDetails: newFeeDetails,
 		isRowAdded = false,
 		isClassAdded = false,
 	} = req.body;
 	try {
-		const feeStructure = await FeeStructure.findById(id).lean();
+		const feeStructure = await FeeStructure.findById(id);
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
 		const { classes, feeDetails, schoolId, academicYear } = feeStructure;
-
 		const sectionIds = new Set(classes.map(c => c.sectionId));
 		// check if any new section is added in the classes array
 		// if (isClassAdded) {
@@ -178,13 +177,12 @@ exports.update = async (req, res, next) => {
 		// }
 
 		if (
-			typeof req.body.classes[0] === 'string' &&
-			typeof req.body.feeDetails[0] === 'string'
+			typeof newClasses[0] === 'string' &&
+			typeof newFeeDetails[0] === 'string'
 		) {
-			req.body.classes = req.body.classes.map(JSON.parse);
-			req.body.feeDetails = req.body.feeDetails.map(JSON.parse);
+			newClasses = newClasses.map(JSON.parse);
+			newFeeDetails = newFeeDetails.map(JSON.parse);
 		}
-
 		// Update the fee structure in the database in a single call
 		const updatedFeeStructure = await FeeStructure.findByIdAndUpdate(
 			id,
@@ -194,12 +192,11 @@ exports.update = async (req, res, next) => {
 				runValidators: true,
 			}
 		);
-
 		res
 			.status(200)
 			.json(SuccessResponse(updatedFeeStructure, 1, 'Updated Successfully'));
 	} catch (err) {
-		console.log('error while updating', err.message);
+		console.error(err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
