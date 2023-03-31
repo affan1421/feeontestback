@@ -39,9 +39,6 @@ describe('Fee Schedule Controller', () => {
 			const req = (mockRequest().body = {
 				body: {
 					scheduleName: 'Test Schedule',
-					scheduleType: 'Monthly',
-					startDate: '2023-04-30T18:30:00.000Z',
-					endDate: '2024-02-29T18:30:00.000Z',
 					// schoolId: '5f9f1b9b9c9d440000a1b0f1',
 				},
 			});
@@ -58,11 +55,10 @@ describe('Fee Schedule Controller', () => {
 			const req = (mockRequest().body = {
 				body: {
 					scheduleName: 'Test Schedule',
-					scheduleType: 'Monthly',
-					startDate: '2023-04-30T18:30:00.000Z',
-					endDate: '2024-03-29T18:30:00.000Z',
+					day: 1,
+					months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+					existMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 					schoolId: '5f9f1b9b9c9d440000a1b0f1',
-					interval: 5,
 				},
 			});
 			const res = mockResponse();
@@ -78,47 +74,55 @@ describe('Fee Schedule Controller', () => {
 		it('should return 201 if fee schedule created successfully', async () => {
 			const req = (mockRequest().body = {
 				body: {
-					scheduleName: 'Test Schedule',
-					scheduleType: 'Monthly',
-					startDate: '2023-04-30T18:30:00.000Z',
-					endDate: '2024-03-29T18:30:00.000Z',
-					schoolId: '5f9f1b9b9c9d440000a1b0f1',
-					interval: 5,
+					scheduleName: 'new monthly',
+					description: 'Monthly fee schedule',
+					day: 9,
+					existMonths: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4],
+					months: [1, 11, 12, 2, 4, 9],
+					schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
 				},
 			});
 			const res = mockResponse();
 			jest.spyOn(FeeSchedule, 'create').mockResolvedValue({
-				scheduleName: 'Test Schedule',
-				scheduleType: 'Monthly',
-				startDate: '2023-04-30T18:30:00.000Z',
-				endDate: '2024-03-29T18:30:00.000Z',
-				schoolId: '5f9f1b9b9c9d440000a1b0f1',
-				scheduleDates: [
-					'2023-04-30T18:30:00.000Z',
-					'2023-09-30T18:30:00.000Z',
-					'2024-02-29T18:30:00.000Z',
+				scheduleName: 'new monthly',
+				description: 'Monthly fee schedule',
+				day: 9,
+				months: [9, 11, 12, 1, 2, 4],
+				schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
+				scheduledDates: [
+					'2023-09-08T18:30:00.000Z',
+					'2023-11-08T18:30:00.000Z',
+					'2023-12-08T18:30:00.000Z',
+					'2024-01-08T18:30:00.000Z',
+					'2024-02-08T18:30:00.000Z',
+					'2024-04-08T18:30:00.000Z',
 				],
-				interval: 5,
-				createdAt: '2020-11-03T18:30:00.000Z',
-				updatedAt: '2020-11-03T18:30:00.000Z',
+				_id: '6426799d714d49a034f79dd5',
+				createdAt: '2023-03-31T06:11:41.387Z',
+				updatedAt: '2023-03-31T06:11:41.387Z',
+				__v: 0,
 			});
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(201);
 			expect(SuccessResponse).toHaveBeenCalledWith(
 				{
-					scheduleName: 'Test Schedule',
-					scheduleType: 'Monthly',
-					startDate: '2023-04-30T18:30:00.000Z',
-					endDate: '2024-03-29T18:30:00.000Z',
-					schoolId: '5f9f1b9b9c9d440000a1b0f1',
-					scheduleDates: [
-						'2023-04-30T18:30:00.000Z',
-						'2023-09-30T18:30:00.000Z',
-						'2024-02-29T18:30:00.000Z',
+					scheduleName: 'new monthly',
+					description: 'Monthly fee schedule',
+					day: 9,
+					months: [9, 11, 12, 1, 2, 4],
+					schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
+					scheduledDates: [
+						'2023-09-08T18:30:00.000Z',
+						'2023-11-08T18:30:00.000Z',
+						'2023-12-08T18:30:00.000Z',
+						'2024-01-08T18:30:00.000Z',
+						'2024-02-08T18:30:00.000Z',
+						'2024-04-08T18:30:00.000Z',
 					],
-					interval: 5,
-					createdAt: '2020-11-03T18:30:00.000Z',
-					updatedAt: '2020-11-03T18:30:00.000Z',
+					_id: '6426799d714d49a034f79dd5',
+					createdAt: '2023-03-31T06:11:41.387Z',
+					updatedAt: '2023-03-31T06:11:41.387Z',
+					__v: 0,
 				},
 				1,
 				'Created Successfully'
@@ -313,12 +317,12 @@ describe('Fee Schedule Controller', () => {
 			const req = (mockRequest().body = {
 				params: '5f9f1b9b9c9d440000a1b0f1',
 				body: {
-					scheduleName: 'Test Schedule',
-					scheduleType: 'Monthly',
-					startDate: 'Mon May 01 2023 00:00:00 GMT+0530 (India Standard Time)',
-					endDate: 'Sat Mar 30 2024 00:00:00 GMT+0530 (India Standard Time)',
-					schoolId: '5f9f1b9b9c9d440000a1b0f1',
-					interval: 5,
+					scheduleName: 'new monthly',
+					description: 'Monthly fee schedule',
+					day: 9,
+					existMonths: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4],
+					months: [1, 11, 12, 2, 4, 9],
+					schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
 				},
 			});
 			const res = mockResponse();

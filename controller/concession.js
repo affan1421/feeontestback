@@ -89,9 +89,9 @@ const getDiscountById = catchAsync(async (req, res, next) => {
 // 2. If the discount is applied to a student, then the discount should not be updated, Since it is approved.
 //   - If the discount is not approved, then the discount can be updated.
 //   - If force updated (discountType, amountType, value, approvedOn, approvedBy) then need to re-calculate the netAmount of all linked student feeInstallments.
-//   - If feeTypeId is changed, then remove the discountId from all the linked installments and re-map the discountId to the new feeTypeId's Installments and re-calculate netAmount.
+//   - If feeTypeId is changed (should not be changed b'coz the fee structure must be in sync), then remove the discountId from all the linked installments and re-map the discountId to the new feeTypeId's Installments and re-calculate netAmount.
 //   - Exceptional fields are discountName, description.
-//   - If one student is deleted after approved the discount, then the discount should be removed from the student and netAmount should be totalAmount.
+//   - If one student is removed from the discount page after approved the discount, then the discount should be removed from the student and netAmount should be totalAmount.
 //   - If new student is added after approved the discount, then the discount should be added to the student and netAmount should be totalAmount - discountAmount.
 const updateDiscount = async (req, res, next) => {
 	const { id } = req.params;

@@ -463,15 +463,15 @@ describe('Fee Structure Controller', () => {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
-				body: feeStructureMock,
+				body: feeStructureMock.data,
 			});
 			const res = mockResponse();
 			jest
 				.spyOn(FeeStructure, 'findById')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
 				.spyOn(FeeStructure, 'findByIdAndUpdate')
-				.mockRejectedValueOnce(feeStructureMock);
+				.mockRejectedValueOnce(feeStructureMock.data);
 			await update(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
