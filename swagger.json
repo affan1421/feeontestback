@@ -168,6 +168,11 @@
                       "type": "string",
                       "example": "62430d9eea0eaa0bc3e6127e"
                     },
+                    "academicYearId": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
+                    },
+
                     "createdAt": {
                       "type": "date",
                       "example": "2023-03-09T11:00:12.639Z"
@@ -270,6 +275,10 @@
                     "accountType": {
                       "type": "string",
                       "example": "Assets"
+                    },
+                    "academicYearId": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
                     },
                     "schoolId": {
                       "type": "string",
@@ -381,6 +390,10 @@
                     "accountType": {
                       "type": "string",
                       "example": "Assets"
+                    },
+                    "academicYearId": {
+                      "type": "string",
+                      "example": "5f9b1b0b0b9b9c0b8c8e8e8e"
                     },
                     "schoolId": {
                       "type": "string",
@@ -522,10 +535,9 @@
                       "_id": "6410502d0661f387bf3a0cf1",
                       "scheduleName": "Test2",
                       "description": "Test",
-                      "scheduleType": "Monthly",
-                      "startDate": "2023-04-30T18:30:00.000Z",
-                      "endDate": "2024-02-29T18:30:00.000Z",
-                      "interval": 3,
+                      "academicYearId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+                      "day": 10,
+                      "months": [4, 7, 10, 1],
                       "schoolId": "efefefefefefefefefefefef",
                       "scheduledDates": [
                         "2023-04-30T18:30:00.000Z",
@@ -572,42 +584,40 @@
             "name": "description",
             "in": "formData",
             "description": "The description of the feeschedule",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "scheduleType",
-            "in": "formData",
-            "description": "The schedule type of the feeschedule",
-            "required": true,
-            "type": "string",
-            "example": "Monthly/Yearly"
-          },
-          {
-            "name": "startDate",
-            "in": "formData",
-            "description": "The start date of the feeschedule",
             "required": true,
             "type": "string"
           },
           {
-            "name": "endDate",
+            "name": "day",
             "in": "formData",
-            "description": "The end date of the feeschedule",
+            "description": "The day of the feeschedule",
             "required": true,
-            "type": "string"
-          },
-          {
-            "name": "interval",
-            "in": "formData",
-            "description": "The interval of the feeschedule",
-            "required": false,
             "type": "integer"
+          },
+          {
+            "name": "existingMonths",
+            "in": "formData",
+            "description": "The existingMonths of the feeschedule",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "Number"
+            }
+          },
+          {
+            "name": "months",
+            "in": "formData",
+            "description": "The months of the feeschedule",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "Number"
+            }
           },
           {
             "name": "schoolId",
             "in": "formData",
-            "description": "The school of the feeschedule",
+            "description": "The schoolId of the feeschedule",
             "required": true,
             "type": "string"
           }
@@ -633,10 +643,10 @@
                     "_id": "6410502d0661f387bf3a0cf1",
                     "scheduleName": "Test2",
                     "description": "Test",
-                    "scheduleType": "Monthly",
-                    "startDate": "2023-04-30T18:30:00.000Z",
-                    "endDate": "2024-02-29T18:30:00.000Z",
-                    "interval": 3,
+                    "academicYearId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+                    "day": 10,
+                    "months": [4, 7, 10, 1],
+
                     "schoolId": "efefefefefefefefefefefef",
                     "scheduledDates": [
                       "2023-04-30T18:30:00.000Z",
@@ -655,17 +665,14 @@
                     "description": {
                       "type": "string"
                     },
-                    "scheduleType": {
+                    "academicYearId": {
                       "type": "string"
                     },
-                    "startDate": {
-                      "type": "string"
-                    },
-                    "endDate": {
-                      "type": "string"
-                    },
-                    "interval": {
+                    "day": {
                       "type": "integer"
+                    },
+                    "months": {
+                      "type": "array"
                     },
                     "schoolId": {
                       "type": "string"
@@ -720,10 +727,11 @@
                     "_id": "6410502d0661f387bf3a0cf1",
                     "scheduleName": "Test2",
                     "description": "Test",
-                    "scheduleType": "Monthly",
-                    "startDate": "2023-04-30T18:30:00.000Z",
-                    "endDate": "2024-02-29T18:30:00.000Z",
-                    "interval": 3,
+                    "academicYearId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+                    "day": 10,
+                    "schoolId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+
+                    "months": [4, 7, 10, 1],
                     "scheduledDates": [
                       "2023-04-30T18:30:00.000Z",
                       "2023-07-31T18:30:00.000Z",
@@ -740,17 +748,17 @@
                     "description": {
                       "type": "string"
                     },
-                    "scheduleType": {
+                    "academicYearId": {
                       "type": "string"
                     },
-                    "startDate": {
-                      "type": "string"
-                    },
-                    "endDate": {
-                      "type": "string"
-                    },
-                    "interval": {
+                    "day": {
                       "type": "integer"
+                    },
+                    "months": {
+                      "type": "array"
+                    },
+                    "schoolId": {
+                      "type": "string"
                     },
                     "scheduledDates": {
                       "type": "array"
@@ -802,32 +810,31 @@
             "type": "string"
           },
           {
-            "name": "scheduleType",
+            "name": "day",
             "in": "formData",
-            "description": "The type of the feeschedule",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "startDate",
-            "in": "formData",
-            "description": "The start date of the feeschedule",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "endDate",
-            "in": "formData",
-            "description": "The end date of the feeschedule",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "interval",
-            "in": "formData",
-            "description": "The interval of the feeschedule",
+            "description": "The day of the feeschedule",
             "required": true,
             "type": "integer"
+          },
+          {
+            "name": "existingMonths",
+            "in": "formData",
+            "description": "The existingMonths of the feeschedule",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "Number"
+            }
+          },
+          {
+            "name": "months",
+            "in": "formData",
+            "description": "The months of the feeschedule",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "Number"
+            }
           },
           {
             "name": "schoolId",
@@ -852,10 +859,10 @@
                     "_id": "6410502d0661f387bf3a0cf1",
                     "scheduleName": "Test2",
                     "description": "Test",
-                    "scheduleType": "Monthly",
-                    "startDate": "2023-04-30T18:30:00.000Z",
-                    "endDate": "2024-02-29T18:30:00.000Z",
-                    "interval": 3,
+                    "academicYearId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+                    "day": 10,
+                    "schoolId": "5f9b1b0b0b9b9c0b8c8e8e8e",
+                    "months": [4, 7, 10, 1],
                     "scheduledDates": [
                       "2023-04-30T18:30:00.000Z",
                       "2023-07-31T18:30:00.000Z",
@@ -872,17 +879,17 @@
                     "description": {
                       "type": "string"
                     },
-                    "scheduleType": {
+                    "academicYearId": {
                       "type": "string"
                     },
-                    "startDate": {
-                      "type": "string"
-                    },
-                    "endDate": {
-                      "type": "string"
-                    },
-                    "interval": {
+                    "day": {
                       "type": "integer"
+                    },
+                    "months": {
+                      "type": "array"
+                    },
+                    "schoolId": {
+                      "type": "string"
                     },
                     "scheduledDates": {
                       "type": "array"
@@ -971,14 +978,6 @@
             "description": "The description of the fee structure",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "academicYear",
-            "in": "formData",
-            "description": "The fee academic year of the fee structure",
-            "required": false,
-            "type": "string",
-            "example": "2023-2024"
           },
           {
             "name": "schoolId",
@@ -1138,7 +1137,7 @@
                     "description": {
                       "type": "string"
                     },
-                    "academicYear": {
+                    "academicYearId": {
                       "type": "string"
                     },
                     "classes": {
@@ -1174,7 +1173,7 @@
                 "success": true,
                 "data": {
                   "feeStructureName": "Second Structure",
-                  "academicYear": "2023-2024",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "classes": [
                     {
@@ -1268,7 +1267,7 @@
                       "description": {
                         "type": "string"
                       },
-                      "academicYear": {
+                      "academicYearId": {
                         "type": "string"
                       },
                       "classes": {
@@ -1306,7 +1305,7 @@
                 "data": [
                   {
                     "feeStructureName": "Secon  Structure",
-                    "academicYear": "2023-2024",
+                    "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                     "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                     "classes": [
                       {
@@ -1442,7 +1441,7 @@
                     "description": {
                       "type": "string"
                     },
-                    "academicYear": {
+                    "academicYearId": {
                       "type": "string"
                     },
                     "classes": {
@@ -1478,7 +1477,7 @@
                 "success": true,
                 "data": {
                   "feeStructureName": "Secon  Structure",
-                  "academicYear": "2023-2024",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "classes": [
                     {
@@ -1564,12 +1563,11 @@
             "type": "string"
           },
           {
-            "name": "academicYear",
+            "name": "academicYearId",
             "in": "formData",
-            "description": "The fee academic year of the fee structure",
-            "required": false,
-            "type": "string",
-            "example": "2023-2024"
+            "description": "The academic year id of the fee structure",
+            "required": true,
+            "type": "string"
           },
           {
             "name": "schoolId",
@@ -1719,7 +1717,7 @@
                     "description": {
                       "type": "string"
                     },
-                    "academicYear": {
+                    "academicYearId": {
                       "type": "string"
                     },
                     "classes": {
@@ -1755,7 +1753,7 @@
                 "success": true,
                 "data": {
                   "feeStructureName": "Secon  Structure",
-                  "academicYear": "2023-2024",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
                   "classes": [
                     {
