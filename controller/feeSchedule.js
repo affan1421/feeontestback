@@ -69,9 +69,9 @@ exports.create = async (req, res, next) => {
 // @route   GET /api/v1/feeSchedule
 // @access  Private
 exports.getAll = catchAsync(async (req, res, next) => {
-	let { schoolId, scheduleType, page, limit } = req.query;
-	page = parseInt(page, 0);
-	limit = parseInt(limit, 10);
+	let { schoolId, scheduleType, page = 0, limit = 5 } = req.query;
+	page = +page;
+	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);

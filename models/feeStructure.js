@@ -31,10 +31,10 @@ const feeStructureSchema = new Schema(
 			type: String,
 			required: [true, 'Fee Structure Name is Mandatory'],
 		},
-		academicYear: {
-			type: String,
-			required: false,
-			default: '2023-2024',
+		academicYearId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: [false, 'Academic Year is Mandatory'],
 		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
@@ -67,5 +67,9 @@ const feeStructureSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+feeStructureSchema.plugin(require('../middleware/academicYear'), {
+	refPath: 'academicYearId',
+});
 
 module.exports = model('FeeStructure', feeStructureSchema);

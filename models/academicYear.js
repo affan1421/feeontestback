@@ -16,6 +16,10 @@ const academicYearSchema = new Schema(
 			type: Date, // 2024-05-01T00:00:00.000Z
 			required: [true, 'Please add an end date'],
 		},
+		isActive: {
+			type: Boolean, // true
+			default: false,
+		},
 		months: {
 			type: [Number], // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 			required: [true, 'Please add months'],

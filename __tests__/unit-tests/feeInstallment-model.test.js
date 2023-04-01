@@ -10,8 +10,8 @@ describe('FeeInstallment Model', () => {
 		expect(errors.errors.sectionId.message).toEqual(
 			'Path `sectionId` is required.'
 		);
-		expect(errors.errors.academicYear.message).toEqual(
-			'Path `academicYear` is required.'
+		expect(errors.errors.academicYearId.message).toEqual(
+			'Path `academicYearId` is required.'
 		);
 		expect(errors.errors.schoolId.message).toEqual(
 			'Path `schoolId` is required.'
@@ -38,8 +38,9 @@ describe('FeeInstallment Model', () => {
 		const feeInstallment = new FeeInstallment({
 			feeTypeId: mongoose.Types.ObjectId(),
 			scheduleTypeId: mongoose.Types.ObjectId(),
+			feeStructureId: mongoose.Types.ObjectId(),
 			sectionId: mongoose.Types.ObjectId(),
-			academicYear: '2022-2023',
+			academicYearId: mongoose.Types.ObjectId(),
 			schoolId: mongoose.Types.ObjectId(),
 			studentId: mongoose.Types.ObjectId(),
 			date: new Date(),

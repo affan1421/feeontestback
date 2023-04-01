@@ -13,6 +13,11 @@ const feeScheduleSchema = new Schema(
 			required: [false, 'Please add a description'],
 			default: '',
 		},
+		academicYearId: {
+			type: Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: [false, 'Please add an academic year id'],
+		},
 		day: {
 			type: Number,
 			required: [true, 'Please add a day'],
@@ -21,28 +26,6 @@ const feeScheduleSchema = new Schema(
 			type: [Number],
 			required: [true, 'Please add months'],
 		},
-		// TODO: Remove this property as it is not needed
-		// scheduleType: {
-		// 	type: String,
-		// 	required: [true, 'Please add a schedule type'],
-		// 	enum: ['Monthly', 'Yearly'],
-		// },
-		// TODO: Remove this property as it is not needed
-		// startDate: {
-		// 	type: Date,
-		// 	required: [true, 'Please add a start date'],
-		// },
-		// TODO: Remove this property as it is not needed
-		// endDate: {
-		// 	type: Date,
-		// 	required: [true, 'Please add an end date'],
-		// },
-		// TODO: Remove this property as it is not needed
-		// interval: {
-		// 	type: Number,
-		// 	required: [false, 'Please add an interval'],
-		// 	default: 1,
-		// },
 		schoolId: {
 			type: Schema.Types.ObjectId,
 			ref: 'School',
@@ -57,5 +40,9 @@ const feeScheduleSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+feeScheduleSchema.plugin(require('../middleware/academicYear'), {
+	refPath: 'academicYearId',
+});
 
 module.exports = model('FeeSchedule', feeScheduleSchema);

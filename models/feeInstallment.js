@@ -10,9 +10,17 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'FeeSchedule',
 			required: true,
 		}, // populate
-		feeStructureId: { type: Schema.Types.ObjectId, ref: 'FeeStructure' }, // just for reference
+		feeStructureId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeStructure',
+			required: true,
+		}, // just for reference
+		academicYearId: {
+			type: Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: true,
+		}, // populate
 		sectionId: { type: Schema.Types.ObjectId, ref: 'Section', required: true }, // filter
-		academicYear: { type: String, required: true }, // filter
 		schoolId: { type: Schema.Types.ObjectId, ref: 'School', required: true }, // filter
 		studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true }, // filter
 		date: { type: Date, required: true },

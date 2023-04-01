@@ -3,6 +3,7 @@ const Feetype = require('../models/feeType');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
+const AcademicYear = require('../models/academicYear');
 
 // CREATE
 exports.create = async (req, res, next) => {
@@ -15,6 +16,7 @@ exports.create = async (req, res, next) => {
 	if (isExist) {
 		return next(new ErrorResponse('Fee Type Already Exist', 400));
 	}
+
 	let newFeeType;
 	try {
 		newFeeType = await Feetype.create({
@@ -24,6 +26,7 @@ exports.create = async (req, res, next) => {
 			description,
 		});
 	} catch (error) {
+		console.log('error', error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 	return res
@@ -74,10 +77,12 @@ exports.read = catchAsync(async (req, res, next) => {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { feeType, description, accountType, schoolId } = req.body;
+	const { feeType, description, accountType, schoolId, academicYearId } =
+		req.body;
 	const feetype = await Feetype.findByIdAndUpdate(id, {
 		feeType,
 		description,
+		academicYearId,
 		accountType,
 		schoolId,
 	});

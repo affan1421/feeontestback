@@ -50,7 +50,6 @@ async function runChildProcess(
 exports.create = async (req, res, next) => {
 	let {
 		feeStructureName,
-		academicYear = '2023-2024',
 		schoolId,
 		classes = [],
 		description = '',
@@ -87,7 +86,6 @@ exports.create = async (req, res, next) => {
 		// Attempt to create the fee structure.
 		const feeStructure = await FeeStructure.create({
 			feeStructureName,
-			academicYear,
 			schoolId,
 			classes,
 			description,
@@ -196,7 +194,6 @@ exports.update = async (req, res, next) => {
 			.status(200)
 			.json(SuccessResponse(updatedFeeStructure, 1, 'Updated Successfully'));
 	} catch (err) {
-		console.error(err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
