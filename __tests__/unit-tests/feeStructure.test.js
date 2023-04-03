@@ -1,5 +1,6 @@
 /* eslint-disable no-multi-assign */
 /* eslint-disable no-undef */
+const axios = require('axios');
 const FeeStructure = require('../../models/feeStructure');
 const ErrorResponse = require('../../utils/errorResponse');
 const SuccessResponse = require('../../utils/successResponse');
@@ -9,11 +10,13 @@ const {
 	update,
 	deleteFeeStructure,
 	getByFilter,
+	getUnmappedClassList,
 } = require('../../controller/feeStructure');
 
 jest.mock('../../models/feeStructure');
 jest.mock('../../utils/errorResponse');
 jest.mock('../../utils/successResponse');
+jest.mock('axios');
 
 beforeEach(() => {
 	jest.clearAllMocks();
@@ -304,6 +307,7 @@ describe('Fee Structure Controller', () => {
 			jest
 				.spyOn(FeeStructure, 'create')
 				.mockResolvedValueOnce(feeStructureMock);
+			jest.spyOn(axios, 'post').mockResolvedValueOnce({ data: { id: 1 } });
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(201);
 			expect(SuccessResponse).toHaveBeenCalledWith(
@@ -313,20 +317,304 @@ describe('Fee Structure Controller', () => {
 			);
 		});
 		// 500 error if something went wrong
+		it('Should return 500 something went wrong error', async () => {
+			const req = (mockRequest().body = {
+				body: {
+					feeStructureName: 'Secon  Structure',
+					description: 'the description',
+					academicYear: '2023-2024',
+					schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					classes: [
+						{
+							name: 'class 1A',
+							sectionId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+						},
+					],
+					feeDetails: [
+						{
+							feeTypeId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							scheduleTypeId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							scheduledDates: [
+								{
+									date: '2023-03-20T04:46:44.263Z',
+									amount: 289,
+								},
+								{
+									date: '2023-04-20T04:46:44.263Z',
+									amount: 289,
+								},
+							],
+							totalAmount: 578,
+							breakdown: 2,
+						},
+						{
+							feeTypeId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							scheduleTypeId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							scheduledDates: [
+								{
+									date: '2023-03-20T04:46:44.263Z',
+									amount: 289,
+								},
+								{
+									date: '2023-04-20T04:46:44.263Z',
+									amount: 289,
+								},
+							],
+							totalAmount: 578,
+							breakdown: 2,
+						},
+					],
+					totalAmount: 578,
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeStructure, 'findOne').mockResolvedValueOnce(null);
+			jest
+				.spyOn(FeeStructure, 'create')
+				.mockRejectedValueOnce(feeStructureMock);
+			await create(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
 	});
 	describe('Read', () => {
 		// 404 error if fee structure is not found
+		it('should return 404 error if fee structure is not found', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			await read(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith(
+				'Fee Structure Not Found',
+				404
+			);
+		});
 		// 200 success if fee structure is found
+		it('should return 200 success if fee structure is found', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			});
+			const res = mockResponse();
+			jest
+				.spyOn(FeeStructure, 'findById')
+				.mockResolvedValueOnce(feeStructureMock);
+			await read(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(SuccessResponse).toHaveBeenCalledWith(
+				feeStructureMock,
+				1,
+				'Fetched Successfully'
+			);
+		});
 	});
 	describe('Update', () => {
-		// 422 error if required fields are not provided
-		// 400 error if fee structure name already exists
+		// 404 error if fee structure is not found
+		it('should return 404 error if fee structure is not found', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+				body: {
+					classes: [],
+					feeDetails: [],
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			await update(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith(
+				'Fee Structure Not Found',
+				404
+			);
+		});
 		// 200 success if fee structure is updated
+		it('should return 200 success if fee structure is updated', async () => {
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+				body: feeStructureMock.data,
+			});
+			const res = mockResponse();
+			jest
+				.spyOn(FeeStructure, 'findById')
+				.mockResolvedValueOnce(feeStructureMock.data);
+			jest
+				.spyOn(FeeStructure, 'findByIdAndUpdate')
+				.mockResolvedValueOnce(feeStructureMock.data);
+			await update(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(SuccessResponse).toHaveBeenCalledWith(
+				feeStructureMock.data,
+				1,
+				'Updated Successfully'
+			);
+		});
 		// 500 error if something went wrong
+		it('should return 500 error if something went wrong', async () => {
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+				body: feeStructureMock.data,
+			});
+			const res = mockResponse();
+			jest
+				.spyOn(FeeStructure, 'findById')
+				.mockResolvedValueOnce(feeStructureMock.data);
+			jest
+				.spyOn(FeeStructure, 'findByIdAndUpdate')
+				.mockRejectedValueOnce(feeStructureMock.data);
+			await update(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
 	});
 	describe('Delete', () => {
 		// 404 error if fee structure is not found
+		it('should return 404 error if fee structure is not found', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			await deleteFeeStructure(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith(
+				'Fee Structure Not Found',
+				404
+			);
+		});
 		// 200 success if fee structure is deleted
+		it('should return 200 success if fee structure is deleted', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			});
+			const res = mockResponse();
+			jest
+				.spyOn(FeeStructure, 'findById')
+				.mockResolvedValueOnce(feeStructureMock);
+			jest
+				.spyOn(FeeStructure, 'findByIdAndDelete')
+				.mockResolvedValueOnce(feeStructureMock);
+			await deleteFeeStructure(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(SuccessResponse).toHaveBeenCalledWith(
+				null,
+				1,
+				'Deleted Successfully'
+			);
+		});
 		// 500 error if something went wrong
+		it('should return 500 error if something went wrong', async () => {
+			const req = (mockRequest().params = {
+				params: {
+					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			});
+			const res = mockResponse();
+			jest
+				.spyOn(FeeStructure, 'findById')
+				.mockResolvedValueOnce(feeStructureMock);
+			jest
+				.spyOn(FeeStructure, 'findByIdAndDelete')
+				.mockRejectedValueOnce(feeStructureMock);
+			await deleteFeeStructure(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
+	});
+
+	describe('getUnmappedClasses', () => {
+		it('should return 404 if no classList found', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockResolvedValueOnce({
+				data: {
+					isSuccess: false,
+				},
+			});
+			await getUnmappedClassList(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('No Class List Found', 404);
+		});
+		it('should return something went wrong if error', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockRejectedValueOnce({
+				data: {
+					isSuccess: false,
+				},
+			});
+			await getUnmappedClassList(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
+		it('should return 200 if classList found', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockResolvedValueOnce({
+				data: {
+					isSuccess: true,
+					data: [
+						{
+							classId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							className: 'Class 1',
+							sectionId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+						},
+						{
+							classId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+							className: 'Class 2',
+							sectionId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+						},
+					],
+				},
+			});
+			jest.spyOn(FeeStructure, 'aggregate').mockResolvedValueOnce([
+				{
+					_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			]);
+			await getUnmappedClassList(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(SuccessResponse).toHaveBeenCalledWith(
+				[
+					{
+						classId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+						className: 'Class 2',
+						sectionId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+					},
+				],
+				1,
+				'Fetched Successfully'
+			);
+		});
 	});
 });

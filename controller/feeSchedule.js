@@ -4,53 +4,60 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
+function getScheduleDates(months, day) {
+	const currentYear = new Date().getFullYear();
+	const nextYear = currentYear + 1;
+
+	const scheduledDates = [];
+
+	// Loop through each month and create a date string
+	for (const month of months) {
+		const year = month >= months[0] ? currentYear : nextYear;
+		const dateString = new Date(year, month - 1, day);
+		scheduledDates.push(dateString);
+	}
+
+	return scheduledDates;
+}
+
 // @desc    Create a new fee schedule
 // @route   POST /api/v1/feeSchedule
 // @access  Private
 exports.create = async (req, res, next) => {
 	let feeSchedule = null;
-	const {
+	let {
 		scheduleName,
-		description,
-		scheduleType,
-		startDate, // 2023-05-01
-		endDate, // 2024-03-01
+		description = '',
 		schoolId,
-		interval = 1,
+		day,
+		months,
+		existMonths,
 	} = req.body;
-	if (!scheduleName || !scheduleType || !startDate || !endDate || !schoolId) {
+	if (!scheduleName || !day || !months || !existMonths || !schoolId) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
+
+	months = months.sort(
+		(a, b) => existMonths.indexOf(a) - existMonths.indexOf(b)
+	);
+
+	const scheduledDates = getScheduleDates(months, day);
+
 	const isExists = await FeeSchedule.findOne({
 		scheduleName,
 		schoolId,
-		scheduleType,
 	});
 	if (isExists) {
 		return next(new ErrorResponse('Fee Schedule Already Exists', 400));
-	}
-	let initialDate = new Date(startDate);
-	const scheduledDates = [];
-	if (scheduleType === 'Monthly') {
-		while (initialDate <= new Date(endDate)) {
-			scheduledDates.push(new Date(initialDate));
-			initialDate = new Date(initialDate).setMonth(
-				new Date(initialDate).getMonth() + Number(interval)
-			);
-		}
-	} else {
-		scheduledDates.push(initialDate);
 	}
 	try {
 		feeSchedule = await FeeSchedule.create({
 			scheduleName,
 			description,
-			scheduleType,
 			schoolId,
 			scheduledDates,
-			startDate,
-			endDate,
-			interval,
+			day,
+			months,
 		});
 	} catch (error) {
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -62,9 +69,9 @@ exports.create = async (req, res, next) => {
 // @route   GET /api/v1/feeSchedule
 // @access  Private
 exports.getAll = catchAsync(async (req, res, next) => {
-	let { schoolId, scheduleType, page, limit } = req.query;
-	page = parseInt(page, 0);
-	limit = parseInt(limit, 10);
+	let { schoolId, scheduleType, page = 0, limit = 5 } = req.query;
+	page = +page;
+	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
@@ -106,47 +113,29 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
-	console.log(req.body);
-	const {
-		scheduleName,
-		description,
-		scheduleType,
-		startDate,
-		endDate,
-		schoolId,
-		interval,
-	} = req.body;
-	const scheduledDates = [];
-	let initialDate = new Date(startDate);
+	let { scheduleName, description, schoolId, day, months, existMonths } =
+		req.body;
 	let feeSchedule = await FeeSchedule.findById(id).lean();
 
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
-	if (
-		feeSchedule.startDate.getTime() != new Date(startDate).getTime() ||
-		feeSchedule.endDate.getTime() != new Date(endDate).getTime() ||
-		Number(interval) != Number(feeSchedule.interval)
-	) {
-		while (initialDate <= new Date(endDate)) {
-			scheduledDates.push(new Date(initialDate));
-			initialDate = new Date(initialDate).setMonth(
-				new Date(initialDate).getMonth() + Number(interval)
-			);
-		}
-	}
+
+	months = months.sort(
+		(a, b) => existMonths.indexOf(a) - existMonths.indexOf(b)
+	);
+
+	const scheduledDates = getScheduleDates(months, day);
 	try {
 		feeSchedule = await FeeSchedule.findByIdAndUpdate(
 			id,
 			{
 				scheduleName,
 				description,
-				scheduleType,
 				schoolId,
 				scheduledDates,
-				startDate,
-				endDate,
-				interval,
+				day,
+				months,
 			},
 			{ new: true }
 		);

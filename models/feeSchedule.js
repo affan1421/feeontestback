@@ -13,30 +13,25 @@ const feeScheduleSchema = new Schema(
 			required: [false, 'Please add a description'],
 			default: '',
 		},
-		scheduleType: {
-			type: String,
-			required: [true, 'Please add a schedule type'],
-			enum: ['Monthly', 'Yearly'],
+		academicYearId: {
+			type: Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: [false, 'Please add an academic year id'],
 		},
-		startDate: {
-			type: Date,
-			required: [true, 'Please add a start date'],
-		},
-		endDate: {
-			type: Date,
-			required: [true, 'Please add an end date'],
-		},
-		interval: {
+		day: {
 			type: Number,
-			required: [true, 'Please add an interval'],
-			default: 1,
+			required: [true, 'Please add a day'],
+		},
+		months: {
+			type: [Number],
+			required: [true, 'Please add months'],
 		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'Please add a school id'],
 		},
-		// The array length will be breakdown property in fee structure
+		// The array will be received as date string from frontend
 		scheduledDates: {
 			type: [Date],
 			required: false,
@@ -45,5 +40,9 @@ const feeScheduleSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+feeScheduleSchema.plugin(require('../middleware/academicYear'), {
+	refPath: 'academicYearId',
+});
 
 module.exports = model('FeeSchedule', feeScheduleSchema);

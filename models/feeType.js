@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const academicYearPlugin = require('../middleware/academicYear');
 
 const feetypeSchema = new mongoose.Schema(
 	{
@@ -29,6 +30,11 @@ const feetypeSchema = new mongoose.Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		academicYearId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: [false, 'Please enter academic year id'],
+		},
 		schoolId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'School',
@@ -37,6 +43,8 @@ const feetypeSchema = new mongoose.Schema(
 	},
 	{ timestamps: true }
 );
+
+feetypeSchema.plugin(academicYearPlugin, { refPath: 'academicYearId' });
 
 const Feetype = mongoose.model('Feetype', feetypeSchema);
 

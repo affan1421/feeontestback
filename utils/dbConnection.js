@@ -6,7 +6,7 @@ const connectDatabase = () => {
 			useNewUrlParser: true,
 			useUnifiedTopology: true,
 		})
-		.then(con => {
+		.then(() => {
 			console.log(`MongoDB Database Connected`);
 		})
 		.catch(err => {
