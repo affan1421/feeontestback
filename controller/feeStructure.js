@@ -243,3 +243,46 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
+
+exports.getUnmappedClassList = async (req, res, next) => {
+	const { schoolId } = req.params;
+	let mappedClassIds = [];
+	let classList = [];
+	try {
+		classList = await axios.get(
+			`${process.env.GROWON_BASE_URL}/section/school/${schoolId}`,
+			{
+				headers: {
+					Authorization: req.headers.authorization,
+				},
+			}
+		);
+
+		if (!classList.data.isSuccess) {
+			return next(new ErrorResponse('No Class List Found', 404));
+		}
+		const { data = [] } = classList.data;
+		const mappedClassList = await FeeStructure.aggregate([
+			{ $match: { schoolId: mongoose.Types.ObjectId(schoolId) } },
+			{ $unwind: '$classes' },
+			{ $group: { _id: '$classes.sectionId' } },
+		]);
+		if (mappedClassList.length > 0) {
+			mappedClassIds = mappedClassList.map(c => String(c._id));
+		}
+		const unmappedClassList = data.filter(
+			c => !mappedClassIds.includes(c.sectionId)
+		);
+		res
+			.status(200)
+			.json(
+				SuccessResponse(
+					unmappedClassList,
+					unmappedClassList.length,
+					'Fetched Successfully'
+				)
+			);
+	} catch (err) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+};

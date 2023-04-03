@@ -10,6 +10,7 @@ const {
 	update,
 	deleteFeeStructure,
 	getByFilter,
+	getUnmappedClassList,
 } = require('../../controller/feeStructure');
 
 jest.mock('../../models/feeStructure');
@@ -533,6 +534,87 @@ describe('Fee Structure Controller', () => {
 			await deleteFeeStructure(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
+	});
+
+	describe('getUnmappedClasses', () => {
+		it('should return 404 if no classList found', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockResolvedValueOnce({
+				data: {
+					isSuccess: false,
+				},
+			});
+			await getUnmappedClassList(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('No Class List Found', 404);
+		});
+		it('should return something went wrong if error', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockRejectedValueOnce({
+				data: {
+					isSuccess: false,
+				},
+			});
+			await getUnmappedClassList(req, res, mockNext);
+			expect(mockNext).toHaveBeenCalled();
+			expect(ErrorResponse).toHaveBeenCalledWith('Something Went Wrong', 500);
+		});
+		it('should return 200 if classList found', async () => {
+			const req = (mockRequest().body = {
+				params: { schoolId: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				headers: {
+					authorization: 'Bearer Token',
+				},
+			});
+			const res = mockResponse();
+			jest.spyOn(axios, 'get').mockResolvedValueOnce({
+				data: {
+					isSuccess: true,
+					data: [
+						{
+							classId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+							className: 'Class 1',
+							sectionId: '5f5f5f5f5f5f5f5f5f5f5f5f',
+						},
+						{
+							classId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+							className: 'Class 2',
+							sectionId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+						},
+					],
+				},
+			});
+			jest.spyOn(FeeStructure, 'aggregate').mockResolvedValueOnce([
+				{
+					_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+			]);
+			await getUnmappedClassList(req, res, mockNext);
+			expect(res.status).toHaveBeenCalledWith(200);
+			expect(SuccessResponse).toHaveBeenCalledWith(
+				[
+					{
+						classId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+						className: 'Class 2',
+						sectionId: '5f5f5f5f5f5f5f5f5f5f5f5e',
+					},
+				],
+				1,
+				'Fetched Successfully'
+			);
 		});
 	});
 });

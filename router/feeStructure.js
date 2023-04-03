@@ -18,6 +18,9 @@ router.delete('/:id', feeStructureController.deleteFeeStructure);
 // LIST
 router.get('/', feeStructureController.getByFilter);
 
+// Fetching unmapped classList
+router.get('/unmapped/:schoolId', feeStructureController.getUnmappedClassList);
+
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);
 
