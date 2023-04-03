@@ -1882,6 +1882,92 @@
           }
         }
       }
+    },
+    "feestructure/unmapped/{schoolId}": {
+      "get": {
+        "tags": ["Fee Structure"],
+        "summary": "Get unmapped classes for a fee structure",
+        "description": "Used as selector option while creating fee structure. This API must require valid jwt token",
+        "operationId": "getFeeStructure",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "schoolId",
+            "in": "path",
+            "description": "The id of the school",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "No Class List Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "No Class List Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "sectionId": {
+                        "type": "string"
+                      },
+                      "class_id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": [
+                  {
+                    "name": "class 1A",
+                    "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "class_id": "64181f16b1c774f84228257b"
+                  }
+                ],
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

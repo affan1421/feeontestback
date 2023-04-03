@@ -78,12 +78,19 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 const update = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+
 		const academicYear = await AcademicYear.findByIdAndUpdate(id, req.body, {
 			new: true,
 			runValidators: true,
 		});
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
+		}
+		if (academicYear.isActive) {
+			await AcademicYear.updateMany(
+				{ _id: { $ne: id }, isActive: true, schoolId: req.body.schoolId },
+				{ isActive: false }
+			);
 		}
 		res
 			.status(200)
