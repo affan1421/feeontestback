@@ -13,6 +13,15 @@ const create = async (req, res, next) => {
 		if (!name || !startDate || !endDate || !schoolId) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+		const isExists = await AcademicYear.findOne({
+			name,
+			schoolId,
+		});
+		if (isExists) {
+			return next(
+				new ErrorResponse(`Academic Year ${name} Already Exists`, 422)
+			);
+		}
 		const months = [];
 		startDate = new Date(startDate);
 		endDate = new Date(endDate);
@@ -27,7 +36,7 @@ const create = async (req, res, next) => {
 		}
 		const academicYear = await AcademicYear.create({
 			name,
-			startDate,
+			startDate: req.body.startDate,
 			endDate,
 			schoolId,
 			months,
@@ -91,6 +100,7 @@ const update = async (req, res, next) => {
 		const { id } = req.params;
 		const isScheduleMapped = await FeeSchedule.findOne({
 			academicYearId: id,
+			schoolId: req.body.schoolId,
 		});
 
 		if (isScheduleMapped) {
@@ -145,8 +155,14 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const isTypeMapped = await FeeTypes.findOne({ academicYearId: id });
-		const isScheduleMapped = await FeeSchedule.findOne({ academicYearId: id });
+		const isTypeMapped = await FeeTypes.findOne({
+			academicYearId: id,
+			schoolId: req.user.schoolId,
+		});
+		const isScheduleMapped = await FeeSchedule.findOne({
+			academicYearId: id,
+			schoolId: req.user.schoolId,
+		});
 		if (isTypeMapped || isScheduleMapped) {
 			return next(
 				new ErrorResponse(
