@@ -16,6 +16,11 @@ const create = async (req, res, next) => {
 		const months = [];
 		startDate = new Date(startDate);
 		endDate = new Date(endDate);
+		if (startDate > endDate) {
+			return next(
+				new ErrorResponse('Start Date Should Be Less Than End Date', 422)
+			);
+		}
 		while (startDate <= endDate) {
 			months.push(startDate.getMonth() + 1);
 			startDate.setMonth(startDate.getMonth() + 1);
@@ -38,13 +43,17 @@ const create = async (req, res, next) => {
 
 // Get all AcademicYears
 const getAll = catchAsync(async (req, res, next) => {
-	let { schoolId, page = 0, limit = 5 } = req.query;
+	let { schoolId, isActive = null, page = 0, limit = 5 } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
+	if (isActive != null) {
+		payload.isActive = true;
+	}
+	console.log(payload);
 	const academicYears = await AcademicYear.aggregate([
 		{
 			$facet: {
@@ -98,6 +107,11 @@ const update = async (req, res, next) => {
 			const months = [];
 			const start = new Date(startDate);
 			const end = new Date(endDate);
+			if (start > end) {
+				return next(
+					new ErrorResponse('Start Date Should Be Less Than End Date', 422)
+				);
+			}
 			while (start <= end) {
 				months.push(start.getMonth() + 1);
 				start.setMonth(start.getMonth() + 1);
