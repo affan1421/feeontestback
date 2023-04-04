@@ -157,11 +157,11 @@ const deleteAcademicYear = async (req, res, next) => {
 		const { id } = req.params;
 		const isTypeMapped = await FeeTypes.findOne({
 			academicYearId: id,
-			schoolId: req.user.schoolId,
+			schoolId: req.user.school_id,
 		});
 		const isScheduleMapped = await FeeSchedule.findOne({
 			academicYearId: id,
-			schoolId: req.user.schoolId,
+			schoolId: req.user.school_id,
 		});
 		if (isTypeMapped || isScheduleMapped) {
 			return next(
