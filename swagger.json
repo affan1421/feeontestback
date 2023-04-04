@@ -1882,6 +1882,793 @@
           }
         }
       }
+    },
+    "feestructure/unmapped/{schoolId}": {
+      "get": {
+        "tags": ["Fee Structure"],
+        "summary": "Get unmapped classes for a fee structure",
+        "description": "Used as selector option while creating fee structure. This API must require valid jwt token",
+        "operationId": "getFeeStructure",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "schoolId",
+            "in": "path",
+            "description": "The id of the school",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "No Class List Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "No Class List Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "sectionId": {
+                        "type": "string"
+                      },
+                      "class_id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": [
+                  {
+                    "name": "class 1A",
+                    "sectionId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "class_id": "64181f16b1c774f84228257b"
+                  }
+                ],
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "tags": ["Config"],
+        "summary": "Get Academic Years",
+        "description": "Get All academic years with school and other filters",
+        "operationId": "getAcademicYears",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "schoolId",
+            "in": "query",
+            "description": "The id of the school",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page number",
+            "required": false,
+            "type": "integer",
+            "example": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of records per page",
+            "required": false,
+            "type": "integer",
+            "example": 10
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Academic Year Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "schoolId": {
+                        "type": "string"
+                      },
+                      "startDate": {
+                        "type": "date"
+                      },
+                      "endDate": {
+                        "type": "date"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      },
+                      "months": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": [
+                  {
+                    "name": "2020-2021",
+                    "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "startDate": "2020-04-01T00:00:00.000Z",
+                    "endDate": "2021-03-31T00:00:00.000Z",
+                    "isActive": true,
+                    "createdAt": "2020-09-14T10:00:00.000Z",
+                    "updatedAt": "2020-09-14T10:00:00.000Z",
+                    "id": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "months": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                  }
+                ],
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Config"],
+        "summary": "Create Academic Year",
+        "description": "Create Academic Year",
+        "operationId": "createAcademicYear",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "2020-2021"
+          },
+          {
+            "name": "schoolId",
+            "in": "formData",
+            "description": "The id of the school",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "startDate",
+            "in": "formData",
+            "description": "The start date of the academic year",
+            "required": true,
+            "type": "date",
+            "example": "2020-04-01"
+          },
+          {
+            "name": "endDate",
+            "in": "formData",
+            "description": "The end date of the academic year",
+            "required": true,
+            "type": "date",
+            "example": "2021-03-31"
+          },
+          {
+            "name": "isActive",
+            "in": "formData",
+            "description": "The status of the academic year",
+            "required": false,
+            "type": "boolean",
+            "example": true
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Please Provide All Required Fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Please Provide All Required Fields"
+              }
+            }
+          },
+          "201": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "date"
+                    },
+                    "endDate": {
+                      "type": "date"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "months": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Created Successfully"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/{id}": {
+      "get": {
+        "tags": ["Config"],
+        "summary": "Get Academic Year By Id",
+        "description": "Get Academic Year By Id",
+        "operationId": "getAcademicYearById",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Academic Year Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "date"
+                    },
+                    "endDate": {
+                      "type": "date"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "months": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "name": "2020-2021",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "startDate": "2020-04-01T00:00:00.000Z",
+                  "endDate": "2021-03-31T00:00:00.000Z",
+                  "isActive": true,
+                  "createdAt": "2020-09-10T09:00:00.000Z",
+                  "updatedAt": "2020-09-10T09:00:00.000Z",
+                  "id": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "months": [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+                },
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Config"],
+        "summary": "Update Academic Year",
+        "description": "Update Academic Year",
+        "operationId": "updateAcademicYear",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "2020-2021"
+          },
+          {
+            "name": "schoolId",
+            "in": "formData",
+            "description": "The id of the school",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "startDate",
+            "in": "formData",
+            "description": "The start date of the academic year",
+            "required": true,
+            "type": "date",
+            "example": "2020-04-01"
+          },
+          {
+            "name": "endDate",
+            "in": "formData",
+            "description": "The end date of the academic year",
+            "required": true,
+            "type": "date",
+            "example": "2021-03-31"
+          },
+          {
+            "name": "isActive",
+            "in": "formData",
+            "description": "The status of the academic year",
+            "required": false,
+            "type": "boolean",
+            "example": true
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Academic year is already mapped with fee schedule",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic year is already mapped with fee schedule"
+              }
+            }
+          },
+          "404": {
+            "description": "Academic Year Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "date"
+                    },
+                    "endDate": {
+                      "type": "date"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "example": {
+                    "name": "2020-2021",
+                    "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "startDate": "2020-04-01T00:00:00.000Z",
+                    "endDate": "2021-03-31T00:00:00.000Z",
+                    "isActive": true,
+                    "createdAt": "2020-09-10T09:00:00.000Z",
+                    "updatedAt": "2020-09-10T09:00:00.000Z",
+                    "id": "5f5f5f5f5f5f5f5f5f5f5f5f"
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Updated Successfully"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Config"],
+        "summary": "Delete Academic Year",
+        "description": "Delete Academic Year",
+        "operationId": "deleteAcademicYear",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Academic Year Is Already Mapped With Fee Type Or Fee Schedule",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Is Already Mapped With Fee Type Or Fee Schedule"
+              }
+            }
+          },
+          "404": {
+            "description": "Academic Year Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "undefined",
+                  "example": null
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Deleted Successfully"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Something Went Wrong",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
