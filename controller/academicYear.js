@@ -98,19 +98,19 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 const update = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const isScheduleMapped = await FeeSchedule.findOne({
-			academicYearId: id,
-			schoolId: req.body.schoolId,
-		});
+		// const isScheduleMapped = await FeeSchedule.findOne({
+		// 	academicYearId: id,
+		// 	schoolId: req.body.schoolId,
+		// });
 
-		if (isScheduleMapped) {
-			return next(
-				new ErrorResponse(
-					'Academic Year Is Already Mapped With Fee Schedule',
-					422
-				)
-			);
-		}
+		// if (isScheduleMapped) {
+		// 	return next(
+		// 		new ErrorResponse(
+		// 			'Academic Year Is Already Mapped With Fee Schedule',
+		// 			422
+		// 		)
+		// 	);
+		// }
 
 		const { startDate, endDate } = req.body;
 		if (startDate && endDate) {
