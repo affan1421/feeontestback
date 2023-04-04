@@ -3,6 +3,8 @@ const AcademicYear = require('../models/academicYear');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 const catchAsync = require('../utils/catchAsync');
+const FeeTypes = require('../models/feeType');
+const FeeSchedule = require('../models/feeSchedule');
 
 // Create a new AcademicYear
 const create = async (req, res, next) => {
@@ -78,6 +80,30 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 const update = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+		const isScheduleMapped = await FeeSchedule.findOne({
+			academicYearId: id,
+		});
+
+		if (isScheduleMapped) {
+			return next(
+				new ErrorResponse(
+					'Academic Year Is Already Mapped With Fee Schedule',
+					422
+				)
+			);
+		}
+
+		const { startDate, endDate } = req.body;
+		if (startDate && endDate) {
+			const months = [];
+			const start = new Date(startDate);
+			const end = new Date(endDate);
+			while (start <= end) {
+				months.push(start.getMonth() + 1);
+				start.setMonth(start.getMonth() + 1);
+			}
+			req.body.months = months;
+		}
 
 		const academicYear = await AcademicYear.findByIdAndUpdate(id, req.body, {
 			new: true,
@@ -105,6 +131,16 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+		const isTypeMapped = await FeeTypes.findOne({ academicYearId: id });
+		const isScheduleMapped = await FeeSchedule.findOne({ academicYearId: id });
+		if (isTypeMapped || isScheduleMapped) {
+			return next(
+				new ErrorResponse(
+					'Academic Year Is Already Mapped With Fee Type Or Fee Schedule',
+					422
+				)
+			);
+		}
 		const academicYear = await AcademicYear.findByIdAndDelete(id);
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
