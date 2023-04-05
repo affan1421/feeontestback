@@ -227,6 +227,21 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 			$facet: {
 				data: [
 					{ $match: query },
+					{
+						$lookup: {
+							from: 'academicyears',
+							localField: 'academicYearId',
+							foreignField: '_id',
+							as: 'academicYearId',
+						},
+					},
+					{
+						$addFields: {
+							academicYearId: {
+								$arrayElemAt: ['$academicYearId', 0],
+							},
+						},
+					},
 					{ $skip: +page * +limit },
 					{ $limit: +limit },
 				],

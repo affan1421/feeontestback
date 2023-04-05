@@ -94,23 +94,50 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(academicYear, 1, 'Fetched Successfully'));
 });
 
+const changeState = catchAsync(async (req, res, next) => {
+	const { id, isActive } = req.body;
+	const academicYear = await AcademicYear.findByIdAndUpdate(
+		{
+			_id: id,
+		},
+		{
+			isActive,
+		},
+		{
+			new: true,
+		}
+	);
+	if (!academicYear) {
+		return next(new ErrorResponse('Academic Year Not Found', 404));
+	}
+	if (academicYear.isActive) {
+		await AcademicYear.updateMany(
+			{ _id: { $ne: id }, isActive: true, schoolId: academicYear.schoolId },
+			{ isActive: false }
+		);
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(academicYear, 1, 'Updated Successfully'));
+});
+
 // Update an AcademicYear by ID
 const update = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		// const isScheduleMapped = await FeeSchedule.findOne({
-		// 	academicYearId: id,
-		// 	schoolId: req.body.schoolId,
-		// });
+		const isScheduleMapped = await FeeSchedule.findOne({
+			academicYearId: id,
+			schoolId: req.body.schoolId,
+		});
 
-		// if (isScheduleMapped) {
-		// 	return next(
-		// 		new ErrorResponse(
-		// 			'Academic Year Is Already Mapped With Fee Schedule',
-		// 			422
-		// 		)
-		// 	);
-		// }
+		if (isScheduleMapped) {
+			return next(
+				new ErrorResponse(
+					'Academic Year Is Already Mapped With Fee Schedule',
+					422
+				)
+			);
+		}
 
 		const { startDate, endDate } = req.body;
 		if (startDate && endDate) {
@@ -187,5 +214,6 @@ module.exports = {
 	getAll,
 	getAcademicYear,
 	update,
+	changeState,
 	deleteAcademicYear,
 };
