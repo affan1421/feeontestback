@@ -272,7 +272,6 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				},
 			}
 		);
-
 		if (!classList.data.isSuccess) {
 			return next(new ErrorResponse('No Class List Found', 404));
 		}
@@ -298,6 +297,8 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				)
 			);
 	} catch (err) {
+		console.error('error while fetching unmapped class list', err.message);
+		console.error('error while fetching unmapped class list', err.stack);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };

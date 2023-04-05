@@ -29,7 +29,8 @@ const academicYearPlugin = function (schema, options) {
 	}
 
 	async function filterAggregatedAcademicYear(next) {
-		const { schoolId } = this._pipeline[0].$facet.data[0].$match;
+		const { schoolId } =
+			this._pipeline[0].$facet?.data[0].$match || this._pipeline[0].$match;
 		const activeAcademicYear = await mongoose
 			.model(academicYearModelName)
 			.findOne({ isActive: true, schoolId })
