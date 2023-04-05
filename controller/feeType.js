@@ -67,7 +67,10 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feetype = await Feetype.findById(id);
+	const feetype = await Feetype.findOne({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}
@@ -79,13 +82,16 @@ exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { feeType, description, accountType, schoolId, academicYearId } =
 		req.body;
-	const feetype = await Feetype.findByIdAndUpdate(id, {
-		feeType,
-		description,
-		academicYearId,
-		accountType,
-		schoolId,
-	});
+	const feetype = await Feetype.findOneAndUpdate(
+		{ _id: id, schoolId: req.body.schoolId },
+		{
+			feeType,
+			description,
+			academicYearId,
+			accountType,
+			schoolId,
+		}
+	);
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}
@@ -95,7 +101,10 @@ exports.update = catchAsync(async (req, res, next) => {
 // DELETE
 exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feetype = await Feetype.findByIdAndDelete(id);
+	const feetype = await Feetype.findOneAndDelete({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));
 	}

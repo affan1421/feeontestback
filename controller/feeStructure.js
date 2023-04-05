@@ -114,7 +114,10 @@ exports.create = async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feeStructure = await FeeStructure.findById(id);
+	const feeStructure = await FeeStructure.findOne({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	// .populate('feeDetails.feeTypeId', 'feeType')
 	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
 	if (!feeStructure) {
@@ -143,7 +146,10 @@ exports.update = async (req, res, next) => {
 		isClassAdded = false,
 	} = req.body;
 	try {
-		const feeStructure = await FeeStructure.findById(id);
+		const feeStructure = await FeeStructure.findOne({
+			_id: id,
+			schoolId: req.body.schoolId,
+		});
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
@@ -182,8 +188,8 @@ exports.update = async (req, res, next) => {
 			newFeeDetails = newFeeDetails.map(JSON.parse);
 		}
 		// Update the fee structure in the database in a single call
-		const updatedFeeStructure = await FeeStructure.findByIdAndUpdate(
-			id,
+		const updatedFeeStructure = await FeeStructure.findOneAndUpdate(
+			{ _id: id, schoolId: req.body.schoolId },
 			req.body,
 			{
 				new: true,
@@ -201,12 +207,18 @@ exports.update = async (req, res, next) => {
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
 	const { id } = req.params;
-	const feeStructure = await FeeStructure.findById(id);
+	const feeStructure = await FeeStructure.findOne({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 	try {
-		await FeeStructure.findByIdAndDelete({ id });
+		await FeeStructure.findOneAndDelete({
+			_id: id,
+			schoolId: req.user.school_id,
+		});
 	} catch (err) {
 		console.log('error while deleting', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -297,8 +309,6 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				)
 			);
 	} catch (err) {
-		console.error('error while fetching unmapped class list', err.message);
-		console.error('error while fetching unmapped class list', err.stack);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };

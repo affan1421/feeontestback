@@ -69,7 +69,6 @@ const getAll = catchAsync(async (req, res, next) => {
 	if (isActive != null) {
 		payload.isActive = true;
 	}
-	console.log(payload);
 	const academicYears = await AcademicYear.aggregate([
 		{
 			$facet: {
@@ -91,7 +90,7 @@ const getAll = catchAsync(async (req, res, next) => {
 // Get an AcademicYear by ID
 const getAcademicYear = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const academicYear = await AcademicYear.findById(id);
+	const academicYear = await AcademicYear.findOne({ _id: id });
 	if (!academicYear) {
 		return next(new ErrorResponse('Academic year Not Found', 404));
 	}
@@ -103,7 +102,7 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 
 const changeState = catchAsync(async (req, res, next) => {
 	const { id, isActive } = req.body;
-	const academicYear = await AcademicYear.findByIdAndUpdate(
+	const academicYear = await AcademicYear.findOneAndUpdate(
 		{
 			_id: id,
 		},
@@ -163,10 +162,14 @@ const update = async (req, res, next) => {
 			req.body.months = months;
 		}
 
-		const academicYear = await AcademicYear.findByIdAndUpdate(id, req.body, {
-			new: true,
-			runValidators: true,
-		});
+		const academicYear = await AcademicYear.findOneAndUpdate(
+			{ _id: id },
+			req.body,
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
 		}
@@ -205,7 +208,7 @@ const deleteAcademicYear = async (req, res, next) => {
 				)
 			);
 		}
-		const academicYear = await AcademicYear.findByIdAndDelete(id);
+		const academicYear = await AcademicYear.findOneAndDelete({ _id: id });
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
 		}

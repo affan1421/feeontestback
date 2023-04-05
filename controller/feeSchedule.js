@@ -101,7 +101,11 @@ exports.getAll = catchAsync(async (req, res, next) => {
 // @route   GET /api/v1/feeSchedule/:id
 // @access  Private
 exports.getFeeSchedule = catchAsync(async (req, res, next) => {
-	const feeSchedule = await FeeSchedule.findById(req.params.id);
+	const { id } = req.params;
+	const feeSchedule = await FeeSchedule.findOne({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
@@ -113,22 +117,22 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
+	console.log(id);
 	let { scheduleName, description, schoolId, day, months, existMonths } =
 		req.body;
-	let feeSchedule = await FeeSchedule.findById(id).lean();
-
+	let feeSchedule = await FeeSchedule.findOne({ _id: id, schoolId }).lean();
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
-
 	months = months.sort(
 		(a, b) => existMonths.indexOf(a) - existMonths.indexOf(b)
 	);
 
 	const scheduledDates = getScheduleDates(months, day);
+	console.log('id', id, 'schoolId', schoolId);
 	try {
-		feeSchedule = await FeeSchedule.findByIdAndUpdate(
-			id,
+		feeSchedule = await FeeSchedule.findOneAndUpdate(
+			{ _id: id, schoolId: req.body.schoolId },
 			{
 				scheduleName,
 				description,
@@ -149,7 +153,11 @@ exports.update = async (req, res, next) => {
 // @route   DELETE /api/v1/feeSchedule/:id
 // @access  Private
 exports.deleteFeeSchedule = catchAsync(async (req, res, next) => {
-	const feeSchedule = await FeeSchedule.findByIdAndDelete(req.params.id);
+	const { id } = req.params;
+	const feeSchedule = await FeeSchedule.findOneAndDelete({
+		_id: id,
+		schoolId: req.user.school_id,
+	});
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}

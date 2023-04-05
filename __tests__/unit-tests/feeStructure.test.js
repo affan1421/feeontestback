@@ -380,13 +380,16 @@ describe('Fee Structure Controller', () => {
 	describe('Read', () => {
 		// 404 error if fee structure is not found
 		it('should return 404 error if fee structure is not found', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				user: {
+					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeStructure, 'findOne').mockResolvedValueOnce(null);
 			await read(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith(
@@ -396,14 +399,17 @@ describe('Fee Structure Controller', () => {
 		});
 		// 200 success if fee structure is found
 		it('should return 200 success if fee structure is found', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+				user: {
+					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
 			});
 			const res = mockResponse();
 			jest
-				.spyOn(FeeStructure, 'findById')
+				.spyOn(FeeStructure, 'findOne')
 				.mockResolvedValueOnce(feeStructureMock);
 			await read(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
@@ -427,7 +433,7 @@ describe('Fee Structure Controller', () => {
 				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeStructure, 'findOne').mockResolvedValueOnce(null);
 			await update(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith(
@@ -445,10 +451,10 @@ describe('Fee Structure Controller', () => {
 			});
 			const res = mockResponse();
 			jest
-				.spyOn(FeeStructure, 'findById')
+				.spyOn(FeeStructure, 'findOne')
 				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
-				.spyOn(FeeStructure, 'findByIdAndUpdate')
+				.spyOn(FeeStructure, 'findOneAndUpdate')
 				.mockResolvedValueOnce(feeStructureMock.data);
 			await update(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
@@ -468,10 +474,10 @@ describe('Fee Structure Controller', () => {
 			});
 			const res = mockResponse();
 			jest
-				.spyOn(FeeStructure, 'findById')
+				.spyOn(FeeStructure, 'findOne')
 				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
-				.spyOn(FeeStructure, 'findByIdAndUpdate')
+				.spyOn(FeeStructure, 'findOneAndUpdate')
 				.mockRejectedValueOnce(feeStructureMock.data);
 			await update(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
@@ -481,13 +487,16 @@ describe('Fee Structure Controller', () => {
 	describe('Delete', () => {
 		// 404 error if fee structure is not found
 		it('should return 404 error if fee structure is not found', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				user: {
+					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeStructure, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeStructure, 'findOne').mockResolvedValueOnce(null);
 			await deleteFeeStructure(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith(
@@ -497,17 +506,20 @@ describe('Fee Structure Controller', () => {
 		});
 		// 200 success if fee structure is deleted
 		it('should return 200 success if fee structure is deleted', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
+				user: {
+					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
 			});
 			const res = mockResponse();
 			jest
-				.spyOn(FeeStructure, 'findById')
+				.spyOn(FeeStructure, 'findOne')
 				.mockResolvedValueOnce(feeStructureMock);
 			jest
-				.spyOn(FeeStructure, 'findByIdAndDelete')
+				.spyOn(FeeStructure, 'findOneAndDelete')
 				.mockResolvedValueOnce(feeStructureMock);
 			await deleteFeeStructure(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
@@ -519,17 +531,21 @@ describe('Fee Structure Controller', () => {
 		});
 		// 500 error if something went wrong
 		it('should return 500 error if something went wrong', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				user: {
+					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+				},
 			});
+
 			const res = mockResponse();
 			jest
-				.spyOn(FeeStructure, 'findById')
+				.spyOn(FeeStructure, 'findOne')
 				.mockResolvedValueOnce(feeStructureMock);
 			jest
-				.spyOn(FeeStructure, 'findByIdAndDelete')
+				.spyOn(FeeStructure, 'findOneAndDelete')
 				.mockRejectedValueOnce(feeStructureMock);
 			await deleteFeeStructure(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();

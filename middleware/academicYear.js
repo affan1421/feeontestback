@@ -5,39 +5,31 @@ const academicYearPlugin = function (schema, options) {
 	const academicYearModelName = 'AcademicYear';
 
 	async function filterByActiveAcademicYearMiddleware(next) {
-		const { schoolId } = this._conditions;
+		let schoolId;
+		let pipeline;
+		let isAggregation;
+
+		if (this._conditions) {
+			// For find and findOne
+			schoolId = this._conditions.schoolId;
+			isAggregation = false;
+		} else if (this._pipeline) {
+			// For aggregate
+			const [facet] = this._pipeline.filter(stage => stage.$facet);
+			const matchStage = facet?.data[0].$match || this._pipeline[0].$match;
+			schoolId = matchStage.schoolId;
+			pipeline = this._pipeline;
+			isAggregation = true;
+		}
+
 		const activeAcademicYear = await mongoose
 			.model(academicYearModelName)
 			.findOne({ isActive: true, schoolId })
 			.lean();
 
-		if (!activeAcademicYear)
+		if (!activeAcademicYear) {
 			return next(new ErrorResponse('Please Select An Academic Year', 400));
-
-		const activeAcademicYearId = activeAcademicYear._id;
-
-		const filter = {
-			$and: [
-				{ [options.refPath]: activeAcademicYearId },
-				this._conditions || {},
-			],
-		};
-
-		this._conditions = filter;
-
-		next();
-	}
-
-	async function filterAggregatedAcademicYear(next) {
-		const { schoolId } =
-			this._pipeline[0].$facet?.data[0].$match || this._pipeline[0].$match;
-		const activeAcademicYear = await mongoose
-			.model(academicYearModelName)
-			.findOne({ isActive: true, schoolId })
-			.lean();
-
-		if (!activeAcademicYear)
-			return next(new ErrorResponse('Please Select An Academic Year', 400));
+		}
 
 		const activeAcademicYearId = activeAcademicYear._id;
 
@@ -47,10 +39,17 @@ const academicYearPlugin = function (schema, options) {
 			},
 		};
 
-		if (this._pipeline.length > 0) {
-			this._pipeline.unshift(filter);
+		if (isAggregation) {
+			if (pipeline.length > 0) {
+				pipeline.unshift(filter);
+			} else {
+				pipeline.push(filter);
+			}
 		} else {
-			this._pipeline.push(filter);
+			const conditions = {
+				$and: [{ [options.refPath]: activeAcademicYearId }, this._conditions],
+			};
+			this._conditions = conditions;
 		}
 
 		next();
@@ -65,8 +64,9 @@ const academicYearPlugin = function (schema, options) {
 				.lean()
 				.exec();
 
-			if (!activeAcademicYear)
+			if (!activeAcademicYear) {
 				return next(new ErrorResponse('Please Select An Academic Year', 400));
+			}
 
 			this.academicYearId = activeAcademicYear._id;
 		}
@@ -80,7 +80,7 @@ const academicYearPlugin = function (schema, options) {
 			schema.pre('save', addAcademicYearId);
 			schema.pre('find', filterByActiveAcademicYearMiddleware);
 			schema.pre('findOne', filterByActiveAcademicYearMiddleware);
-			schema.pre('aggregate', filterAggregatedAcademicYear);
+			schema.pre('aggregate', filterByActiveAcademicYearMiddleware);
 		}
 	});
 };
