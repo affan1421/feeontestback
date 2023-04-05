@@ -9,6 +9,7 @@ const FeeSchedule = require('../models/feeSchedule');
 // Create a new AcademicYear
 const create = async (req, res, next) => {
 	try {
+		const timezoneOffset = new Date().getTimezoneOffset();
 		let { name, startDate, endDate, schoolId } = req.body;
 		if (!name || !startDate || !endDate || !schoolId) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
@@ -34,12 +35,18 @@ const create = async (req, res, next) => {
 			months.push(startDate.getMonth() + 1);
 			startDate.setMonth(startDate.getMonth() + 1);
 		}
+		// Adjust for timezone offset
+		const adjustedMonths = months.map(month => {
+			const date = new Date(Date.UTC(startDate.getFullYear(), month - 1, 1));
+			date.setMinutes(date.getMinutes() + timezoneOffset);
+			return date.getMonth() + 1;
+		});
 		const academicYear = await AcademicYear.create({
 			name,
 			startDate: req.body.startDate,
 			endDate,
 			schoolId,
-			months,
+			months: adjustedMonths,
 		});
 		res
 			.status(201)
