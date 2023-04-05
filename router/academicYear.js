@@ -3,11 +3,14 @@ const {
 	create,
 	getAll,
 	deleteAcademicYear,
+	changeState,
 	getAcademicYear,
 	update,
 } = require('../controller/academicYear');
 
 router.route('/').get(getAll).post(create);
+
+router.post('/activate', changeState);
 
 router
 	.route('/:id')

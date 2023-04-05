@@ -5,9 +5,10 @@ const academicYearPlugin = function (schema, options) {
 	const academicYearModelName = 'AcademicYear';
 
 	async function filterByActiveAcademicYearMiddleware(next) {
+		const { schoolId } = this._conditions;
 		const activeAcademicYear = await mongoose
 			.model(academicYearModelName)
-			.findOne({ isActive: true })
+			.findOne({ isActive: true, schoolId })
 			.lean();
 
 		if (!activeAcademicYear)
@@ -28,9 +29,11 @@ const academicYearPlugin = function (schema, options) {
 	}
 
 	async function filterAggregatedAcademicYear(next) {
+		const { schoolId } =
+			this._pipeline[0].$facet?.data[0].$match || this._pipeline[0].$match;
 		const activeAcademicYear = await mongoose
 			.model(academicYearModelName)
-			.findOne({ isActive: true })
+			.findOne({ isActive: true, schoolId })
 			.lean();
 
 		if (!activeAcademicYear)
@@ -54,10 +57,11 @@ const academicYearPlugin = function (schema, options) {
 	}
 
 	async function addAcademicYearId(next) {
+		const { schoolId } = this;
 		if (!this.get('academicYearId')) {
 			const activeAcademicYear = await mongoose
 				.model(academicYearModelName)
-				.findOne({ isActive: true })
+				.findOne({ isActive: true, schoolId })
 				.lean()
 				.exec();
 

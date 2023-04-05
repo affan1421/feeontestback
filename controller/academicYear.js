@@ -13,6 +13,15 @@ const create = async (req, res, next) => {
 		if (!name || !startDate || !endDate || !schoolId) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+		const isExists = await AcademicYear.findOne({
+			name,
+			schoolId,
+		});
+		if (isExists) {
+			return next(
+				new ErrorResponse(`Academic Year ${name} Already Exists`, 422)
+			);
+		}
 		const months = [];
 		startDate = new Date(startDate);
 		endDate = new Date(endDate);
@@ -27,7 +36,7 @@ const create = async (req, res, next) => {
 		}
 		const academicYear = await AcademicYear.create({
 			name,
-			startDate,
+			startDate: req.body.startDate,
 			endDate,
 			schoolId,
 			months,
@@ -85,12 +94,40 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(academicYear, 1, 'Fetched Successfully'));
 });
 
+const changeState = catchAsync(async (req, res, next) => {
+	const { id, isActive } = req.body;
+	const academicYear = await AcademicYear.findByIdAndUpdate(
+		{
+			_id: id,
+		},
+		{
+			isActive,
+		},
+		{
+			new: true,
+		}
+	);
+	if (!academicYear) {
+		return next(new ErrorResponse('Academic Year Not Found', 404));
+	}
+	if (academicYear.isActive) {
+		await AcademicYear.updateMany(
+			{ _id: { $ne: id }, isActive: true, schoolId: academicYear.schoolId },
+			{ isActive: false }
+		);
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(academicYear, 1, 'Updated Successfully'));
+});
+
 // Update an AcademicYear by ID
 const update = async (req, res, next) => {
 	try {
 		const { id } = req.params;
 		const isScheduleMapped = await FeeSchedule.findOne({
 			academicYearId: id,
+			schoolId: req.body.schoolId,
 		});
 
 		if (isScheduleMapped) {
@@ -145,8 +182,14 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const isTypeMapped = await FeeTypes.findOne({ academicYearId: id });
-		const isScheduleMapped = await FeeSchedule.findOne({ academicYearId: id });
+		const isTypeMapped = await FeeTypes.findOne({
+			academicYearId: id,
+			schoolId: req.user.school_id,
+		});
+		const isScheduleMapped = await FeeSchedule.findOne({
+			academicYearId: id,
+			schoolId: req.user.school_id,
+		});
 		if (isTypeMapped || isScheduleMapped) {
 			return next(
 				new ErrorResponse(
@@ -171,5 +214,6 @@ module.exports = {
 	getAll,
 	getAcademicYear,
 	update,
+	changeState,
 	deleteAcademicYear,
 };

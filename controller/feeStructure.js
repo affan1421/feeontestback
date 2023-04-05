@@ -227,6 +227,21 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 			$facet: {
 				data: [
 					{ $match: query },
+					{
+						$lookup: {
+							from: 'academicyears',
+							localField: 'academicYearId',
+							foreignField: '_id',
+							as: 'academicYearId',
+						},
+					},
+					{
+						$addFields: {
+							academicYearId: {
+								$arrayElemAt: ['$academicYearId', 0],
+							},
+						},
+					},
 					{ $skip: +page * +limit },
 					{ $limit: +limit },
 				],
@@ -257,7 +272,6 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				},
 			}
 		);
-
 		if (!classList.data.isSuccess) {
 			return next(new ErrorResponse('No Class List Found', 404));
 		}
@@ -283,6 +297,8 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				)
 			);
 	} catch (err) {
+		console.error('error while fetching unmapped class list', err.message);
+		console.error('error while fetching unmapped class list', err.stack);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
