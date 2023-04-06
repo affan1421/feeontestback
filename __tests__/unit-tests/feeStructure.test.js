@@ -301,17 +301,22 @@ describe('Fee Structure Controller', () => {
 					],
 					totalAmount: 578,
 				},
+				headers: {
+					authorization: 'Bearer Token',
+				},
 			});
 			const res = mockResponse();
 			jest.spyOn(FeeStructure, 'findOne').mockResolvedValueOnce(null);
 			jest
 				.spyOn(FeeStructure, 'create')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			jest.spyOn(axios, 'post').mockResolvedValueOnce({ data: { id: 1 } });
+
+			// jest.spyOn(axios, 'post').mockResolvedValueOnce({ data: { id: 1 } });
 			await create(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(201);
 			expect(SuccessResponse).toHaveBeenCalledWith(
-				feeStructureMock,
+				feeStructureMock.data,
 				1,
 				'Created Successfully'
 			);
@@ -513,14 +518,20 @@ describe('Fee Structure Controller', () => {
 				user: {
 					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				headers: {
+					authorization: 'Bearer 123456789',
+				},
 			});
 			const res = mockResponse();
 			jest
 				.spyOn(FeeStructure, 'findOne')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
 				.spyOn(FeeStructure, 'findOneAndDelete')
 				.mockResolvedValueOnce(feeStructureMock);
+			jest
+				.spyOn(axios, 'post')
+				.mockResolvedValueOnce({ data: { status: 'success' } });
 			await deleteFeeStructure(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(SuccessResponse).toHaveBeenCalledWith(
@@ -538,12 +549,15 @@ describe('Fee Structure Controller', () => {
 				user: {
 					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
 				},
+				headers: {
+					authorization: 'Bearer 123456789',
+				},
 			});
 
 			const res = mockResponse();
 			jest
 				.spyOn(FeeStructure, 'findOne')
-				.mockResolvedValueOnce(feeStructureMock);
+				.mockResolvedValueOnce(feeStructureMock.data);
 			jest
 				.spyOn(FeeStructure, 'findOneAndDelete')
 				.mockRejectedValueOnce(feeStructureMock);

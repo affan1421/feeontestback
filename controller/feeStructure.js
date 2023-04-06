@@ -56,6 +56,7 @@ exports.create = async (req, res, next) => {
 		feeDetails = [],
 		totalAmount,
 	} = req.body;
+	let sectionList = null;
 
 	if (
 		!feeStructureName ||
@@ -92,6 +93,22 @@ exports.create = async (req, res, next) => {
 			feeDetails,
 			totalAmount: Number(totalAmount),
 		});
+
+		sectionList = classes.map(c => c.sectionId);
+		await axios.post(
+			`${process.env.GROWON_BASE_URL}/section/feestructure`,
+			{
+				sectionList,
+				feeStructureId: feeStructure._id,
+				isNew: true,
+			},
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: req.headers.authorization,
+				},
+			}
+		);
 
 		// Extract the section IDs from the classes array.
 		// const sectionIds = classes.map(c => c.sectionId);
@@ -214,11 +231,26 @@ exports.deleteFeeStructure = async (req, res, next) => {
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
+	const sectionList = feeStructure.classes.map(c => c.sectionId);
 	try {
 		await FeeStructure.findOneAndDelete({
 			_id: id,
 			schoolId: req.user.school_id,
 		});
+		// TODO: delete the fee structure from the installments table
+		await axios.post(
+			`${process.env.GROWON_BASE_URL}/section/feestructure`,
+			{
+				feeStructureId: id,
+				sectionList,
+			},
+			{
+				headers: {
+					contentType: 'application/json',
+					Authorization: req.headers.authorization,
+				},
+			}
+		);
 	} catch (err) {
 		console.log('error while deleting', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
