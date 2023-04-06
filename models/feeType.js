@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const academicYearPlugin = require('../middleware/academicYear');
+const { academicYearPlugin } = require('../middleware/academicYear');
 
 const feetypeSchema = new mongoose.Schema(
 	{

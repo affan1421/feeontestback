@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
+const NodeCache = require('node-cache');
 const ErrorResponse = require('../utils/errorResponse');
+
+const myCache = new NodeCache({ stdTTL: 86400 });
 
 const academicYearPlugin = function (schema, options) {
 	const academicYearModelName = 'AcademicYear';
@@ -8,6 +11,7 @@ const academicYearPlugin = function (schema, options) {
 		let schoolId;
 		let pipeline;
 		let isAggregation;
+		let activeAcademicYear;
 
 		if (this._conditions) {
 			// For find and findOne
@@ -23,16 +27,25 @@ const academicYearPlugin = function (schema, options) {
 			isAggregation = true;
 		}
 
-		const activeAcademicYear = await mongoose
-			.model(academicYearModelName)
-			.findOne({ isActive: true, schoolId })
-			.lean();
-
-		if (!activeAcademicYear) {
-			return next(new ErrorResponse('Please Select An Academic Year', 400));
+		if (!schoolId) {
+			return next(new ErrorResponse('School Id is required', 400));
 		}
 
-		const activeAcademicYearId = activeAcademicYear._id;
+		let activeAcademicYearId = myCache.get(`academicYear-schoolId:${schoolId}`);
+
+		if (!activeAcademicYearId) {
+			activeAcademicYear = await mongoose
+				.model(academicYearModelName)
+				.findOne({ isActive: true, schoolId })
+				.lean();
+
+			if (!activeAcademicYear) {
+				return next(new ErrorResponse('Please Select An Academic Year', 400));
+			}
+			const cacheKey = `academicYear-schoolId:${schoolId}`;
+			activeAcademicYearId = activeAcademicYear._id;
+			myCache.set(cacheKey, activeAcademicYearId);
+		}
 
 		const filter = {
 			$match: {
@@ -59,6 +72,14 @@ const academicYearPlugin = function (schema, options) {
 	async function addAcademicYearId(next) {
 		const { schoolId } = this;
 		if (!this.get('academicYearId')) {
+			const cachedAcademicYearId = myCache.get(
+				`academicYear-schoolId:${schoolId}`
+			);
+
+			if (cachedAcademicYearId) {
+				this.academicYearId = cachedAcademicYearId;
+				return next();
+			}
 			const activeAcademicYear = await mongoose
 				.model(academicYearModelName)
 				.findOne({ isActive: true, schoolId })
@@ -68,6 +89,9 @@ const academicYearPlugin = function (schema, options) {
 			if (!activeAcademicYear) {
 				return next(new ErrorResponse('Please Select An Academic Year', 400));
 			}
+
+			const cacheKey = `academicYear-schoolId:${schoolId}`;
+			myCache.set(cacheKey, activeAcademicYear._id);
 
 			this.academicYearId = activeAcademicYear._id;
 		}
@@ -86,4 +110,4 @@ const academicYearPlugin = function (schema, options) {
 	});
 };
 
-module.exports = academicYearPlugin;
+module.exports = { academicYearPlugin, myCache };

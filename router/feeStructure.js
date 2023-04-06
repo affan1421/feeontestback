@@ -21,6 +21,8 @@ router.get('/', feeStructureController.getByFilter);
 // Fetching unmapped classList
 router.get('/unmapped/:schoolId', feeStructureController.getUnmappedClassList);
 
+router.post('/assign', feeStructureController.assignFeeStructure);
+
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);
 

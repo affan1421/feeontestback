@@ -9,24 +9,30 @@ const SuccessResponse = require('../utils/successResponse');
 
 async function runChildProcess(
 	feeDetails,
-	sectionIds,
+	sectionIds, // treated as studentlist if isStudent is true
 	feeStructure,
 	schoolId,
-	academicYear
+	academicYearId,
+	isStudent = false
 ) {
+	// If isStudent is true, then sectionIds is treated as studentList
+	let studentList = sectionIds;
 	// Fetch the student list from the student API.
-	const studentList = await axios.post(
-		`${process.env.GROWON_BASE_URL}/student/feeOn`,
-		{ classes: sectionIds }
-	);
+	if (!isStudent) {
+		studentList = await axios.post(
+			`${process.env.GROWON_BASE_URL}/student/feeOn`,
+			{ classes: sectionIds }
+		);
+		studentList = studentList.data.data;
+	}
 	// Spawn child process to insert data into the database
 	const childSpawn = spawn('node', [
 		'../feeOn-backend/helper/installments.js',
 		flatted.stringify(feeDetails),
-		flatted.stringify(studentList.data.data),
+		flatted.stringify(studentList),
 		feeStructure,
 		schoolId,
-		academicYear,
+		academicYearId,
 	]);
 
 	childSpawn.stdout.on('data', data => {
@@ -117,7 +123,7 @@ exports.create = async (req, res, next) => {
 		// 	sectionIds,
 		// 	feeStructure._id,
 		// 	schoolId,
-		// 	academicYear
+		// 	academicYearId: feeStructure.academicYearId
 		// );
 		res
 			.status(201)
@@ -170,7 +176,7 @@ exports.update = async (req, res, next) => {
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
-		const { classes, feeDetails, schoolId, academicYear } = feeStructure;
+		const { classes, feeDetails, schoolId, academicYearId } = feeStructure;
 		const sectionIds = new Set(classes.map(c => c.sectionId));
 		// check if any new section is added in the classes array
 		// if (isClassAdded) {
@@ -183,7 +189,8 @@ exports.update = async (req, res, next) => {
 		// 		newSections,
 		// 		id,
 		// 		schoolId,
-		// 		academicYear
+		// 	academicYearId: feeStructure.academicYearId
+
 		// 	);
 		// }
 
@@ -194,7 +201,7 @@ exports.update = async (req, res, next) => {
 		// 		.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
 		// 		.map(f => f.feeTypeId);
 
-		// 	await runChildProcess(newRows, sectionIds, id, schoolId, academicYear);
+		// 	await runChildProcess(newRows, sectionIds, id, schoolId, academicYearId);
 		// }
 
 		if (
@@ -342,6 +349,36 @@ exports.getUnmappedClassList = async (req, res, next) => {
 			);
 	} catch (err) {
 		console.log('error while fetching unmapped class list', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+};
+
+exports.assignFeeStructure = async (req, res, next) => {
+	const { studentList, sectionId } = req.body;
+	// find the feestructure id for the section
+	const feeStructure = await FeeStructure.findOne({
+		classes: { $elemMatch: { sectionId } },
+	});
+	if (!feeStructure) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+	const {
+		_id: feeStructureId,
+		feeDetails,
+		schoolId,
+		academicYearId,
+	} = feeStructure;
+	try {
+		// Run the child process to assign the fee structure to the students
+		await runChildProcess(
+			feeDetails,
+			studentList,
+			feeStructureId,
+			schoolId,
+			academicYearId
+		);
+	} catch (err) {
+		console.log('error while assigning fee structure', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };

@@ -5,7 +5,7 @@ const SuccessResponse = require('../utils/successResponse');
 const catchAsync = require('../utils/catchAsync');
 const FeeTypes = require('../models/feeType');
 const FeeSchedule = require('../models/feeSchedule');
-
+const { myCache } = require('../middleware/academicYear');
 // Create a new AcademicYear
 const create = async (req, res, next) => {
 	try {
@@ -125,6 +125,7 @@ const changeState = catchAsync(async (req, res, next) => {
 			{ isActive: false }
 		);
 	}
+	myCache.set(`academicYear-schoolId:${academicYear.schoolId}`, id);
 	res
 		.status(200)
 		.json(SuccessResponse(academicYear, 1, 'Updated Successfully'));

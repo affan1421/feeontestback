@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { academicYearPlugin } = require('../middleware/academicYear');
 
 const { Schema, model } = mongoose;
 
@@ -41,7 +42,7 @@ const feeScheduleSchema = new Schema(
 	{ timestamps: true }
 );
 
-feeScheduleSchema.plugin(require('../middleware/academicYear'), {
+feeScheduleSchema.plugin(academicYearPlugin, {
 	refPath: 'academicYearId',
 });
 
