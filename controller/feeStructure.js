@@ -274,7 +274,7 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 exports.getUnmappedClassList = async (req, res, next) => {
 	const { schoolId } = req.params;
 	let mappedClassIds = [];
-	let classList = [];
+	let classList = null;
 	try {
 		classList = await axios.get(
 			`${process.env.GROWON_BASE_URL}/section/school/${schoolId}`,
@@ -309,6 +309,7 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				)
 			);
 	} catch (err) {
+		console.log('error while fetching unmapped class list', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };

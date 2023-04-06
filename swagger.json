@@ -2677,6 +2677,141 @@
           }
         }
       }
+    },
+    "/config/activate": {
+      "post": {
+        "tags": ["Config"],
+        "summary": "Activate Academic Year",
+        "description": "Activate Academic Year",
+        "operationId": "activateAcademicYear",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "formData",
+            "description": "The id of the academic year",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "isActive",
+            "in": "formData",
+            "description": "The isActive of the academic year",
+            "required": true,
+            "type": "boolean",
+            "example": true
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Please Provide All Required Fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Please Provide All Required Fields"
+              }
+            }
+          },
+          "404": {
+            "description": "Academic Year Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Academic Year Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "startDate": {
+                      "type": "date"
+                    },
+                    "endDate": {
+                      "type": "date"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "months": {
+                      "type": "array",
+                      "items": {
+                        "type": "Number"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Updated Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "name": "2020-2021",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "startDate": "2020-08-01T00:00:00.000Z",
+                  "endDate": "2021-07-31T00:00:00.000Z",
+                  "isActive": true,
+                  "createdAt": "2020-09-08T09:30:00.000Z",
+                  "updatedAt": "2020-09-08T09:30:00.000Z",
+                  "id": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "months": [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7]
+                },
+                "resultCount": 1,
+                "message": "Updated Successfully"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

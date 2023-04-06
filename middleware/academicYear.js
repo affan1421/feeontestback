@@ -17,8 +17,7 @@ const academicYearPlugin = function (schema, options) {
 			// For aggregate
 			const [facet] = this._pipeline.filter(stage => stage.$facet);
 			const matchStage =
-				facet.$facet?.data[0].$match || this._pipeline[0].$match;
-			console.log(matchStage);
+				facet?.$facet?.data[0].$match || this._pipeline[0].$match;
 			schoolId = matchStage.schoolId;
 			pipeline = this._pipeline;
 			isAggregation = true;

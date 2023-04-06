@@ -102,6 +102,9 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 
 const changeState = catchAsync(async (req, res, next) => {
 	const { id, isActive } = req.body;
+	if (!id || isActive == null) {
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	}
 	const academicYear = await AcademicYear.findOneAndUpdate(
 		{
 			_id: id,
