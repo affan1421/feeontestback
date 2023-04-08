@@ -18,7 +18,7 @@ const academicYearSchema = new Schema(
 		},
 		isActive: {
 			type: Boolean, // true
-			default: false,
+			default: true,
 		},
 		months: {
 			type: [Number], // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]

@@ -11,18 +11,27 @@ const create = async (req, res, next) => {
 	try {
 		const timezoneOffset = new Date().getTimezoneOffset();
 		let { name, startDate, endDate, schoolId } = req.body;
+		let isActive = true;
 		if (!name || !startDate || !endDate || !schoolId) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
-		const isExists = await AcademicYear.findOne({
-			name,
+		const isExists = await AcademicYear.find({
 			schoolId,
-		});
-		if (isExists) {
+		}).lean();
+		// check isExists and set isActive false
+		if (isExists.length > 0) {
+			isActive = false;
+		}
+
+		const nameObj = isExists.find(item => item.name === name);
+
+		// check for name
+		if (nameObj) {
 			return next(
 				new ErrorResponse(`Academic Year ${name} Already Exists`, 422)
 			);
 		}
+
 		const months = [];
 		startDate = new Date(startDate);
 		endDate = new Date(endDate);
@@ -47,6 +56,7 @@ const create = async (req, res, next) => {
 			endDate,
 			schoolId,
 			months: adjustedMonths,
+			isActive,
 		});
 		res
 			.status(201)
