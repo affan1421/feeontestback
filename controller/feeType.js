@@ -36,9 +36,9 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let { schoolId, accountType, page, limit } = req.query;
-	page = parseInt(page, 0);
-	limit = parseInt(limit, 10);
+	let { schoolId, accountType, page = 0, limit = 5 } = req.query;
+	page = +page;
+	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);

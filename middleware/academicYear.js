@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
 const NodeCache = require('node-cache');
-const ErrorResponse = require('../utils/errorResponse');
 
 const myCache = new NodeCache({ stdTTL: 86400 });
 
@@ -27,10 +26,6 @@ const academicYearPlugin = function (schema, options) {
 			isAggregation = true;
 		}
 
-		if (!schoolId) {
-			return next(new ErrorResponse('School Id is required', 400));
-		}
-
 		let activeAcademicYearId = myCache.get(`academicYear-schoolId:${schoolId}`);
 
 		if (!activeAcademicYearId) {
@@ -39,9 +34,6 @@ const academicYearPlugin = function (schema, options) {
 				.findOne({ isActive: true, schoolId })
 				.lean();
 
-			if (!activeAcademicYear) {
-				return next(new ErrorResponse('Please Select An Academic Year', 400));
-			}
 			const cacheKey = `academicYear-schoolId:${schoolId}`;
 			activeAcademicYearId = activeAcademicYear._id;
 			myCache.set(cacheKey, activeAcademicYearId);
@@ -85,10 +77,6 @@ const academicYearPlugin = function (schema, options) {
 				.findOne({ isActive: true, schoolId })
 				.lean()
 				.exec();
-
-			if (!activeAcademicYear) {
-				return next(new ErrorResponse('Please Select An Academic Year', 400));
-			}
 
 			const cacheKey = `academicYear-schoolId:${schoolId}`;
 			myCache.set(cacheKey, activeAcademicYear._id);
