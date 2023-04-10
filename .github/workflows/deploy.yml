@@ -83,8 +83,8 @@ jobs:
     needs: Build_And_Copy_files_to_EC2
     steps:
       - run: pwd
-      - run: cd /home/ubuntu/feeOn-backend/
       - run: npm install
+      - run: pwd
       - run: pm2 status
       - run: pm2 restart index
 
