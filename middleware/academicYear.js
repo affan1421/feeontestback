@@ -32,6 +32,7 @@ const academicYearPlugin = function (schema, options) {
 		}
 
 		let activeAcademicYearId = myCache.get(`academicYear-schoolId:${schoolId}`);
+		console.log('activeAcademicYearId', activeAcademicYearId);
 
 		if (!activeAcademicYearId) {
 			activeAcademicYear = await mongoose
@@ -49,7 +50,7 @@ const academicYearPlugin = function (schema, options) {
 
 		const filter = {
 			$match: {
-				[options.refPath]: activeAcademicYearId,
+				[options.refPath]: mongoose.Types.ObjectId(activeAcademicYearId),
 			},
 		};
 
@@ -61,10 +62,15 @@ const academicYearPlugin = function (schema, options) {
 			}
 		} else {
 			const conditions = {
-				$and: [{ [options.refPath]: activeAcademicYearId }, this._conditions],
+				$and: [
+					{ [options.refPath]: mongoose.Types.ObjectId(activeAcademicYearId) },
+					this._conditions,
+				],
 			};
 			this._conditions = conditions;
+			console.log('this._conditions', this._conditions);
 		}
+		console.log('this._pipeline', this._pipeline);
 
 		next();
 	}
