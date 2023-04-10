@@ -1,7 +1,12 @@
 const mongoose = require('mongoose');
 const NodeCache = require('node-cache');
+const ErrorResponse = require('../utils/errorResponse');
 
-const myCache = new NodeCache({ stdTTL: 86400 });
+let stdTTL = 900;
+if (process.env.NODE_ENV === 'development') {
+	stdTTL = 300;
+}
+const myCache = new NodeCache({ stdTTL });
 
 const academicYearPlugin = function (schema, options) {
 	const academicYearModelName = 'AcademicYear';
@@ -34,6 +39,9 @@ const academicYearPlugin = function (schema, options) {
 				.findOne({ isActive: true, schoolId })
 				.lean();
 
+			if (!activeAcademicYear) {
+				return next(new ErrorResponse('Please Select An Academic Year', 400));
+			}
 			const cacheKey = `academicYear-schoolId:${schoolId}`;
 			activeAcademicYearId = activeAcademicYear._id;
 			myCache.set(cacheKey, activeAcademicYearId);
@@ -77,6 +85,10 @@ const academicYearPlugin = function (schema, options) {
 				.findOne({ isActive: true, schoolId })
 				.lean()
 				.exec();
+
+			if (!activeAcademicYear) {
+				return next(new ErrorResponse('Please Select An Academic Year', 400));
+			}
 
 			const cacheKey = `academicYear-schoolId:${schoolId}`;
 			myCache.set(cacheKey, activeAcademicYear._id);
