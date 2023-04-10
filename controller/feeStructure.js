@@ -70,6 +70,7 @@ exports.create = async (req, res, next) => {
 		classes = [],
 		description = '',
 		feeDetails = [],
+		categoryId,
 		totalAmount,
 	} = req.body;
 	let sectionList = null;
@@ -79,12 +80,17 @@ exports.create = async (req, res, next) => {
 		!classes ||
 		!feeDetails ||
 		!totalAmount ||
-		!schoolId
+		!schoolId ||
+		!categoryId
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
 
-	const isExist = await FeeStructure.findOne({ feeStructureName, schoolId });
+	const isExist = await FeeStructure.findOne({
+		feeStructureName,
+		schoolId,
+		categoryId,
+	});
 
 	if (isExist) {
 		return next(
@@ -105,6 +111,7 @@ exports.create = async (req, res, next) => {
 			feeStructureName,
 			schoolId,
 			classes,
+			categoryId,
 			description,
 			feeDetails,
 			totalAmount: Number(totalAmount),
@@ -161,9 +168,11 @@ exports.create = async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { _id: schoolId } = req.user.school_id;
+
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	// .populate('feeDetails.feeTypeId', 'feeType')
 	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
@@ -200,7 +209,8 @@ exports.update = async (req, res, next) => {
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
-		const { classes, feeDetails, schoolId, academicYearId } = feeStructure;
+		const { classes, feeDetails, schoolId, academicYearId, categoryId } =
+			feeStructure;
 		const sectionIds = new Set(classes.map(c => c.sectionId));
 		// check if any new section is added in the classes array
 		// if (isClassAdded) {
@@ -255,9 +265,11 @@ exports.update = async (req, res, next) => {
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
 	const { id } = req.params;
+	const { _id: schoolId } = req.user.school_id;
+
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
@@ -266,7 +278,7 @@ exports.deleteFeeStructure = async (req, res, next) => {
 	try {
 		await FeeStructure.findOneAndDelete({
 			_id: id,
-			schoolId: req.user.school_id,
+			schoolId,
 		});
 		// TODO:Directly delete the fee structure from the installments table
 		// await axios.post(
@@ -304,10 +316,13 @@ exports.deleteFeeStructure = async (req, res, next) => {
 
 // LIST
 exports.getByFilter = catchAsync(async (req, res, next) => {
-	const { schoolId, page = 0, limit = 10 } = req.query;
+	const { schoolId, categoryId, page = 0, limit = 10 } = req.query;
 	const query = {};
 	if (schoolId) {
 		query.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
+	if (categoryId) {
+		query.categoryId = mongoose.Types.ObjectId(categoryId);
 	}
 
 	const feeTypes = await FeeStructure.aggregate([

@@ -8,11 +8,13 @@ const feeScheduleSchema = new Schema(
 		scheduleName: {
 			type: String,
 			required: [true, 'Please add a schedule name'],
+			trim: true,
 		},
 		description: {
 			type: String,
 			required: [false, 'Please add a description'],
 			default: '',
+			trim: true,
 		},
 		academicYearId: {
 			type: Schema.Types.ObjectId,
@@ -26,6 +28,11 @@ const feeScheduleSchema = new Schema(
 		months: {
 			type: [Number],
 			required: [true, 'Please add months'],
+		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: [true, 'Please add a category id'],
 		},
 		schoolId: {
 			type: Schema.Types.ObjectId,

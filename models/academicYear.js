@@ -7,6 +7,7 @@ const academicYearSchema = new Schema(
 		name: {
 			type: String, // 2023-2024
 			required: [true, 'Please add a name'],
+			trim: true,
 		},
 		startDate: {
 			type: Date, // 2023-05-01T00:00:00.000Z

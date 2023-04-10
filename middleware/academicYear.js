@@ -77,6 +77,7 @@ const academicYearPlugin = function (schema, options) {
 
 	async function addAcademicYearId(next) {
 		const { schoolId } = this;
+		console.log('schoolId', this);
 		if (!this.get('academicYearId')) {
 			const cachedAcademicYearId = myCache.get(
 				`academicYear-schoolId:${schoolId}`
@@ -86,6 +87,7 @@ const academicYearPlugin = function (schema, options) {
 				this.academicYearId = cachedAcademicYearId;
 				return next();
 			}
+			console.log('schoolId', schoolId);
 			const activeAcademicYear = await mongoose
 				.model(academicYearModelName)
 				.findOne({ isActive: true, schoolId })
@@ -100,6 +102,7 @@ const academicYearPlugin = function (schema, options) {
 			myCache.set(cacheKey, activeAcademicYear._id);
 
 			this.academicYearId = activeAcademicYear._id;
+			console.log(this);
 		}
 
 		next();

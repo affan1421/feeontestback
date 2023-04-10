@@ -1,15 +1,18 @@
-const mongoose = require('mongoose');
+const { Schema, model } = require('mongoose');
 const { academicYearPlugin } = require('../middleware/academicYear');
 
-const feetypeSchema = new mongoose.Schema(
+const feetypeSchema = new Schema(
 	{
 		feeType: {
 			type: String,
 			required: [true, 'Please enter feetype name'],
+			trim: true,
 		},
 		description: {
 			type: String,
-			required: [true, 'Please enter feetype description'],
+			required: [false, 'Please enter feetype description'],
+			default: '',
+			trim: true,
 		},
 		accountType: {
 			type: String,
@@ -30,13 +33,18 @@ const feetypeSchema = new mongoose.Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: [true, 'Please enter category id'],
+		},
 		academicYearId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
 			required: [false, 'Please enter academic year id'],
 		},
 		schoolId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'Please enter school id'],
 		},
@@ -46,6 +54,6 @@ const feetypeSchema = new mongoose.Schema(
 
 feetypeSchema.plugin(academicYearPlugin, { refPath: 'academicYearId' });
 
-const Feetype = mongoose.model('Feetype', feetypeSchema);
+const Feetype = model('Feetype', feetypeSchema);
 
 module.exports = Feetype;

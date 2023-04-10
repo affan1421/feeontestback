@@ -31,9 +31,10 @@ const feeStructureSchema = new Schema(
 		feeStructureName: {
 			type: String,
 			required: [true, 'Fee Structure Name is Mandatory'],
+			trim: true,
 		},
 		academicYearId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
 			required: [false, 'Academic Year is Mandatory'],
 		},
@@ -41,6 +42,11 @@ const feeStructureSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'School is Mandatory'],
+		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: [true, 'Fee Category is Mandatory'],
 		},
 		classes: {
 			type: [

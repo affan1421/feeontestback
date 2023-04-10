@@ -32,8 +32,16 @@ exports.create = async (req, res, next) => {
 		day,
 		months,
 		existMonths,
+		categoryId,
 	} = req.body;
-	if (!scheduleName || !day || !months || !existMonths || !schoolId) {
+	if (
+		!scheduleName ||
+		!day ||
+		!months ||
+		!existMonths ||
+		!schoolId ||
+		!categoryId
+	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
 
@@ -46,6 +54,7 @@ exports.create = async (req, res, next) => {
 	const isExists = await FeeSchedule.findOne({
 		scheduleName,
 		schoolId,
+		categoryId,
 	});
 	if (isExists) {
 		return next(new ErrorResponse('Fee Schedule Already Exists', 400));
@@ -56,6 +65,7 @@ exports.create = async (req, res, next) => {
 			description,
 			schoolId,
 			scheduledDates,
+			categoryId,
 			day,
 			months,
 		});
@@ -69,12 +79,15 @@ exports.create = async (req, res, next) => {
 // @route   GET /api/v1/feeSchedule
 // @access  Private
 exports.getAll = catchAsync(async (req, res, next) => {
-	let { schoolId, scheduleType, page = 0, limit = 5 } = req.query;
+	let { schoolId, scheduleType, categoryId, page = 0, limit = 5 } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
+	if (categoryId) {
+		payload.categoryId = mongoose.Types.ObjectId(categoryId);
 	}
 	if (scheduleType) {
 		payload.scheduleType = scheduleType;
@@ -102,9 +115,11 @@ exports.getAll = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { _id: schoolId } = req.user.school_id;
+
 	const feeSchedule = await FeeSchedule.findOne({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
@@ -117,9 +132,15 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
-	console.log(id);
-	let { scheduleName, description, schoolId, day, months, existMonths } =
-		req.body;
+	let {
+		scheduleName,
+		description,
+		schoolId,
+		day,
+		months,
+		existMonths,
+		categoryId,
+	} = req.body;
 	let feeSchedule = await FeeSchedule.findOne({ _id: id, schoolId }).lean();
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
@@ -129,7 +150,6 @@ exports.update = async (req, res, next) => {
 	);
 
 	const scheduledDates = getScheduleDates(months, day);
-	console.log('id', id, 'schoolId', schoolId);
 	try {
 		feeSchedule = await FeeSchedule.findOneAndUpdate(
 			{ _id: id, schoolId: req.body.schoolId },
@@ -140,6 +160,7 @@ exports.update = async (req, res, next) => {
 				scheduledDates,
 				day,
 				months,
+				categoryId,
 			},
 			{ new: true }
 		);
@@ -154,9 +175,11 @@ exports.update = async (req, res, next) => {
 // @access  Private
 exports.deleteFeeSchedule = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { _id: schoolId } = req.user.school_id;
+
 	const feeSchedule = await FeeSchedule.findOneAndDelete({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
