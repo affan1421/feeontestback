@@ -41,8 +41,11 @@ const authenticateUser = async (req, res, next) => {
 		// 	`${process.env.GROWON_BASE_URL}/auth/erp?userId=${id}`
 		// );
 		// const user = response.data;
-		const user = await Users.findOne({ _id: mongoose.Types.ObjectId(id) });
+		const user = await Users.findOne({
+			_id: mongoose.Types.ObjectId(id),
+		}).populate('role school_id');
 
+		console.log('user', user);
 		if (!user) {
 			return next(new ErrorResponse('Unauthorized Access', 401));
 		}

@@ -59,6 +59,7 @@ describe('Fee Schedule Controller', () => {
 					months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 					existMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 					schoolId: '5f9f1b9b9c9d440000a1b0f1',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
 			const res = mockResponse();
@@ -78,6 +79,8 @@ describe('Fee Schedule Controller', () => {
 					description: 'Monthly fee schedule',
 					day: 9,
 					existMonths: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4],
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					months: [1, 11, 12, 2, 4, 9],
 					schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
 				},
@@ -97,6 +100,8 @@ describe('Fee Schedule Controller', () => {
 					'2024-02-08T18:30:00.000Z',
 					'2024-04-08T18:30:00.000Z',
 				],
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 				_id: '6426799d714d49a034f79dd5',
 				createdAt: '2023-03-31T06:11:41.387Z',
 				updatedAt: '2023-03-31T06:11:41.387Z',
@@ -119,6 +124,8 @@ describe('Fee Schedule Controller', () => {
 						'2024-02-08T18:30:00.000Z',
 						'2024-04-08T18:30:00.000Z',
 					],
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					_id: '6426799d714d49a034f79dd5',
 					createdAt: '2023-03-31T06:11:41.387Z',
 					updatedAt: '2023-03-31T06:11:41.387Z',
@@ -253,7 +260,7 @@ describe('Fee Schedule Controller', () => {
 					id: '5f9f1b9b9c9d440000a1b0f1',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
@@ -269,7 +276,7 @@ describe('Fee Schedule Controller', () => {
 					id: '5f9f1b9b9c9d440000a1b0f1',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
@@ -376,7 +383,7 @@ describe('Fee Schedule Controller', () => {
 					id: '5f9f1b9b9c9d440000a1b0f1',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
@@ -392,7 +399,7 @@ describe('Fee Schedule Controller', () => {
 					id: '5f9f1b9b9c9d440000a1b0f1',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
