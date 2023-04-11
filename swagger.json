@@ -301,7 +301,7 @@
                 },
                 "message": {
                   "type": "string",
-                  "example": "Fetched Successfully"
+                  "example": "Deleted Successfully"
                 }
               }
             }
@@ -2807,6 +2807,653 @@
                 },
                 "resultCount": 1,
                 "message": "Updated Successfully"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feecategory": {
+      "post": {
+        "tags": ["Fee Category"],
+        "summary": "Create Fee Category",
+        "description": "Create Fee Category",
+        "operationId": "createFeeCategory",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "Academic Fees"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "Academic Fees"
+          },
+          {
+            "name": "schoolId",
+            "in": "formData",
+            "description": "The schoolId of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "academicYearId",
+            "in": "formData",
+            "description": "The academicYearId of the fee category",
+            "required": false,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Please Provide All Required Fields",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Please Provide All Required Fields"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "academicYearId": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Created Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "name": "Tution Fee",
+                  "description": "Tution Fee",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "createdAt": "2020-09-08T09:30:00.000Z",
+                  "updatedAt": "2020-09-08T09:30:00.000Z",
+                  "id": "5f5f5f5f5f5f5f5f5f5f5f5f"
+                },
+                "resultCount": 1,
+                "message": "Created Successfully"
+              }
+            }
+          },
+          "400": {
+            "description": "Fee Category Already Exist",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Category Already Exist"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Fee Category"],
+        "summary": "Get Fee Category",
+        "description": "Get Fee Category",
+        "operationId": "getFeeCategory",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "schoolId",
+            "in": "query",
+            "description": "The schoolId of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "academicYearId",
+            "in": "query",
+            "description": "The academicYearId of the fee category",
+            "required": false,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "The page number of the fee category",
+            "required": false,
+            "type": "string",
+            "example": "1"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The limit of the fee category",
+            "required": false,
+            "type": "string",
+            "example": "10"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Fee Category Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Category Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "schoolId": {
+                        "type": "string"
+                      },
+                      "academicYearId": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": [
+                  {
+                    "name": "Tution Fee",
+                    "description": "Tution Fee",
+                    "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                    "createdAt": "2020-09-08T09:30:00.000Z",
+                    "updatedAt": "2020-09-08T09:30:00.000Z",
+                    "id": "5f5f5f5f5f5f5f5f5f5f5f5f"
+                  }
+                ],
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feecategory/{id}": {
+      "get": {
+        "tags": ["Fee Category"],
+        "summary": "Get Fee Category By Id",
+        "description": "Get Fee Category By Id",
+        "operationId": "getFeeCategoryById",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Fee Category Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Category Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "academicYearId": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "name": "Tution Fee",
+                  "description": "Tution Fee",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "createdAt": "2020-09-08T09:30:00.000Z",
+                  "updatedAt": "2020-09-08T09:30:00.000Z",
+                  "id": "5f5f5f5f5f5f5f5f5f5f5f5f"
+                },
+                "resultCount": 1,
+                "message": "Fetched Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Fee Category"],
+        "summary": "Update Fee Category",
+        "description": "Update Fee Category",
+        "operationId": "updateFeeCategory",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "name",
+            "in": "formData",
+            "description": "The name of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "Academic Fees"
+          },
+          {
+            "name": "description",
+            "in": "formData",
+            "description": "The description of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "Academic Fees"
+          },
+          {
+            "name": "schoolId",
+            "in": "formData",
+            "description": "The schoolId of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          },
+          {
+            "name": "academicYearId",
+            "in": "formData",
+            "description": "The academicYearId of the fee category",
+            "required": false,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Fee Category Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Category Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "schoolId": {
+                      "type": "string"
+                    },
+                    "academicYearId": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Updated Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": {
+                  "name": "Tution Fee",
+                  "description": "Tution Fee",
+                  "schoolId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "academicYearId": "5f5f5f5f5f5f5f5f5f5f5f5f",
+                  "createdAt": "2020-09-08T09:30:00.000Z",
+                  "updatedAt": "2020-09-08T09:30:00.000Z",
+                  "id": "5f5f5f5f5f5f5f5f5f5f5f5f"
+                },
+                "resultCount": 1,
+                "message": "Updated Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Fee Category"],
+        "summary": "Delete Fee Category",
+        "description": "Delete Fee Category",
+        "operationId": "deleteFeeCategory",
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The id of the fee category",
+            "required": true,
+            "type": "string",
+            "example": "5f5f5f5f5f5f5f5f5f5f5f5f"
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Fee Category Not Found",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Fee Category Not Found"
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": {
+                  "type": "boolean"
+                },
+                "data": {
+                  "type": "undefined",
+                  "example": null
+                },
+                "resultCount": {
+                  "type": "integer",
+                  "example": 1
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Fetched Successfully"
+                }
+              },
+              "example": {
+                "success": true,
+                "data": null,
+                "resultCount": 1,
+                "message": "Deleted Successfully"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "example": {
+                "status": "fail",
+                "message": "Something Went Wrong"
               }
             }
           }

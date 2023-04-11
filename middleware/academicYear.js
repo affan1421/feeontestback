@@ -32,7 +32,6 @@ const academicYearPlugin = function (schema, options) {
 		}
 
 		let activeAcademicYearId = myCache.get(`academicYear-schoolId:${schoolId}`);
-		console.log('activeAcademicYearId', activeAcademicYearId);
 
 		if (!activeAcademicYearId) {
 			activeAcademicYear = await mongoose
@@ -68,16 +67,13 @@ const academicYearPlugin = function (schema, options) {
 				],
 			};
 			this._conditions = conditions;
-			console.log('this._conditions', this._conditions);
 		}
-		console.log('this._pipeline', this._pipeline);
 
 		next();
 	}
 
 	async function addAcademicYearId(next) {
 		const { schoolId } = this;
-		console.log('schoolId', this);
 		if (!this.get('academicYearId')) {
 			const cachedAcademicYearId = myCache.get(
 				`academicYear-schoolId:${schoolId}`
@@ -87,7 +83,6 @@ const academicYearPlugin = function (schema, options) {
 				this.academicYearId = cachedAcademicYearId;
 				return next();
 			}
-			console.log('schoolId', schoolId);
 			const activeAcademicYear = await mongoose
 				.model(academicYearModelName)
 				.findOne({ isActive: true, schoolId })
@@ -102,7 +97,6 @@ const academicYearPlugin = function (schema, options) {
 			myCache.set(cacheKey, activeAcademicYear._id);
 
 			this.academicYearId = activeAcademicYear._id;
-			console.log(this);
 		}
 
 		next();
