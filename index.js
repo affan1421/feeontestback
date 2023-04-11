@@ -7,7 +7,9 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
 const swaggerDocument = require('./swagger.json');
-const { authenticateUser } = require('./middleware/authorize');
+const morganMiddleware = require('./middleware/morgan');
+
+let Users;
 
 const app = express();
 
@@ -35,6 +37,9 @@ mongoose
 	})
 	.then(() => {
 		console.log(`MongoDB Database Connected`);
+		const { authenticateUser } = require('./middleware/authorize');
+
+		app.use(morganMiddleware);
 
 		app.get('/', (req, res) => {
 			res.send('Server is up and Running👨‍💻👩‍💻');
@@ -45,7 +50,7 @@ mongoose
 		app.use('/api/v1/config', require('./router/academicYear'));
 		app.use('/api/v1/feetype', require('./router/feeType'));
 		app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
-
+		app.use('/api/v1/feecategory', require('./router/feeCategory'));
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));
 
 		app.use((err, req, res, next) => {
@@ -65,4 +70,4 @@ mongoose
 		process.exit(1);
 	});
 
-module.exports = app;
+module.exports = { app, Users };

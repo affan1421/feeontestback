@@ -63,7 +63,19 @@ const getFeeCategoryByFilter = catchAsync(async (req, res, next) => {
 	const feeTypes = await FeeCategory.aggregate([
 		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
+				data: [
+					{ $match: payload },
+					{
+						$lookup: {
+							from: 'academicyears',
+							localField: 'academicYearId',
+							foreignField: '_id',
+							as: 'academicYearId',
+						},
+					},
+					{ $skip: page * limit },
+					{ $limit: limit },
+				],
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
@@ -71,7 +83,7 @@ const getFeeCategoryByFilter = catchAsync(async (req, res, next) => {
 	const { data, count } = feeTypes[0];
 
 	if (count.length === 0) {
-		return next(new ErrorResponse('No Fee Type Found', 404));
+		return next(new ErrorResponse('Fee Category Not Found', 404));
 	}
 	res
 		.status(200)

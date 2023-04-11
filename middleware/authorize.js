@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
-const axios = require('axios');
+const mongoose = require('mongoose');
 const ErrorResponse = require('../utils/errorResponse');
+
+const Users = mongoose.connection.db.collection('users');
 
 const cache = new Map();
 
@@ -35,10 +37,12 @@ const authenticateUser = async (req, res, next) => {
 		}
 
 		// Use the user's ID to fetch the user from the GROWON's database
-		const response = await axios.get(
-			`${process.env.GROWON_BASE_URL}/auth/erp?userId=${id}`
-		);
-		const user = response.data;
+		// const response = await axios.get(
+		// 	`${process.env.GROWON_BASE_URL}/auth/erp?userId=${id}`
+		// );
+		// const user = response.data;
+		const user = await Users.findOne({ _id: mongoose.Types.ObjectId(id) });
+
 		if (!user) {
 			return next(new ErrorResponse('Unauthorized Access', 401));
 		}
@@ -53,6 +57,7 @@ const authenticateUser = async (req, res, next) => {
 	} catch (error) {
 		next(
 			// If an error occurs, return a 401 Unauthorized response
+			console.log('error', error),
 			new ErrorResponse('Unauthorized Access', 401)
 		);
 	}
