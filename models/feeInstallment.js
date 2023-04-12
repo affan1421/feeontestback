@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const { Schema, model } = mongoose;
+// TODO: Make indexes for filters:
 
 const FeeInstallmentSchema = new Schema(
 	{
@@ -10,6 +11,10 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'FeeSchedule',
 			required: true,
 		}, // populate
+		rowId: {
+			type: Schema.Types.ObjectId, // feeDetails _id
+			required: true,
+		}, // filter
 		feeStructureId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeStructure',
@@ -26,6 +31,7 @@ const FeeInstallmentSchema = new Schema(
 		date: { type: Date, required: true },
 		totalAmount: { type: Number, required: true },
 		discountId: { type: Schema.Types.ObjectId, ref: 'Discount' }, // populate
+		discountAmount: { type: Number, required: false },
 		netAmount: { type: Number, required: true },
 		status: {
 			type: String,

@@ -70,6 +70,7 @@ exports.create = async (req, res, next) => {
 		classes = [],
 		description = '',
 		feeDetails = [],
+		studentList = [],
 		categoryId,
 		totalAmount,
 	} = req.body;
@@ -81,7 +82,8 @@ exports.create = async (req, res, next) => {
 		!feeDetails ||
 		!totalAmount ||
 		!schoolId ||
-		!categoryId
+		!categoryId ||
+		!studentList
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
@@ -117,7 +119,7 @@ exports.create = async (req, res, next) => {
 			totalAmount: Number(totalAmount),
 		});
 
-		sectionList = classes.map(c => c.sectionId);
+		sectionList = classes.map(c => mongoose.Types.ObjectId(c.sectionId));
 		// Todo:  directly add feestructureId into section model
 		// await axios.post(
 		// 	`${process.env.GROWON_BASE_URL}/section/feestructure`,
@@ -133,7 +135,7 @@ exports.create = async (req, res, next) => {
 		// 		},
 		// 	}
 		// );
-		await Sections.updateMany(
+		const updatedDocs = await Sections.updateMany(
 			{
 				_id: { $in: sectionList },
 			},
@@ -150,11 +152,12 @@ exports.create = async (req, res, next) => {
 		// Extract the section IDs from the classes array.
 		// const sectionIds = classes.map(c => c.sectionId);
 		// await runChildProcess(
-		// 	feeDetails,
-		// 	sectionIds,
+		// 	feeStructure.feeDetails,
+		// 	studentList,
 		// 	feeStructure._id,
 		// 	schoolId,
-		// 	academicYearId: feeStructure.academicYearId
+		// 	feeStructure.academicYearId,
+		// 	true
 		// );
 		res
 			.status(201)
