@@ -188,13 +188,13 @@ exports.read = catchAsync(async (req, res, next) => {
 });
 
 // UPDATE
-// Academic year should not be updated
-// If row is deleted, search for the row in the installments table and delete it only if it is not paid.
-// If row is added, add it to the installments table.
-// If row is updated with no changes in sub rows, update it in the installments table.
-// If row is updated with changes in sub rows, delete the row from the installments table and add the new row.
-// If new class is added, add the new class to the installments table.
-// If class is deleted, delete the class from the installments table.
+// Request payload - old studentList (All) and Updated student List (Selected: true) and rest body.
+// Considerations:
+// 1. If any student is removed from the list, then delete the installment for that student.
+// 2. If any new student is added, then create the installment for that student.
+// 3. If new section is added append the new section to the classes array and push students in studentList (need to figure out how to recognize them).
+// 4. If any section is removed, then remove the section from the classes array and remove the students from the studentList.
+// 5. If any new fee is added, then add the fee to the feeDetails array and create the installment for all the students.
 
 exports.update = async (req, res, next) => {
 	const { id } = req.params;

@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const mongoose_delete = require('mongoose-delete');
+
 const { Schema, model } = mongoose;
 // TODO: Make indexes for filters:
 
@@ -42,5 +44,10 @@ const FeeInstallmentSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+FeeInstallmentSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	overrideMethods: true,
+});
 
 module.exports = model('FeeInstallment', FeeInstallmentSchema);

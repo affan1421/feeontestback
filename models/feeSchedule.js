@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
 const { academicYearPlugin } = require('../middleware/academicYear');
 
 const { Schema, model } = mongoose;
@@ -48,6 +49,11 @@ const feeScheduleSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+feeScheduleSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	overrideMethods: true,
+});
 
 feeScheduleSchema.plugin(academicYearPlugin, {
 	refPath: 'academicYearId',
