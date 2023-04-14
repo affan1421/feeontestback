@@ -17,10 +17,12 @@ async function insertFeeInstallments() {
 	try {
 		// Create an array of fee installments to be inserted into the database.
 		const feeInstallments = [];
+		const now = new Date();
 		for (const fee of feeDetails) {
 			const { feeTypeId, scheduleTypeId, _id } = fee;
 			for (const scheduledDate of fee.scheduledDates) {
 				const { date, amount } = scheduledDate;
+
 				const newFee = {
 					rowId: _id,
 					feeTypeId,
@@ -28,9 +30,13 @@ async function insertFeeInstallments() {
 					academicYearId: academicYear,
 					scheduledDate: date,
 					totalAmount: amount,
+					status: 'Upcoming',
 					schoolId,
 					netAmount: amount,
 				};
+				if (new Date(date) < now) {
+					newFee.status = 'Due';
+				}
 				feeInstallments.push(newFee);
 			}
 		}
@@ -44,6 +50,7 @@ async function insertFeeInstallments() {
 				rowId: fee.rowId,
 				feeTypeId: fee.feeTypeId,
 				date: fee.scheduledDate,
+				status: fee.status,
 				scheduleTypeId: fee.scheduleTypeId,
 				academicYearId: fee.academicYearId,
 				scheduledDate: fee.scheduledDate,

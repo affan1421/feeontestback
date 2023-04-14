@@ -151,14 +151,14 @@ exports.create = async (req, res, next) => {
 
 		// Extract the section IDs from the classes array.
 		// const sectionIds = classes.map(c => c.sectionId);
-		// await runChildProcess(
-		// 	feeStructure.feeDetails,
-		// 	studentList,
-		// 	feeStructure._id,
-		// 	schoolId,
-		// 	feeStructure.academicYearId,
-		// 	true
-		// );
+		await runChildProcess(
+			feeStructure.feeDetails,
+			studentList,
+			feeStructure._id,
+			schoolId,
+			feeStructure.academicYearId,
+			true
+		);
 		res
 			.status(201)
 			.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
