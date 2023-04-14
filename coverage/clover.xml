@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1681447324682" clover="3.2.0">
-  <project timestamp="1681447324682" name="All files">
+<coverage generated="1681447972032" clover="3.2.0">
+  <project timestamp="1681447972033" name="All files">
     <metrics statements="254" coveredstatements="195" conditionals="93" coveredconditionals="53" methods="23" coveredmethods="20" elements="370" coveredelements="268" complexity="0" loc="254" ncloc="254" packages="4" files="12" classes="12"/>
     <package name="controller">
       <metrics statements="125" coveredstatements="118" conditionals="53" coveredconditionals="42" methods="13" coveredmethods="13"/>
@@ -188,8 +188,8 @@
         <line num="99" count="0" type="stmt"/>
         <line num="102" count="0" type="stmt"/>
         <line num="105" count="5" type="stmt"/>
-        <line num="106" count="61" type="stmt"/>
-        <line num="107" count="61" type="cond" truecount="4" falsecount="0"/>
+        <line num="106" count="66" type="stmt"/>
+        <line num="107" count="66" type="cond" truecount="4" falsecount="0"/>
         <line num="108" count="5" type="stmt"/>
         <line num="109" count="5" type="stmt"/>
         <line num="110" count="5" type="stmt"/>
@@ -243,8 +243,8 @@
         <line num="3" count="1" type="stmt"/>
         <line num="5" count="1" type="stmt"/>
         <line num="8" count="1" type="stmt"/>
-        <line num="48" count="1" type="stmt"/>
-        <line num="53" count="1" type="stmt"/>
+        <line num="61" count="1" type="stmt"/>
+        <line num="69" count="1" type="stmt"/>
       </file>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\models\feeSchedule.js">
         <metrics statements="8" coveredstatements="8" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
@@ -253,9 +253,9 @@
         <line num="3" count="2" type="stmt"/>
         <line num="5" count="2" type="stmt"/>
         <line num="7" count="2" type="stmt"/>
-        <line num="53" count="2" type="stmt"/>
-        <line num="58" count="2" type="stmt"/>
-        <line num="62" count="2" type="stmt"/>
+        <line num="66" count="2" type="stmt"/>
+        <line num="71" count="2" type="stmt"/>
+        <line num="75" count="2" type="stmt"/>
       </file>
       <file name="feeStructure.js" path="G:\ERP\feeOn-backend\models\feeStructure.js">
         <metrics statements="9" coveredstatements="9" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
@@ -265,9 +265,9 @@
         <line num="5" count="1" type="stmt"/>
         <line num="7" count="1" type="stmt"/>
         <line num="30" count="1" type="stmt"/>
-        <line num="79" count="1" type="stmt"/>
-        <line num="84" count="1" type="stmt"/>
-        <line num="88" count="1" type="stmt"/>
+        <line num="92" count="1" type="stmt"/>
+        <line num="97" count="1" type="stmt"/>
+        <line num="101" count="1" type="stmt"/>
       </file>
       <file name="feeType.js" path="G:\ERP\feeOn-backend\models\feeType.js">
         <metrics statements="8" coveredstatements="8" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
@@ -275,10 +275,10 @@
         <line num="2" count="2" type="stmt"/>
         <line num="3" count="2" type="stmt"/>
         <line num="5" count="2" type="stmt"/>
-        <line num="56" count="2" type="stmt"/>
-        <line num="61" count="2" type="stmt"/>
-        <line num="63" count="2" type="stmt"/>
-        <line num="65" count="2" type="stmt"/>
+        <line num="69" count="2" type="stmt"/>
+        <line num="74" count="2" type="stmt"/>
+        <line num="76" count="2" type="stmt"/>
+        <line num="78" count="2" type="stmt"/>
       </file>
     </package>
     <package name="utils">

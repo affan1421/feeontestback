@@ -17,6 +17,19 @@ const FeeInstallmentSchema = new Schema(
 			type: Schema.Types.ObjectId, // feeDetails _id
 			required: true,
 		}, // filter
+		deleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
+		},
+		deletedBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			default: null,
+		},
 		feeStructureId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeStructure',
@@ -48,6 +61,9 @@ const FeeInstallmentSchema = new Schema(
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	overrideMethods: true,
+	deletedBy: true, // pass userid as option
+	// const options = { deletedBy: userId };
+	// const result = await Model.deleteOne({ _id: id }, options);
 });
 
 module.exports = model('FeeInstallment', FeeInstallmentSchema);

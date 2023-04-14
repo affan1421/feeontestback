@@ -34,6 +34,19 @@ const feeStructureSchema = new Schema(
 			required: [true, 'Fee Structure Name is Mandatory'],
 			trim: true,
 		},
+		deleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
+		},
+		deletedBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			default: null,
+		},
 		academicYearId: {
 			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
@@ -79,6 +92,7 @@ const feeStructureSchema = new Schema(
 feeStructureSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	overrideMethods: true,
+	deleteBy: true,
 });
 
 feeStructureSchema.plugin(academicYearPlugin, {

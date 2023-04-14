@@ -9,7 +9,7 @@ if (process.env.NODE_ENV === 'development') {
 const myCache = new NodeCache({ stdTTL });
 
 const academicYearPlugin = function (schema, options) {
-	const academicYearModelName = 'AcademicYear';
+	const academicYearModelName = 'academicyears';
 
 	async function filterByActiveAcademicYearMiddleware(next) {
 		let schoolId;
@@ -38,7 +38,6 @@ const academicYearPlugin = function (schema, options) {
 				.model(academicYearModelName)
 				.findOne({ isActive: true, schoolId })
 				.lean();
-
 			if (!activeAcademicYear) {
 				return next(new ErrorResponse('Please Select An Academic Year', 400));
 			}

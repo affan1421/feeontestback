@@ -1,78 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testExecutions version="1">
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeInstallment-model.test.js">
-        <testCase name="FeeInstallment Model should be invalid if required fields are missing" duration="26"/>
-        <testCase name="FeeInstallment Model should be valid if all required fields are present" duration="10"/>
+        <testCase name="FeeInstallment Model should be invalid if required fields are missing" duration="32"/>
+        <testCase name="FeeInstallment Model should be valid if all required fields are present" duration="16"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeType.test.js">
-        <testCase name="Fee type controller GET - / should return no fees type found" duration="6"/>
-        <testCase name="Fee type controller GET - / should return all fees type" duration="3"/>
-        <testCase name="Fee type controller GET - /:id should return no fee type found" duration="1"/>
-        <testCase name="Fee type controller GET - /:id should return a fee type" duration="10"/>
-        <testCase name="Fee type controller POST - / should create a fee type" duration="4"/>
-        <testCase name="Fee type controller POST - / should return all required fields" duration="2"/>
+        <testCase name="Fee type controller GET - / should return no fees type found" duration="10"/>
+        <testCase name="Fee type controller GET - / should return all fees type" duration="2"/>
+        <testCase name="Fee type controller GET - /:id should return no fee type found" duration="2"/>
+        <testCase name="Fee type controller GET - /:id should return a fee type" duration="2"/>
+        <testCase name="Fee type controller POST - / should create a fee type" duration="3"/>
+        <testCase name="Fee type controller POST - / should return all required fields" duration="21"/>
         <testCase name="Fee type controller POST - / should return fee type already exists" duration="2"/>
         <testCase name="Fee type controller PUT - /:id should return no fee type found" duration="2"/>
-        <testCase name="Fee type controller DELETE - /:id should return no fee type found" duration="2"/>
+        <testCase name="Fee type controller DELETE - /:id should return no fee type found" duration="3"/>
         <testCase name="Fee type controller DELETE - /:id should return a fee type deleted" duration="2"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeSchedule.test.js">
-        <testCase name="Fee Schedule Controller Create Fee Schedule should return 422 if all required fields are not provided" duration="15"/>
+        <testCase name="Fee Schedule Controller Create Fee Schedule should return 422 if all required fields are not provided" duration="12"/>
         <testCase name="Fee Schedule Controller Create Fee Schedule should return 400 if fee schedule already exists" duration="4"/>
-        <testCase name="Fee Schedule Controller Create Fee Schedule should return 201 if fee schedule created successfully" duration="3"/>
-        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 404 if no fee schedules found" duration="3"/>
-        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 200 if get all fee schedules successfully" duration="2"/>
+        <testCase name="Fee Schedule Controller Create Fee Schedule should return 201 if fee schedule created successfully" duration="4"/>
+        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 404 if no fee schedules found" duration="4"/>
+        <testCase name="Fee Schedule Controller Get All Fee Schedules should return 200 if get all fee schedules successfully" duration="3"/>
         <testCase name="Fee Schedule Controller Get Fee Schedule By Id should return 404 if fee schedule not found" duration="2"/>
-        <testCase name="Fee Schedule Controller Get Fee Schedule By Id should return 200 if get fee schedule by id successfully" duration="1"/>
-        <testCase name="Fee Schedule Controller Update Fee Schedule should return 404 if fee schedule not found" duration="1"/>
-        <testCase name="Fee Schedule Controller Update Fee Schedule should return 200 if update fee schedule successfully" duration="2"/>
+        <testCase name="Fee Schedule Controller Get Fee Schedule By Id should return 200 if get fee schedule by id successfully" duration="3"/>
+        <testCase name="Fee Schedule Controller Update Fee Schedule should return 404 if fee schedule not found" duration="3"/>
+        <testCase name="Fee Schedule Controller Update Fee Schedule should return 200 if update fee schedule successfully" duration="3"/>
         <testCase name="Fee Schedule Controller Delete Fee Schedule should return 404 if fee schedule not found" duration="2"/>
-        <testCase name="Fee Schedule Controller Delete Fee Schedule should return 200 if delete fee schedule successfully" duration="1"/>
+        <testCase name="Fee Schedule Controller Delete Fee Schedule should return 200 if delete fee schedule successfully" duration="2"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feestructure-model.test.js">
-        <testCase name="Fee Structure Model should be invalid if feeStructureName is empty" duration="34"/>
-        <testCase name="Fee Structure Model should be invalid if schoolId is empty" duration="4"/>
+        <testCase name="Fee Structure Model should be invalid if feeStructureName is empty" duration="28"/>
+        <testCase name="Fee Structure Model should be invalid if schoolId is empty" duration="5"/>
         <testCase name="Fee Structure Model should be invalid if totalAmount is empty" duration="8"/>
         <testCase name="Fee Structure Model should be valid if all required fields are provided" duration="5"/>
     </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeType-model.test.js">
-        <testCase name="Feetype Model should be invalid if required fields are empty" duration="21"/>
-        <testCase name="Feetype Model should be invalid if accountType is not one of the enum values" duration="8"/>
-        <testCase name="Feetype Model should be valid if all fields are provided" duration="3"/>
-    </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeSchedule-model.test.js">
         <testCase name="FeeSchedule Model should be invalid if required fields are empty" duration="21"/>
-        <testCase name="FeeSchedule Model should be valid if all required fields are provided" duration="12"/>
-        <testCase name="FeeSchedule Model should be valid if description field is missing" duration="4"/>
+        <testCase name="FeeSchedule Model should be valid if all required fields are provided" duration="23"/>
+        <testCase name="FeeSchedule Model should be valid if description field is missing" duration="3"/>
         <testCase name="FeeSchedule Model should be valid if scheduledDates field is missing" duration="3"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\academicYear-model.test.js">
-        <testCase name="AcademicYear fails validation with missing required fields" duration="21"/>
-        <testCase name="AcademicYear passes validation with valid data" duration="14"/>
-        <testCase name="AcademicYear fails validation with invalid date" duration="49"/>
+        <testCase name="AcademicYear fails validation with missing required fields" duration="20"/>
+        <testCase name="AcademicYear passes validation with valid data" duration="13"/>
+        <testCase name="AcademicYear fails validation with invalid date" duration="62"/>
     </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\successResponse.test.js">
-        <testCase name="SuccessResponse returns an object with the correct properties and values" duration="7"/>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeType-model.test.js">
+        <testCase name="Feetype Model should be invalid if required fields are empty" duration="17"/>
+        <testCase name="Feetype Model should be invalid if accountType is not one of the enum values" duration="7"/>
+        <testCase name="Feetype Model should be valid if all fields are provided" duration="4"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeStructure.test.js">
+        <testCase name="dummytest" duration="12"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\e2e\feeType-e2e.test.js">
+        <testCase name="FeeType API POST /api/feeType should return server is running" duration="4"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\errorResponse.test.js">
+        <testCase name="ErrorResponse should create an error response with the provided message and status code" duration="8"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\authorize.test.js">
         <testCase name="authenticateUser middleware should return 401 error if Authorization header is missing" duration="15"/>
         <testCase name="authenticateUser middleware should return 401 error if token is not in Bearer format" duration="2"/>
-        <testCase name="authenticateUser middleware should return 401 error if token is invalid" duration="17"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\e2e\feeType-e2e.test.js">
-        <testCase name="FeeType API POST /api/feeType should return server is running" duration="8"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\feeStructure.test.js">
-        <testCase name="dummytest" duration="14"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\errorResponse.test.js">
-        <testCase name="ErrorResponse should create an error response with the provided message and status code" duration="14"/>
-    </file>
-    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\catchAsync.test.js">
-        <testCase name="catchAsync should call next with an error if fn throws an error" duration="11"/>
-        <testCase name="catchAsync should call fn with req, res, and next" duration="1"/>
+        <testCase name="authenticateUser middleware should return 401 error if token is invalid" duration="3"/>
     </file>
     <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\db-connection.test.js">
-        <testCase name="dummy1" duration="6"/>
+        <testCase name="dummy1" duration="5"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\catchAsync.test.js">
+        <testCase name="catchAsync should call next with an error if fn throws an error" duration="14"/>
+        <testCase name="catchAsync should call fn with req, res, and next" duration="1"/>
+    </file>
+    <file path="G:\ERP\feeOn-backend\__tests__\unit-tests\successResponse.test.js">
+        <testCase name="SuccessResponse returns an object with the correct properties and values" duration="8"/>
     </file>
 </testExecutions>

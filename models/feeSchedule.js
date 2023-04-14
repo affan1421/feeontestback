@@ -17,6 +17,19 @@ const feeScheduleSchema = new Schema(
 			default: '',
 			trim: true,
 		},
+		deleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
+		},
+		deletedBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			default: null,
+		},
 		academicYearId: {
 			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
