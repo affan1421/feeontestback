@@ -9,8 +9,6 @@ const bodyParser = require('body-parser');
 const swaggerDocument = require('./swagger.json');
 const morganMiddleware = require('./middleware/morgan');
 
-let Users;
-
 const app = express();
 
 app.use(bodyParser.json());
@@ -70,4 +68,4 @@ mongoose
 		process.exit(1);
 	});
 
-module.exports = { app, Users };
+module.exports = { app };

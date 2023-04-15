@@ -188,79 +188,96 @@ exports.read = catchAsync(async (req, res, next) => {
 });
 
 // UPDATE
-// Request payload - old studentList (All) and Updated student List (Selected: true) and rest body.
+// Request payload - Updated student List and rest body.
 // Considerations:
 // 1. If any student is removed from the list, then delete the installment for that student.
 // 2. If any new student is added, then create the installment for that student.
-// 3. If new section is added append the new section to the classes array and push students in studentList (need to figure out how to recognize them).
+// 3. If new section is added append the new section to the classes array and push students in studentList (need to figure out how to recognize them) isNew :true.
 // 4. If any section is removed, then remove the section from the classes array and remove the students from the studentList.
 // 5. If any new fee is added, then add the fee to the feeDetails array and create the installment for all the students.
 
-exports.update = async (req, res, next) => {
-	const { id } = req.params;
-	let {
-		classes: newClasses,
-		feeDetails: newFeeDetails,
-		isRowAdded = false,
-		isClassAdded = false,
-	} = req.body;
+exports.updatedFeeStructure = async (req, res, next) => {
 	try {
-		const feeStructure = await FeeStructure.findOne({
-			_id: id,
-			schoolId: req.body.schoolId,
-		});
-		if (!feeStructure) {
-			return next(new ErrorResponse('Fee Structure Not Found', 404));
+		const { id } = req.params;
+		const newStudents = [];
+		const removedStudents = [];
+		const existingStudents = [];
+
+		const {
+			studentList,
+			feeStructureName,
+			classes,
+			schoolId,
+			feeDetails,
+			categoryId,
+			totalAmount,
+			academicYearId,
+			description,
+			isRowAdded = false,
+		} = req.body;
+
+		for (const student of studentList) {
+			// Filter out student who where as it is in selected list
+			if (student.isSelected === true && !student.isNew)
+				existingStudents.push(student);
+			// Check isNew flag exists
+			if (student.isNew) newStudents.push(student);
+			// check if a student is removed
+			if (student.isSelected === false && !student.isPaid)
+				removedStudents.push(student);
 		}
-		const { classes, feeDetails, schoolId, academicYearId, categoryId } =
-			feeStructure;
-		const sectionIds = new Set(classes.map(c => c.sectionId));
-		// check if any new section is added in the classes array
-		// if (isClassAdded) {
-		// 	const newSections = newClasses
-		// 		.filter(c => !sectionIds.has(c.sectionId) && c.sectionId)
-		// 		.map(c => c.sectionId);
+		if (isRowAdded) {
+			const feeTypeSet = new Set(feeDetails.map(f => f.feeTypeId));
+			const newRows = req.body.feeDetails
+				.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
+				.map(f => f.feeTypeId);
 
-		// 	await runChildProcess(
-		// 		newFeeDetails,
-		// 		newSections,
-		// 		id,
-		// 		schoolId,
-		// 	academicYearId: feeStructure.academicYearId
-
-		// 	);
-		// }
-
-		// check if any new row is added into the feeDetails array
-		// if (isRowAdded) {
-		// 	const feeTypeSet = new Set(feeDetails.map(f => f.feeTypeId));
-		// 	const newRows = req.body.feeDetails
-		// 		.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
-		// 		.map(f => f.feeTypeId);
-
-		// 	await runChildProcess(newRows, sectionIds, id, schoolId, academicYearId);
-		// }
-
-		if (
-			typeof newClasses[0] === 'string' &&
-			typeof newFeeDetails[0] === 'string'
-		) {
-			newClasses = newClasses.map(JSON.parse);
-			newFeeDetails = newFeeDetails.map(JSON.parse);
+			// studentList without isNew flag and isSelected flag should be true
+			await runChildProcess(
+				newRows,
+				existingStudents,
+				id,
+				schoolId,
+				academicYearId,
+				true
+			);
 		}
-		// Update the fee structure in the database in a single call
-		const updatedFeeStructure = await FeeStructure.findOneAndUpdate(
-			{ _id: id, schoolId: req.body.schoolId },
-			req.body,
+		const updatedDocs = await FeeStructure.updateOne(
+			{ _id: id, schoolId },
 			{
-				new: true,
-				runValidators: true,
+				$set: {
+					feeStructureName,
+					schoolId,
+					description,
+					categoryId,
+					totalAmount,
+					academicYearId,
+					feeDetails,
+					classes,
+				},
 			}
 		);
+		if (updatedDocs.modifiedCount === 1) {
+			await runChildProcess(
+				feeDetails,
+				studentList,
+				id,
+				schoolId,
+				academicYearId,
+				true
+			);
+		}
 		res
 			.status(200)
-			.json(SuccessResponse(updatedFeeStructure, 1, 'Updated Successfully'));
+			.json(
+				SuccessResponse(
+					updatedDocs,
+					updatedDocs.modifiedCount,
+					'Updated SuccessFully'
+				)
+			);
 	} catch (err) {
+		console.log('Error While Updating', err.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };

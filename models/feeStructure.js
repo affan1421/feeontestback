@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
-const { academicYearPlugin } = require('../middleware/academicYear');
+const {
+	addAcademicYearId,
+	filterByActiveAcademicYearMiddleware,
+} = require('../middleware/academicYear');
 
 const { Schema, model } = mongoose;
 
@@ -95,8 +98,9 @@ feeStructureSchema.plugin(mongoose_delete, {
 	deleteBy: true,
 });
 
-feeStructureSchema.plugin(academicYearPlugin, {
-	refPath: 'academicYearId',
-});
+feeStructureSchema.pre('save', addAcademicYearId);
+feeStructureSchema.pre('find', filterByActiveAcademicYearMiddleware);
+feeStructureSchema.pre('findOne', filterByActiveAcademicYearMiddleware);
+feeStructureSchema.pre('aggregate', filterByActiveAcademicYearMiddleware);
 
 module.exports = model('FeeStructure', feeStructureSchema);

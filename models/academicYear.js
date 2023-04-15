@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const mongoose_delete = require('mongoose-delete');
+
 const { Schema, model } = mongoose;
 
 const academicYearSchema = new Schema(
@@ -33,5 +35,11 @@ const academicYearSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+academicYearSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	deletedBy: true,
+	overrideMethods: true,
+});
 
 module.exports = model('AcademicYear', academicYearSchema);
