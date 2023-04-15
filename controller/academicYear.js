@@ -206,7 +206,7 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { _id: schoolId } = req.user.school_id;
+		const { school_id: schoolId } = req.user;
 		const isTypeMapped = await FeeTypes.findOne({
 			academicYearId: id,
 			schoolId,
