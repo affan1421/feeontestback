@@ -70,7 +70,7 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feetype = await Feetype.findOne({
 		_id: id,
@@ -113,7 +113,7 @@ exports.update = catchAsync(async (req, res, next) => {
 // DELETE
 exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feetype = await Feetype.findOneAndDelete({
 		_id: id,

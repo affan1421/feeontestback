@@ -43,7 +43,7 @@ const authenticateUser = async (req, res, next) => {
 		// const user = response.data;
 		const user = await Users.findOne({
 			_id: mongoose.Types.ObjectId(id),
-		}).populate('role school_id');
+		});
 
 		console.log('user', user);
 		if (!user) {

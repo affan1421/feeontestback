@@ -115,7 +115,7 @@ exports.getAll = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feeSchedule = await FeeSchedule.findOne({
 		_id: id,
@@ -175,7 +175,7 @@ exports.update = async (req, res, next) => {
 // @access  Private
 exports.deleteFeeSchedule = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feeSchedule = await FeeSchedule.findOneAndDelete({
 		_id: id,

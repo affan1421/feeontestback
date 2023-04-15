@@ -4,6 +4,7 @@ const { spawn } = require('child_process');
 const flatted = require('flatted');
 const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
+const FeeInstallment = require('../models/feeInstallment');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 
@@ -171,17 +172,80 @@ exports.create = async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
 		schoolId,
-	});
-	// .populate('feeDetails.feeTypeId', 'feeType')
-	// .populate('feeDetails.scheduleTypeId', 'scheduleName');
+	})
+		.populate('academicYearId', 'name')
+		.lean();
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
+
+	const sectionList = feeStructure.classes.map(c =>
+		mongoose.Types.ObjectId(c.sectionId)
+	);
+	const projection = {
+		_id: 1,
+		name: 1,
+		profile_image: 1,
+		section: 1,
+	};
+
+	const query = {
+		section: { $in: sectionList },
+	};
+
+	const [students, feeInstallments] = await Promise.all([
+		Students.find(query).project(projection).toArray(),
+
+		FeeInstallment.aggregate([
+			{
+				$match: {
+					sectionId: {
+						$in: sectionList,
+					},
+					schoolId: mongoose.Types.ObjectId(schoolId),
+				},
+			},
+			{
+				$group: {
+					_id: '$studentId',
+					installments: { $push: '$$ROOT' },
+				},
+			},
+		]),
+	]);
+
+	if (!students.length) {
+		return next(new ErrorResponse('No students found', 404));
+	}
+
+	const installmentObj = feeInstallments.reduce((acc, curr) => {
+		acc[curr._id] = curr.installments;
+		return acc;
+	}, {});
+
+	const updatedStudents = students.reduce((acc, curr) => {
+		const foundInstallment = installmentObj[curr._id];
+		if (foundInstallment && foundInstallment.length) {
+			const hasPaidInstallment = foundInstallment.some(
+				installment => installment.status === 'Paid'
+			);
+			acc.push({
+				...curr,
+				isSelected: true,
+				isPaid: hasPaidInstallment,
+			});
+		} else {
+			acc.push(curr);
+		}
+		return acc;
+	}, []);
+
+	feeStructure.studentList = updatedStudents;
 	res
 		.status(200)
 		.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
@@ -191,10 +255,10 @@ exports.read = catchAsync(async (req, res, next) => {
 // Request payload - Updated student List and rest body.
 // Considerations:
 // 1. If any student is removed from the list, then delete the installment for that student.
-// 2. If any new student is added, then create the installment for that student.
+// 2. (Done) If any new student is added, then create the installment for that student.
 // 3. If new section is added append the new section to the classes array and push students in studentList (need to figure out how to recognize them) isNew :true.
 // 4. If any section is removed, then remove the section from the classes array and remove the students from the studentList.
-// 5. If any new fee is added, then add the fee to the feeDetails array and create the installment for all the students.
+// 5. (Done) If any new fee is added, then add the fee to the feeDetails array and create the installment for all the students.
 
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
@@ -218,7 +282,16 @@ exports.updatedFeeStructure = async (req, res, next) => {
 
 		for (const student of studentList) {
 			// Filter out student who where as it is in selected list
-			if (student.isSelected === true && !student.isNew)
+			// 1. isSelected = true and isPaid = true and no isNew flag
+			// 2. isSelected = true and isPaid = false and no isNew flag
+			// 3. isSelected = false and isPaid = true and no isNew flag
+
+			if (
+				!student.isNew &&
+				((student.isSelected && student.isPaid) ||
+					(student.isSelected && !student.isPaid) ||
+					(!student.isSelected && student.isPaid))
+			)
 				existingStudents.push(student);
 			// Check isNew flag exists
 			if (student.isNew) newStudents.push(student);
@@ -257,13 +330,20 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				},
 			}
 		);
-		if (
-			updatedDocs.modifiedCount === 1 &&
-			(removedStudents.length || newStudents.length)
-		) {
+		// Remove Installments for removed students (soft delete) add deletedBy
+		if (updatedDocs.modifiedCount === 1 && removedStudents.length > 0) {
+			await FeeInstallment.deleteMany(
+				{
+					studentId: { $in: removedStudents.map(s => s._id) },
+				},
+				{ deletedBy: req.user._id }
+			);
+		}
+		// Create Installments for new students
+		if (updatedDocs.modifiedCount === 1 && newStudents.length > 0) {
 			await runChildProcess(
 				feeDetails,
-				studentList,
+				newStudents,
 				id,
 				schoolId,
 				academicYearId,
@@ -288,7 +368,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
 	const { id } = req.params;
-	const { _id: schoolId } = req.user.school_id;
+	const { school_id: schoolId } = req.user;
 
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
