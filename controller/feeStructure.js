@@ -257,7 +257,10 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				},
 			}
 		);
-		if (updatedDocs.modifiedCount === 1) {
+		if (
+			updatedDocs.modifiedCount === 1 &&
+			(removedStudents.length || newStudents.length)
+		) {
 			await runChildProcess(
 				feeDetails,
 				studentList,

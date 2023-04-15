@@ -16,12 +16,11 @@ async function filterByActiveAcademicYearMiddleware(next) {
 		// For aggregate
 		const [facet] = this._pipeline.filter(stage => stage.$facet);
 		const matchStage =
-			facet?.$facet?.data[0].$match || this._pipeline[0].$match;
+			facet?.$facet?.data[0].$match || this._pipeline[1].$match;
 		schoolId = matchStage.schoolId;
 		pipeline = this._pipeline;
 		isAggregation = true;
 	}
-
 	activeAcademicYear = await academicYearModel
 		.findOne({ isActive: true, schoolId })
 		.lean();
