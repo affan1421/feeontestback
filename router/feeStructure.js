@@ -10,7 +10,7 @@ router.post('/', feeStructureController.create);
 router.get('/:id', feeStructureController.read);
 
 // UPDATE
-router.put('/:id', feeStructureController.update);
+router.put('/:id', feeStructureController.updatedFeeStructure);
 
 // DELETE
 router.delete('/:id', feeStructureController.deleteFeeStructure);
