@@ -187,6 +187,7 @@ exports.read = catchAsync(async (req, res, next) => {
 						$in: sectionList,
 					},
 					schoolId: mongoose.Types.ObjectId(schoolId),
+					feeStructureId: mongoose.Types.ObjectId(id),
 				},
 			},
 			{
