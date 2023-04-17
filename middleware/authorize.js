@@ -19,7 +19,7 @@ const authenticateUser = async (req, res, next) => {
 		const token = authHeader.substring(7);
 
 		// Decode the JWT token to get the user's ID
-		const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+		const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
 
 		if (!decodedToken) {
 			return next(new ErrorResponse('Invalid Token', 401));
@@ -36,11 +36,6 @@ const authenticateUser = async (req, res, next) => {
 			return next();
 		}
 
-		// Use the user's ID to fetch the user from the GROWON's database
-		// const response = await axios.get(
-		// 	`${process.env.GROWON_BASE_URL}/auth/erp?userId=${id}`
-		// );
-		// const user = response.data;
 		const user = await Users.findOne({
 			_id: mongoose.Types.ObjectId(id),
 		});
