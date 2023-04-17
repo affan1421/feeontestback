@@ -220,7 +220,10 @@ exports.read = catchAsync(async (req, res, next) => {
 				isPaid: hasPaidInstallment,
 			});
 		} else {
-			acc.push(curr);
+			acc.push({
+				...curr,
+				isSelected: false,
+			});
 		}
 		return acc;
 	}, []);
