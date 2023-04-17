@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-// const { default: axios } = require('axios');
 const { spawn } = require('child_process');
 const flatted = require('flatted');
 const FeeStructure = require('../models/feeStructure');
@@ -23,12 +22,6 @@ async function runChildProcess(
 	let studentList = sectionIds;
 	// Fetch the student list from the student API.
 	if (!isStudent) {
-		// TODO: Directly fetch the studentIds from the student model by sectionList
-		// studentList = await axios.post(
-		// 	`${process.env.GROWON_BASE_URL}/student/feeOn`,
-		// 	{ classes: sectionIds }
-		// );
-		// studentList = studentList.data.data;
 		studentList = await Students.find(
 			{
 				section: { $in: sectionIds },
@@ -88,7 +81,7 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-
+	console.log(studentList.length);
 	const isExist = await FeeStructure.findOne({
 		feeStructureName,
 		schoolId,
@@ -120,22 +113,9 @@ exports.create = async (req, res, next) => {
 			totalAmount: Number(totalAmount),
 		});
 
+		studentList = studentList.filter(s => s.isSelected === true);
+
 		sectionList = classes.map(c => mongoose.Types.ObjectId(c.sectionId));
-		// Todo:  directly add feestructureId into section model
-		// await axios.post(
-		// 	`${process.env.GROWON_BASE_URL}/section/feestructure`,
-		// 	{
-		// 		sectionList,
-		// 		feeStructureId: feeStructure._id,
-		// 		isNew: true,
-		// 	},
-		// 	{
-		// 		headers: {
-		// 			'Content-Type': 'application/json',
-		// 			Authorization: req.headers.authorization,
-		// 		},
-		// 	}
-		// );
 		const updatedDocs = await Sections.updateMany(
 			{
 				_id: { $in: sectionList },
@@ -151,7 +131,6 @@ exports.create = async (req, res, next) => {
 		);
 
 		// Extract the section IDs from the classes array.
-		// const sectionIds = classes.map(c => c.sectionId);
 		await runChildProcess(
 			feeStructure.feeDetails,
 			studentList,
@@ -315,7 +294,8 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				true
 			);
 		}
-		const updatedDocs = await FeeStructure.updateOne(
+
+		const updatedDocs = await FeeStructure.findOneAndUpdate(
 			{ _id: id, schoolId },
 			{
 				$set: {
@@ -330,8 +310,9 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				},
 			}
 		);
+
 		// Remove Installments for removed students (soft delete) add deletedBy
-		if (updatedDocs.modifiedCount === 1 && removedStudents.length > 0) {
+		if (updatedDocs && removedStudents.length > 0) {
 			await FeeInstallment.deleteMany(
 				{
 					studentId: { $in: removedStudents.map(s => s._id) },
@@ -340,9 +321,9 @@ exports.updatedFeeStructure = async (req, res, next) => {
 			);
 		}
 		// Create Installments for new students
-		if (updatedDocs.modifiedCount === 1 && newStudents.length > 0) {
+		if (updatedDocs && newStudents.length > 0) {
 			await runChildProcess(
-				feeDetails,
+				updatedDocs.feeDetails,
 				newStudents,
 				id,
 				schoolId,
@@ -360,7 +341,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				)
 			);
 	} catch (err) {
-		console.log('Error While Updating', err.message);
+		console.log('Error While Updating', err.message, err.stack);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
@@ -383,20 +364,6 @@ exports.deleteFeeStructure = async (req, res, next) => {
 			_id: id,
 			schoolId,
 		});
-		// TODO:Directly delete the fee structure from the installments table
-		// await axios.post(
-		// 	`${process.env.GROWON_BASE_URL}/section/feestructure`,
-		// 	{
-		// 		feeStructureId: id,
-		// 		sectionList,
-		// 	},
-		// 	{
-		// 		headers: {
-		// 			contentType: 'application/json',
-		// 			Authorization: req.headers.authorization,
-		// 		},
-		// 	}
-		// );
 		await Sections.updateMany(
 			{
 				_id: { $in: sectionList },
@@ -468,21 +435,7 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 exports.getUnmappedClassList = async (req, res, next) => {
 	const { schoolId } = req.params;
 	let mappedClassIds = [];
-	// const classList = null;
 	try {
-		// TODO: directly fetch the sectionList from the school collection
-		// classList = await axios.get(
-		// 	`${process.env.GROWON_BASE_URL}/section/school/${schoolId}`,
-		// 	{
-		// 		headers: {
-		// 			Authorization: req.headers.authorization,
-		// 		},
-		// 	}
-		// );
-		// if (!classList.data.isSuccess) {
-		// 	return next(new ErrorResponse('No Class List Found', 404));
-		// }
-		// const { data = [] } = classList.data;
 		let sectionList = await Sections.aggregate([
 			{
 				$match: {

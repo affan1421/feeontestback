@@ -61,9 +61,7 @@ const FeeInstallmentSchema = new Schema(
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	overrideMethods: true,
-	deletedBy: true, // pass userid as option
-	// const options = { deletedBy: userId };
-	// const result = await Model.deleteOne({ _id: id }, options);
+	deletedBy: true,
 });
 
 module.exports = model('FeeInstallment', FeeInstallmentSchema);

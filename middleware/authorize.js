@@ -19,7 +19,7 @@ const authenticateUser = async (req, res, next) => {
 		const token = authHeader.substring(7);
 
 		// Decode the JWT token to get the user's ID
-		const decodedToken = await jwt.verify(token, process.env.JWT_SECRET);
+		const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
 		if (!decodedToken) {
 			return next(new ErrorResponse('Invalid Token', 401));
@@ -45,7 +45,6 @@ const authenticateUser = async (req, res, next) => {
 			_id: mongoose.Types.ObjectId(id),
 		});
 
-		console.log('user', user);
 		if (!user) {
 			return next(new ErrorResponse('Unauthorized Access', 401));
 		}

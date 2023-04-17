@@ -22,7 +22,6 @@ async function insertFeeInstallments() {
 			const { feeTypeId, scheduleTypeId, _id } = fee;
 			for (const scheduledDate of fee.scheduledDates) {
 				const { date, amount } = scheduledDate;
-
 				const newFee = {
 					rowId: _id,
 					feeTypeId,
