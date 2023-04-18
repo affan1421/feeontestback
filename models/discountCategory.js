@@ -65,7 +65,7 @@ const discountSchema = new Schema(
 		academicYearId: {
 			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
-			required: true,
+			required: false,
 		},
 		budgetAllocated: {
 			type: Number,
