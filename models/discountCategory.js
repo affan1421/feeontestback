@@ -1,6 +1,50 @@
 const mongoose = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
+const {
+	addAcademicYearId,
+	filterByActiveAcademicYearMiddleware,
+} = require('../middleware/academicYear');
 
 const { Schema } = mongoose;
+
+const classSchema = new Schema({
+	feeTypeId: {
+		type: String,
+		required: true,
+	},
+	scheduleTypeId: {
+		type: String,
+		required: true,
+	},
+	totalFee: {
+		type: Number,
+		required: true,
+	},
+	sectionId: {
+		type: String,
+		required: true,
+	},
+	feeStructureId: {
+		type: String,
+		required: true,
+	},
+	categoryId: {
+		type: String,
+		required: true,
+	},
+	isPercentage: {
+		type: Boolean,
+		required: true,
+	},
+	value: {
+		type: Number,
+		required: true,
+	},
+	discountAmount: {
+		type: Number,
+		required: true,
+	},
+});
 
 const discountSchema = new Schema(
 	{
@@ -11,63 +55,63 @@ const discountSchema = new Schema(
 		},
 		description: {
 			type: String,
-			required: true,
-		},
-		discountType: {
-			type: String,
-			enum: ['FeeDiscount', 'Scholarship'],
-			required: true,
-		},
-		feeTypeId: {
-			type: Schema.Types.ObjectId,
-			ref: 'FeeType',
-			required: true,
+			required: false,
 		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: true,
 		},
+		academicYearId: {
+			type: Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: true,
+		},
 		budgetAllocated: {
 			type: Number,
-			required: true,
+			required: false,
+			default: 0,
 		},
 		budgetRemaining: {
 			type: Number,
-			required: true,
+			required: false,
+			default: 0,
 		},
-		appliedTo: {
-			type: [
-				{
-					studentId: {
-						type: Schema.Types.ObjectId,
-						ref: 'Student',
-						required: true,
-					},
-					sectionId: {
-						type: Schema.Types.ObjectId,
-						ref: 'Section',
-						required: true,
-					},
-					studentName: {
-						type: String,
-						required: true,
-					},
-					className: {
-						type: String,
-						required: true,
-					},
-					isApproved: {
-						type: Boolean,
-						required: false,
-						default: false,
-					},
-				},
-			],
+		classList: {
+			type: [classSchema],
+			required: false,
 			default: [],
+		},
+		totalStudents: {
+			type: Number,
+			required: false,
+		},
+		totalApproved: {
+			type: Number,
+			required: false,
+		},
+		totalPending: {
+			type: Number,
+			required: false,
+		},
+		createdBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			required: true,
 		},
 	},
 	{ timestamps: true }
 );
+
+discountSchema.pre('save', addAcademicYearId);
+discountSchema.pre('aggregate', filterByActiveAcademicYearMiddleware);
+discountSchema.pre('findOne', filterByActiveAcademicYearMiddleware);
+discountSchema.pre('findOneAndUpdate', filterByActiveAcademicYearMiddleware);
+
+discountSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	overrideMethods: true,
+	deletedBy: true,
+});
 
 module.exports = mongoose.model('DiscountCategory', discountSchema);

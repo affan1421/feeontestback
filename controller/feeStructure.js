@@ -6,6 +6,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const FeeInstallment = require('../models/feeInstallment');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
+const feeInstallment = require('../models/feeInstallment');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -544,3 +545,94 @@ exports.assignFeeStructure = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
+
+// TODO: Fetch the feeDetails with the students data from feeInstallments
+exports.getFeeCategory = catchAsync(async (req, res, next) => {
+	const { categoryId, sectionId } = req.params;
+	const schoolId = mongoose.Types.ObjectId(req.user.school_id);
+	const feeStructure = await FeeStructure.findOne(
+		{
+			schoolId,
+			categoryId,
+			classes: { $elemMatch: { sectionId } },
+		},
+		'_id feeDetails'
+	).populate('feeDetails.scheduleTypeId', 'scheduleName');
+	console.log(feeStructure);
+	const studentList = feeInstallment.aggregate([
+		{
+			$match: {
+				schoolId: new ObjectId('6233335feec609c379b97b7c'),
+				sectionId: new ObjectId('623334f8eec609c379b97c4b'),
+			},
+		},
+		{
+			$group: {
+				_id: {
+					studentId: '$studentId',
+					sectionId: '$sectionId',
+				},
+				totalFee: {
+					$sum: '$totalAmount',
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id.studentId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: '_id.studentId',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$_id.sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: '_id.sectionId',
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				student: {
+					$first: '$_id.studentId',
+				},
+				totalFee: 1,
+			},
+		},
+	]);
+});

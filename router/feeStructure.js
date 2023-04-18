@@ -23,6 +23,11 @@ router.get('/unmapped/:schoolId', feeStructureController.getUnmappedClassList);
 
 router.post('/assign', feeStructureController.assignFeeStructure);
 
+router.get(
+	'/category/:categoryId/section/:sectionId',
+	feeStructureController.getFeeCategory
+);
+
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);
 

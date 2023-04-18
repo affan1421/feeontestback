@@ -5,10 +5,13 @@ const {
 	updateFeeCategory,
 	deleteFeeCategory,
 	getFeeCategoryByFilter,
+	getFeeCategoryBySectionId,
 } = require('../controller/feeCategory');
 
 // CREATE
 router.route('/').get(getFeeCategoryByFilter).post(createFeeCategory);
+
+router.get('/section/:sectionId', getFeeCategoryBySectionId);
 
 router
 	.route('/:id')

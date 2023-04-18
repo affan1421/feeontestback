@@ -11,30 +11,30 @@ const createDiscountCategory = async (req, res, next) => {
 		const {
 			name,
 			description = '',
-			discountType,
-			feeTypeId,
 			schoolId,
-			budgetAllocated,
-			budgetRemaining,
+			budgetAllocated = 0,
+			budgetRemaining = 0,
+			createdBy,
 		} = req.body;
-		if (
-			!name ||
-			!discountType ||
-			!feeTypeId ||
-			!schoolId ||
-			!budgetAllocated ||
-			!budgetRemaining
-		) {
+		if (!name || !schoolId || !budgetAllocated || !budgetRemaining) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+		const isExists = await DiscountCategory.findOne({
+			name,
+			schoolId,
+		});
+
+		if (isExists) {
+			return next(new ErrorResponse(`Discount ${name} Already Exists`, 400));
+		}
+
 		const discount = await DiscountCategory.create({
 			name,
 			description,
-			discountType,
-			feeTypeId,
 			schoolId,
 			budgetAllocated,
 			budgetRemaining,
+			createdBy,
 		});
 		res.status(201).json(SuccessResponse(discount, 1, 'Created Successfully'));
 	} catch (error) {
@@ -158,7 +158,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 
 const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const discount = await DiscountCategory.findOne({ id });
+	const discount = await DiscountCategory.findOne({
+		id,
+		schoolId: req.user.school_id,
+	});
 	if (!discount) {
 		return next(new ErrorResponse('Discount Not Found', 404));
 	}

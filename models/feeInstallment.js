@@ -45,8 +45,23 @@ const FeeInstallmentSchema = new Schema(
 		studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true }, // filter
 		date: { type: Date, required: true },
 		totalAmount: { type: Number, required: true },
-		discountId: { type: Schema.Types.ObjectId, ref: 'Discount' }, // populate
-		discountAmount: { type: Number, required: false },
+		discounts: {
+			type: [
+				{
+					_id: 0,
+					discountId: {
+						type: Schema.Types.ObjectId,
+						ref: 'DiscountCategory',
+						required: true,
+					},
+					isPercentage: { type: Boolean, required: true },
+					value: { type: Number, required: true },
+					discountAmount: { type: Number, required: true },
+				},
+			],
+			required: false,
+			default: [],
+		},
 		netAmount: { type: Number, required: true },
 		status: {
 			type: String,

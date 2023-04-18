@@ -50,6 +50,7 @@ mongoose
 		app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
 		app.use('/api/v1/feecategory', require('./router/feeCategory'));
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));
+		app.use('/api/v1/discount', require('./router/discountCategory'));
 
 		app.use((err, req, res, next) => {
 			res.status(err.statusCode || 500).json({

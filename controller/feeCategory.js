@@ -3,6 +3,7 @@ const FeeCategory = require('../models/feeCategory');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
+const FeeStructure = require('../models/feeStructure');
 
 // @desc    Create Fee Category
 // @route   POST /api/v1/feecategory
@@ -123,6 +124,47 @@ const updateFeeCategory = async (req, res, next) => {
 	}
 };
 
+const getFeeCategoryBySectionId = catchAsync(async (req, res, next) => {
+	const { sectionId } = req.params;
+	const { school_id: schoolId } = req.user;
+	const categories = await FeeStructure.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(schoolId),
+				'classes.sectionId': mongoose.Types.ObjectId(sectionId),
+			},
+		},
+		{
+			$group: {
+				_id: '$categoryId',
+			},
+		},
+		{
+			$lookup: {
+				from: 'feecategories',
+				localField: '_id',
+				foreignField: '_id',
+				as: 'category',
+			},
+		},
+		{
+			$project: {
+				categoryName: {
+					$first: '$category.name',
+				},
+			},
+		},
+	]);
+	if (categories.length === 0) {
+		return next(new ErrorResponse('Fee Category Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(
+			SuccessResponse(categories, categories.length, 'Fetched Successfully')
+		);
+});
+
 // @desc    Delete Fee Category
 // @route   DELETE /api/v1/feecategory/:id
 // @access  Private
@@ -151,5 +193,6 @@ module.exports = {
 	getFeeCategory,
 	updateFeeCategory,
 	deleteFeeCategory,
+	getFeeCategoryBySectionId,
 	getFeeCategoryByFilter,
 };
