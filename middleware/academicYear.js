@@ -21,7 +21,6 @@ async function filterByActiveAcademicYearMiddleware(next) {
 		pipeline = this._pipeline;
 		isAggregation = true;
 	}
-	console.log('schoolId', this._conditions);
 	activeAcademicYear = await academicYearModel
 		.findOne({ isActive: true, schoolId })
 		.lean();
@@ -51,7 +50,6 @@ async function filterByActiveAcademicYearMiddleware(next) {
 		};
 		this._conditions = conditions;
 	}
-	console.log('this._conditions', this._conditions);
 
 	next();
 }

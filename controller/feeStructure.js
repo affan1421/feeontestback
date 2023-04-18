@@ -5,6 +5,7 @@ const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
 const FeeInstallment = require('../models/feeInstallment');
 const catchAsync = require('../utils/catchAsync');
+const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 const feeInstallment = require('../models/feeInstallment');
 
@@ -547,92 +548,91 @@ exports.assignFeeStructure = async (req, res, next) => {
 };
 
 // TODO: Fetch the feeDetails with the students data from feeInstallments
-exports.getFeeCategory = catchAsync(async (req, res, next) => {
-	const { categoryId, sectionId } = req.params;
-	const schoolId = mongoose.Types.ObjectId(req.user.school_id);
-	const feeStructure = await FeeStructure.findOne(
-		{
-			schoolId,
-			categoryId,
-			classes: { $elemMatch: { sectionId } },
-		},
-		'_id feeDetails'
-	).populate('feeDetails.scheduleTypeId', 'scheduleName');
-	console.log(feeStructure);
-	const studentList = feeInstallment.aggregate([
-		{
-			$match: {
-				schoolId: new ObjectId('6233335feec609c379b97b7c'),
-				sectionId: new ObjectId('623334f8eec609c379b97c4b'),
+exports.getFeeCategory = async (req, res, next) => {
+	try {
+		const { categoryId, sectionId } = req.params;
+		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
+		const feeStructure = await FeeStructure.findOne(
+			{
+				schoolId,
+				categoryId,
+				classes: { $elemMatch: { sectionId } },
 			},
-		},
-		{
-			$group: {
-				_id: {
-					studentId: '$studentId',
-					sectionId: '$sectionId',
-				},
-				totalFee: {
-					$sum: '$totalAmount',
+			'_id feeDetails totalAmount'
+		).lean();
+		if (!feeStructure) {
+			return next(new ErrorResponse('Fee Structure Not Found', 404));
+		}
+		const FeeTypes = (await FeeType.find({ schoolId, categoryId })) || [];
+		const feeDetails = feeStructure.feeDetails.map(fee => {
+			const feeType = FeeTypes.find(
+				f => f._id.toString() === fee.feeTypeId.toString()
+			);
+
+			return {
+				rowId: fee._id,
+				feeTypeId: fee.feeTypeId,
+				feeTypeName: feeType ? feeType.feeType : null,
+				breakDown: fee.scheduledDates.length,
+				amount: fee.totalAmount,
+			};
+		});
+
+		const studentList = await feeInstallment.aggregate([
+			{
+				$match: {
+					schoolId,
+					feeStructureId: mongoose.Types.ObjectId(feeStructure._id),
 				},
 			},
-		},
-		{
-			$lookup: {
-				from: 'students',
-				let: {
-					studentId: '$_id.studentId',
+			{
+				$group: {
+					_id: '$studentId',
 				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$studentId'],
+			},
+			{
+				$lookup: {
+					from: 'students',
+					let: {
+						studentId: '$_id',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$studentId'],
+								},
 							},
 						},
-					},
-					{
-						$project: {
-							_id: 1,
-							name: 1,
-						},
-					},
-				],
-				as: '_id.studentId',
-			},
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					sectionId: '$_id.sectionId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
+						{
+							$project: {
+								_id: 1,
+								name: 1,
 							},
 						},
-					},
-					{
-						$project: {
-							_id: 1,
-							name: 1,
-						},
-					},
-				],
-				as: '_id.sectionId',
-			},
-		},
-		{
-			$project: {
-				_id: 0,
-				student: {
-					$first: '$_id.studentId',
+					],
+					as: '_id',
 				},
-				totalFee: 1,
 			},
-		},
-	]);
-});
+			{
+				$project: {
+					_id: 0,
+					studentName: {
+						$first: '$_id.name',
+					},
+					studentId: {
+						$first: '$_id._id',
+					},
+				},
+			},
+		]);
+		feeStructure.studentList = studentList || [];
+		feeStructure.feeDetails = feeDetails;
+		res
+			.status(200)
+			.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
+	} catch (err) {
+		console.log('error while fetching fee category', err.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+};
