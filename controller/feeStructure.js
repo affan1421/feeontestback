@@ -441,6 +441,12 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 exports.getUnmappedClassList = async (req, res, next) => {
 	const { schoolId, categoryId } = req.query;
 	let mappedClassIds = [];
+	const payload = {
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	};
+	if (categoryId) {
+		payload.categoryId = mongoose.Types.ObjectId(categoryId);
+	}
 	try {
 		let sectionList = await Sections.aggregate([
 			{
@@ -490,30 +496,25 @@ exports.getUnmappedClassList = async (req, res, next) => {
 			sectionId: section.sectionId.toString(),
 			class_id: section.class_id,
 		}));
-		const mappedClassList = await FeeStructure.aggregate([
-			{
-				$match: {
-					schoolId: mongoose.Types.ObjectId(schoolId),
-					categoryId: mongoose.Types.ObjectId(categoryId),
+		if (categoryId) {
+			const mappedClassList = await FeeStructure.aggregate([
+				{
+					$match: payload,
 				},
-			},
-			{ $unwind: '$classes' },
-			{ $group: { _id: '$classes.sectionId' } },
-		]);
-		if (mappedClassList.length > 0) {
-			mappedClassIds = mappedClassList.map(c => c._id.toString());
+				{ $unwind: '$classes' },
+				{ $group: { _id: '$classes.sectionId' } },
+			]);
+			if (mappedClassList.length > 0) {
+				mappedClassIds = mappedClassList.map(c => c._id.toString());
+				sectionList = sectionList.filter(
+					c => !mappedClassIds.includes(c.sectionId)
+				);
+			}
 		}
-		const unmappedClassList = sectionList.filter(
-			c => !mappedClassIds.includes(c.sectionId)
-		);
 		res
 			.status(200)
 			.json(
-				SuccessResponse(
-					unmappedClassList,
-					unmappedClassList.length,
-					'Fetched Successfully'
-				)
+				SuccessResponse(sectionList, sectionList.length, 'Fetched Successfully')
 			);
 	} catch (err) {
 		console.log('error while fetching unmapped class list', err.message);
