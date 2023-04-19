@@ -73,89 +73,6 @@ const getDiscountCategory = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
-const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
-	let { schoolId } = req.body;
-	schoolId = mongoose.Types.ObjectId(schoolId);
-
-	const discounts = await DiscountCategory.aggregate([
-		{
-			$match: {
-				schoolId,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				totalAppliedTo: {
-					$push: '$appliedTo',
-				},
-			},
-		},
-		{
-			$project: {
-				totalApplied: {
-					$reduce: {
-						input: '$totalAppliedTo',
-						initialValue: [],
-						in: {
-							$concatArrays: ['$$value', '$$this'],
-						},
-					},
-				},
-			},
-		},
-		{
-			$unwind: '$totalApplied',
-		},
-		{
-			$group: {
-				_id: {
-					className: '$className',
-					sectionId: '$sectionId',
-				},
-				totalClass: {
-					$push: '$$ROOT',
-				},
-			},
-		},
-		{
-			$project: {
-				_id: 1,
-				presents: {
-					$size: {
-						$filter: {
-							input: '$totalClass',
-							as: 'num',
-							cond: {
-								$eq: ['$$num.isApproved', false],
-							},
-						},
-					},
-				},
-				absents: {
-					$size: {
-						$filter: {
-							input: '$totalClass',
-							as: 'num',
-							cond: {
-								$eq: ['$$num.isApproved', true],
-							},
-						},
-					},
-				},
-			},
-		},
-	]);
-	const { data, count } = discounts[0];
-
-	if (count.length === 0) {
-		return next(new ErrorResponse('Discounts Not Found', 404));
-	}
-	res
-		.status(200)
-		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
-});
-
 const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const discount = await DiscountCategory.findOne({
@@ -189,29 +106,6 @@ const updateDiscountCategory = async (req, res, next) => {
 	}
 };
 
-const addClassAndStudent = async (req, res, next) => {
-	try {
-		const { feeType, amount, total, type, value } = req.body;
-		// find data by fee type here
-		// feetype.find({feeType});
-		let discountedAmount;
-		feeType == 'Library fees'
-			? type == 'percentage'
-				? (discountedAmount = (value / 12) * amount)
-				: (discountedAmount = value)
-			: t == 0;
-
-		feeType == 'Academic'
-			? type == 'percentage'
-				? (discountedAmount = (value / 12) * amount)
-				: (discountedAmount = value)
-			: t == 0;
-		// TODO need to work here
-	} catch (error) {
-		return next(new ErrorResponse('Something Went Wrong', 500));
-	}
-};
-
 // Delete a discount
 const deleteDiscountCategory = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
@@ -222,12 +116,128 @@ const deleteDiscountCategory = catchAsync(async (req, res, next) => {
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
 
+// TODO:
+/*
+1. Save the discount category in the fee installment of assigned students discount array of feeInstallment: 
+{
+	discountId: 'discountId',
+	amount: 'amount',
+	isPercentage: true,
+	value: 10,
+}
+2. Update the budget remaining of the discount category
+3. Update the discount amount of the fee installment
+4. Add the classList objects in the array.
+{
+	feeTypeId: 'feeTypeId',
+	totalFee: 'totalFee',
+	sectionId: 'sectionId',
+	categoryId: 'categoryId',
+	feeStructureId: 'feeStructureId',
+	amount: 'amount',
+	breakdown: 1,
+	isPercentage: true,
+	value: 10,
+	discountAmount: 'discountAmount',
+}
+Payload: 
+{
+	sectionId: 'sectionId',
+	categoryId: 'categoryId',
+	rows: [{
+		rowId: 'rowId',
+		breakdown: 1,
+		isPercentage: true,
+		value: 10,
+	}],
+	studentList: ['studentId', 'studentId']
+}
+*/
+const mapDiscountCategory = async (req, res, next) => {
+	try {
+		const { sectionId, categoryId, rows, studentList } = req.body;
+		const { discountId } = req.params;
+
+		if (!sectionId || !categoryId || !rows || !studentList) {
+			throw new ErrorResponse('Please Provide All Required Fields', 422);
+		}
+
+		let totalDiscountAmount = 0;
+		const classList = await Promise.all(
+			rows.map(async row => {
+				if (!row.rowId || !row.isPercentage || !row.value) {
+					next(new ErrorResponse('Please Provide All Required Fields', 422));
+				}
+
+				const feeInstallments = await FeeInstallment.findOne({
+					rowId: row.rowId,
+					schoolId: req.user.school_id,
+				}).lean();
+				const { totalAmount } = feeInstallments;
+				const discountAmount = row.isPercentage
+					? (totalAmount * row.value) / 100
+					: row.value;
+				totalDiscountAmount += discountAmount;
+
+				const discount = {
+					discountId,
+					amount: discountAmount,
+					isPercentage: row.isPercentage,
+					value: row.value,
+				};
+
+				await FeeInstallment.updateMany(
+					{
+						rowId: row.rowId,
+						studentId: { $in: studentList },
+					},
+					{
+						$push: { discounts: discount },
+						$inc: { discountAmount },
+						$set: {
+							netAmount: { $subtract: [totalAmount, '$discountAmount'] },
+						},
+					}
+				);
+
+				return {
+					feeTypeId: feeInstallments.feeTypeId,
+					totalFee: feeInstallments.totalAmount,
+					sectionId,
+					categoryId,
+					feeStructureId: feeInstallments.feeStructureId,
+					amount: feeInstallments.amount,
+					breakdown: row.breakdown,
+					isPercentage: row.isPercentage,
+					value: row.value,
+					discountAmount,
+				};
+			})
+		);
+
+		await DiscountCategory.findOneAndUpdate(
+			{ _id: discountId, schoolId: req.user.school_id },
+			{
+				$push: { classList: { $each: classList } },
+				$inc: {
+					budgetRemaining: -totalDiscountAmount,
+					totalStudents: studentList.length,
+					totalPending: studentList.length,
+				},
+			}
+		);
+
+		res.status(200).json(SuccessResponse(null, 1, 'Mapped Successfully'));
+	} catch (error) {
+		next(new ErrorResponse('Something Went Wrong', 500));
+	}
+};
+
 module.exports = {
 	createDiscountCategory,
 	getDiscountCategory,
 	getDiscountCategoryById,
 	updateDiscountCategory,
 	deleteDiscountCategory,
-	getDiscountCategoryByClass,
-	addClassAndStudent,
+	mapDiscountCategory,
 };

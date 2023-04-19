@@ -12,8 +12,8 @@ const classSchema = new Schema({
 		type: String,
 		required: true,
 	},
-	scheduleTypeId: {
-		type: String,
+	breakdown: {
+		type: Number,
 		required: true,
 	},
 	totalFee: {
@@ -56,6 +56,7 @@ const discountSchema = new Schema(
 		description: {
 			type: String,
 			required: false,
+			default: '',
 		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
@@ -85,14 +86,17 @@ const discountSchema = new Schema(
 		totalStudents: {
 			type: Number,
 			required: false,
+			default: 0,
 		},
 		totalApproved: {
 			type: Number,
 			required: false,
+			default: 0,
 		},
 		totalPending: {
 			type: Number,
 			required: false,
+			default: 0,
 		},
 		createdBy: {
 			type: Schema.Types.ObjectId,

@@ -437,9 +437,9 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
-
+//  unmapped?schoolId=schoolId&categoryId=categoryId
 exports.getUnmappedClassList = async (req, res, next) => {
-	const { schoolId } = req.params;
+	const { schoolId, categoryId } = req.query;
 	let mappedClassIds = [];
 	try {
 		let sectionList = await Sections.aggregate([
@@ -487,16 +487,21 @@ exports.getUnmappedClassList = async (req, res, next) => {
 		]).toArray();
 		sectionList = sectionList.map(section => ({
 			name: `${section.className} - ${section.name}`,
-			sectionId: section.sectionId,
+			sectionId: section.sectionId.toString(),
 			class_id: section.class_id,
 		}));
 		const mappedClassList = await FeeStructure.aggregate([
-			{ $match: { schoolId: mongoose.Types.ObjectId(schoolId) } },
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+					categoryId: mongoose.Types.ObjectId(categoryId),
+				},
+			},
 			{ $unwind: '$classes' },
 			{ $group: { _id: '$classes.sectionId' } },
 		]);
 		if (mappedClassList.length > 0) {
-			mappedClassIds = mappedClassList.map(c => String(c._id));
+			mappedClassIds = mappedClassList.map(c => c._id.toString());
 		}
 		const unmappedClassList = sectionList.filter(
 			c => !mappedClassIds.includes(c.sectionId)

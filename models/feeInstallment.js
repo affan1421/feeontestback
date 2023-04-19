@@ -57,11 +57,17 @@ const FeeInstallmentSchema = new Schema(
 					isPercentage: { type: Boolean, required: true },
 					value: { type: Number, required: true },
 					discountAmount: { type: Number, required: true },
+					status: {
+						type: String,
+						enum: ['Approved', 'Pending', 'Rejected'],
+						default: 'Pending',
+					},
 				},
 			],
 			required: false,
 			default: [],
 		},
+		discountAmount: { type: Number, required: false, default: 0 },
 		netAmount: { type: Number, required: true },
 		status: {
 			type: String,

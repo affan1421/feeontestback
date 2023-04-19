@@ -2,6 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 const feeStructureController = require('../controller/feeStructure');
+// Fetching unmapped classList
+router.get('/unmapped', feeStructureController.getUnmappedClassList);
 
 // CREATE
 router.post('/', feeStructureController.create);
@@ -17,9 +19,6 @@ router.delete('/:id', feeStructureController.deleteFeeStructure);
 
 // LIST
 router.get('/', feeStructureController.getByFilter);
-
-// Fetching unmapped classList
-router.get('/unmapped/:schoolId', feeStructureController.getUnmappedClassList);
 
 router.post('/assign', feeStructureController.assignFeeStructure);
 
