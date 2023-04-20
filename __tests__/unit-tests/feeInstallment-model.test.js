@@ -45,6 +45,7 @@ describe('FeeInstallment Model', () => {
 			rowId: mongoose.Types.ObjectId(),
 			schoolId: mongoose.Types.ObjectId(),
 			studentId: mongoose.Types.ObjectId(),
+			classId: mongoose.Types.ObjectId(),
 			date: new Date(),
 			totalAmount: 100,
 			netAmount: 80,
