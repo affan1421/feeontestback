@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1681713708187" clover="3.2.0">
-  <project timestamp="1681713708187" name="All files">
+<coverage generated="1681964499087" clover="3.2.0">
+  <project timestamp="1681964499088" name="All files">
     <metrics statements="243" coveredstatements="195" conditionals="83" coveredconditionals="48" methods="21" coveredmethods="18" elements="347" coveredelements="261" complexity="0" loc="243" ncloc="243" packages="4" files="12" classes="12"/>
     <package name="controller">
       <metrics statements="125" coveredstatements="118" conditionals="53" coveredconditionals="42" methods="13" coveredmethods="13"/>
@@ -222,8 +222,8 @@
         <line num="3" count="1" type="stmt"/>
         <line num="5" count="1" type="stmt"/>
         <line num="8" count="1" type="stmt"/>
-        <line num="61" count="1" type="stmt"/>
-        <line num="67" count="1" type="stmt"/>
+        <line num="88" count="1" type="stmt"/>
+        <line num="94" count="1" type="stmt"/>
       </file>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\models\feeSchedule.js">
         <metrics statements="11" coveredstatements="11" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>

@@ -40,10 +40,16 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'AcademicYear',
 			required: true,
 		}, // populate
+		classId: { type: Schema.Types.ObjectId, ref: 'Class', required: false },
 		sectionId: { type: Schema.Types.ObjectId, ref: 'Section', required: true }, // filter
 		schoolId: { type: Schema.Types.ObjectId, ref: 'School', required: true }, // filter
-		studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true }, // filter
+		studentId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Student',
+			required: true,
+		}, // filter
 		date: { type: Date, required: true },
+		paidDate: { type: Date, required: false },
 		totalAmount: { type: Number, required: true },
 		discounts: {
 			type: [
