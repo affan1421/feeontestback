@@ -43,29 +43,97 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getExpenses = catchAsync(async (req, res, next) => {
-	let { schoolId, page = 0, limit = 5 } = req.query;
-	page = +page;
-	limit = +limit;
-	const payload = {};
-	if (schoolId) {
-		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+	let match = {};
+	const limit = parseInt(req.body.limit ?? 10);
+	const page = req.body.page ?? 1;
+	const skip = parseInt(page - 1) * limit;
+	const sortBy = req.body.sortBy ?? 'expenseDate';
+	const sortOrder = req.body.sortOrder ?? 1;
+	const sortObject = {};
+	let searchTerm = req.body.searchTerm ?? '';
+	sortObject[sortBy] = sortOrder;
+	match = {
+		schoolId: req.body.schoolId,
+	};
+
+	if (searchTerm != '') {
+		searchTerm = searchTerm.replace(/\(/gi, '\\(').replace(/\)/gi, '\\)');
+		match.$or = [
+			{ expenseType: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ reason: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ amount: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ expenseDate: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ paymentMethod: { $regex: `${searchTerm}`, $options: 'i' } },
+		];
+	}
+	const filterMatch = {};
+	if (req.body.filters && req.body.filters.length) {
+		await Promise.all(
+			req.body.filters.map(async filter => {
+				switch (filter.filterOperator) {
+					case 'greater_than':
+						filterMatch[filter.filterName] = {
+							$gt: parseFloat(filter.filterValue),
+						};
+						break;
+
+					case 'less_than':
+						filterMatch[filter.filterName] = {
+							$lt: parseFloat(filter.filterValue),
+						};
+						break;
+
+					case 'equal_to':
+						filterMatch[filter.filterName] = {
+							$eq: parseFloat(filter.filterValue),
+						};
+						break;
+
+					case 'not_equal_to':
+						filterMatch[filter.filterName] = {
+							$ne: parseFloat(filter.filterValue),
+						};
+						break;
+				}
+			})
+		);
 	}
 	const expenseTypes = await ExpenseModel.aggregate([
 		{
+			$match: match,
+		},
+		{
+			$match: filterMatch,
+		},
+		{
+			$sort: sortObject,
+		},
+		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
-				count: [{ $match: payload }, { $count: 'count' }],
+				data: [
+					{
+						$skip: skip,
+					},
+					{
+						$limit: limit,
+					},
+				],
+				pagination: [
+					{
+						$count: 'total',
+					},
+				],
 			},
 		},
 	]);
-	const { data, count } = expenseTypes[0];
+	const { data, pagination } = expenseTypes[0];
 
-	if (count.length === 0) {
+	if (pagination[0]?.total.length === 0) {
 		return next(new ErrorResponse('No Expense Found', 404));
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+		.json(SuccessResponse(data, pagination[0].total, 'Fetched Successfully'));
 });
 
 // READ
