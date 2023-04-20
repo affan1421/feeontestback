@@ -58,10 +58,166 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	const classList = await FeeInstallment.aggregate([
 		{
 			$match: {
-				discountId: mongoose.Types.ObjectId(id),
+				discounts: {
+					$elemMatch: {
+						discountId: mongoose.Types.ObjectId(id),
+					},
+				},
+			},
+		},
+		{
+			$unwind: {
+				path: '$discounts',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$match: {
+				'discounts.discountId': mongoose.Types.ObjectId(id),
+			},
+		},
+		{
+			$group: {
+				_id: {
+					studentId: '$studentId',
+				},
+				sectionId: {
+					$first: '$sectionId',
+				},
+				discountAmount: {
+					$sum: '$discountAmount',
+				},
+				status: {
+					$addToSet: '$discounts.status',
+				},
+			},
+		},
+		{
+			$unwind: '$status',
+		},
+		{
+			$group: {
+				_id: {
+					sectionId: '$sectionId',
+				},
+				discountAmount: {
+					$sum: '$discountAmount',
+				},
+				totalApproved: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Approved'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				totalPending: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Pending'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				totalRejected: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Rejected'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$_id.sectionId',
+				},
+				as: 'section',
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$lookup: {
+							from: 'classes',
+							let: {
+								classId: '$class_id',
+							},
+							as: 'class',
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$classId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										name: 1,
+									},
+								},
+							],
+						},
+					},
+					{
+						$unwind: '$class',
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+							className: '$class.name',
+						},
+					},
+					{
+						$project: {
+							name: {
+								$concat: ['$className', ' - ', '$name'],
+							},
+							sectionId: '$_id',
+							sectionName: '$name',
+							classId: '$class._id',
+							className: '$class.name',
+						},
+					},
+				],
 			},
 		},
 	]);
+	if (classList.length === 0) {
+		return next(new ErrorResponse('No Discounts Found', 404));
+	}
+	const data = classList.map(item => {
+		const { discountAmount, totalApproved, totalPending, totalRejected } = item;
+		const { sectionId, name } = item.section[0];
+		return {
+			sectionId,
+			sectionName: name,
+			totalAmount: discountAmount,
+			totalApproved,
+			totalPending,
+			totalRejected,
+		};
+	});
+	res.status(200).json(SuccessResponse(data, data.length, 'Success'));
 });
 
 // Get all discounts
@@ -186,6 +342,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		let totalDiscountAmount = 0;
 		const classList = await Promise.all(
 			rows.map(async row => {
+				// TODO: use row.breakdown to divide the amount in discount object
 				if (!row.rowId || row.isPercentage === undefined || !row.value) {
 					throw new ErrorResponse('Please Provide All Required Fields', 422);
 				}
@@ -245,7 +402,7 @@ const mapDiscountCategory = async (req, res, next) => {
 			{
 				$push: { classList: { $each: classList } },
 				$inc: {
-					budgetRemaining: -totalDiscountAmount,
+					// budgetRemaining: -totalDiscountAmount, TO be updated when discount is approved.
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
 				},
