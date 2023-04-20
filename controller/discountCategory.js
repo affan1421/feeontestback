@@ -43,6 +43,27 @@ const createDiscountCategory = async (req, res, next) => {
 	}
 };
 
+/*
+[{
+	sectionId: 'sectionId',
+	sectionName: 'sectionName',
+	totalAmount: 15000',
+	totalStudents: 50,
+	approvedStudents: 30,
+	pendingStudents: 20,
+}]
+*/
+const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const classList = await FeeInstallment.aggregate([
+		{
+			$match: {
+				discountId: mongoose.Types.ObjectId(id),
+			},
+		},
+	]);
+});
+
 // Get all discounts
 const getDiscountCategory = catchAsync(async (req, res, next) => {
 	const { schoolId, page = 0, limit = 10 } = req.query;
@@ -165,15 +186,18 @@ const mapDiscountCategory = async (req, res, next) => {
 		let totalDiscountAmount = 0;
 		const classList = await Promise.all(
 			rows.map(async row => {
-				if (!row.rowId || !row.isPercentage || !row.value) {
-					next(new ErrorResponse('Please Provide All Required Fields', 422));
+				if (!row.rowId || row.isPercentage === undefined || !row.value) {
+					throw new ErrorResponse('Please Provide All Required Fields', 422);
 				}
 
 				const feeInstallments = await FeeInstallment.findOne({
 					rowId: row.rowId,
 					schoolId: req.user.school_id,
 				}).lean();
-				const { totalAmount } = feeInstallments;
+				if (!feeInstallments) {
+					throw new ErrorResponse('Fee Installments not found', 404);
+				}
+				const { totalAmount, _id: feeInstallmentId } = feeInstallments;
 				const discountAmount = row.isPercentage
 					? (totalAmount * row.value) / 100
 					: row.value;
@@ -181,21 +205,22 @@ const mapDiscountCategory = async (req, res, next) => {
 
 				const discount = {
 					discountId,
-					amount: discountAmount,
+					discountAmount,
 					isPercentage: row.isPercentage,
 					value: row.value,
 				};
 
 				await FeeInstallment.updateMany(
 					{
-						rowId: row.rowId,
+						_id: feeInstallmentId,
 						studentId: { $in: studentList },
 					},
 					{
 						$push: { discounts: discount },
 						$inc: { discountAmount },
+						// TODO: Resolve this and update
 						// $set: {
-						// 	netAmount: { $subtract: [totalAmount, '$discountAmount'] },
+						// 	netAmount: { $subtract: ['$totalAmount', '$discountAmount'] },
 						// },
 					}
 				);
@@ -227,9 +252,10 @@ const mapDiscountCategory = async (req, res, next) => {
 			}
 		);
 
-		res.status(200).json(SuccessResponse(null, 1, 'Mapped Successfully'));
+		return res.json(SuccessResponse(null, 1, 'Mapped Successfully'));
 	} catch (error) {
-		next(new ErrorResponse('Something Went Wrong', 500));
+		console.error(error.stack);
+		return next(error);
 	}
 };
 
@@ -240,4 +266,5 @@ module.exports = {
 	updateDiscountCategory,
 	deleteDiscountCategory,
 	mapDiscountCategory,
+	getDiscountCategoryByClass,
 };
