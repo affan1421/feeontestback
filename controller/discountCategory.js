@@ -194,9 +194,9 @@ const mapDiscountCategory = async (req, res, next) => {
 					{
 						$push: { discounts: discount },
 						$inc: { discountAmount },
-						$set: {
-							netAmount: { $subtract: [totalAmount, '$discountAmount'] },
-						},
+						// $set: {
+						// 	netAmount: { $subtract: [totalAmount, '$discountAmount'] },
+						// },
 					}
 				);
 

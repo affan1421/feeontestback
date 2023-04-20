@@ -8,8 +8,10 @@ const {
 const { Schema } = mongoose;
 
 const classSchema = new Schema({
+	_id: 0,
 	feeTypeId: {
-		type: String,
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'FeeType',
 		required: true,
 	},
 	breakdown: {
@@ -21,15 +23,18 @@ const classSchema = new Schema({
 		required: true,
 	},
 	sectionId: {
-		type: String,
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Section',
 		required: true,
 	},
 	feeStructureId: {
-		type: String,
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'FeeStructure',
 		required: true,
 	},
 	categoryId: {
-		type: String,
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'FeeCategory',
 		required: true,
 	},
 	isPercentage: {
