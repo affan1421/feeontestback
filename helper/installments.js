@@ -17,19 +17,25 @@ async function insertFeeInstallments() {
 	try {
 		// Create an array of fee installments to be inserted into the database.
 		const feeInstallments = [];
+		const now = new Date();
 		for (const fee of feeDetails) {
-			const { feeTypeId, scheduleTypeId } = fee;
+			const { feeTypeId, scheduleTypeId, _id } = fee;
 			for (const scheduledDate of fee.scheduledDates) {
 				const { date, amount } = scheduledDate;
 				const newFee = {
+					rowId: _id,
 					feeTypeId,
 					scheduleTypeId,
-					academicYear,
+					academicYearId: academicYear,
 					scheduledDate: date,
 					totalAmount: amount,
+					status: 'Upcoming',
 					schoolId,
 					netAmount: amount,
 				};
+				if (new Date(date) < now) {
+					newFee.status = 'Due';
+				}
 				feeInstallments.push(newFee);
 			}
 		}
@@ -40,10 +46,12 @@ async function insertFeeInstallments() {
 				studentId: student._id,
 				feeStructureId: feeStructure,
 				sectionId: student.section,
+				rowId: fee.rowId,
 				feeTypeId: fee.feeTypeId,
 				date: fee.scheduledDate,
+				status: fee.status,
 				scheduleTypeId: fee.scheduleTypeId,
-				academicYear: fee.academicYear,
+				academicYearId: fee.academicYearId,
 				scheduledDate: fee.scheduledDate,
 				totalAmount: fee.totalAmount,
 				schoolId: fee.schoolId,
@@ -53,6 +61,8 @@ async function insertFeeInstallments() {
 		});
 
 		const flattenedFeeInstallments = feeInstallmentsByStudent.flat();
+
+		console.log('flattenedFeeInstallments', flattenedFeeInstallments);
 
 		await FeeInstallments.insertMany(flattenedFeeInstallments);
 	} catch (err) {

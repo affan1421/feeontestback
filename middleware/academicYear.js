@@ -1,119 +1,74 @@
 const mongoose = require('mongoose');
-const NodeCache = require('node-cache');
 const ErrorResponse = require('../utils/errorResponse');
+const academicYearModel = require('../models/academicYear');
 
-let stdTTL = 900;
-if (process.env.NODE_ENV === 'development') {
-	stdTTL = 300;
-}
-const myCache = new NodeCache({ stdTTL });
+async function filterByActiveAcademicYearMiddleware(next) {
+	let schoolId;
+	let pipeline;
+	let isAggregation;
+	let activeAcademicYear = null;
 
-const academicYearPlugin = function (schema, options) {
-	const academicYearModelName = 'AcademicYear';
+	if (this._conditions) {
+		// For find and findOne
+		schoolId = this._conditions.schoolId;
+		isAggregation = false;
+	} else if (this._pipeline) {
+		// For aggregate
+		const [facet] = this._pipeline.filter(stage => stage.$facet);
+		const matchStage =
+			facet?.$facet?.data[0].$match || this._pipeline[1].$match;
+		schoolId = matchStage.schoolId;
+		pipeline = this._pipeline;
+		isAggregation = true;
+	}
+	activeAcademicYear = await academicYearModel
+		.findOne({ isActive: true, schoolId })
+		.lean();
+	if (!activeAcademicYear) {
+		return next(new ErrorResponse('Please Select An Academic Year', 400));
+	}
+	const activeAcademicYearId = activeAcademicYear._id;
 
-	async function filterByActiveAcademicYearMiddleware(next) {
-		let schoolId;
-		let pipeline;
-		let isAggregation;
-		let activeAcademicYear;
+	const filter = {
+		$match: {
+			academicYearId: mongoose.Types.ObjectId(activeAcademicYearId),
+		},
+	};
 
-		if (this._conditions) {
-			// For find and findOne
-			schoolId = this._conditions.schoolId;
-			isAggregation = false;
-		} else if (this._pipeline) {
-			// For aggregate
-			const [facet] = this._pipeline.filter(stage => stage.$facet);
-			const matchStage =
-				facet?.$facet?.data[0].$match || this._pipeline[0].$match;
-			schoolId = matchStage.schoolId;
-			pipeline = this._pipeline;
-			isAggregation = true;
-		}
-
-		let activeAcademicYearId = myCache.get(`academicYear-schoolId:${schoolId}`);
-		console.log('activeAcademicYearId', activeAcademicYearId);
-
-		if (!activeAcademicYearId) {
-			activeAcademicYear = await mongoose
-				.model(academicYearModelName)
-				.findOne({ isActive: true, schoolId })
-				.lean();
-
-			if (!activeAcademicYear) {
-				return next(new ErrorResponse('Please Select An Academic Year', 400));
-			}
-			const cacheKey = `academicYear-schoolId:${schoolId}`;
-			activeAcademicYearId = activeAcademicYear._id;
-			myCache.set(cacheKey, activeAcademicYearId);
-		}
-
-		const filter = {
-			$match: {
-				[options.refPath]: mongoose.Types.ObjectId(activeAcademicYearId),
-			},
-		};
-
-		if (isAggregation) {
-			if (pipeline.length > 0) {
-				pipeline.unshift(filter);
-			} else {
-				pipeline.push(filter);
-			}
+	if (isAggregation) {
+		if (pipeline.length > 0) {
+			pipeline.unshift(filter);
 		} else {
-			const conditions = {
-				$and: [
-					{ [options.refPath]: mongoose.Types.ObjectId(activeAcademicYearId) },
-					this._conditions,
-				],
-			};
-			this._conditions = conditions;
-			console.log('this._conditions', this._conditions);
+			pipeline.push(filter);
 		}
-		console.log('this._pipeline', this._pipeline);
-
-		next();
+	} else {
+		const conditions = {
+			$and: [
+				{ academicYearId: mongoose.Types.ObjectId(activeAcademicYearId) },
+				this._conditions,
+			],
+		};
+		this._conditions = conditions;
 	}
 
-	async function addAcademicYearId(next) {
-		const { schoolId } = this;
-		if (!this.get('academicYearId')) {
-			const cachedAcademicYearId = myCache.get(
-				`academicYear-schoolId:${schoolId}`
-			);
+	next();
+}
 
-			if (cachedAcademicYearId) {
-				this.academicYearId = cachedAcademicYearId;
-				return next();
-			}
-			const activeAcademicYear = await mongoose
-				.model(academicYearModelName)
-				.findOne({ isActive: true, schoolId })
-				.lean()
-				.exec();
-
-			if (!activeAcademicYear) {
-				return next(new ErrorResponse('Please Select An Academic Year', 400));
-			}
-
-			const cacheKey = `academicYear-schoolId:${schoolId}`;
-			myCache.set(cacheKey, activeAcademicYear._id);
-
-			this.academicYearId = activeAcademicYear._id;
+async function addAcademicYearId(next) {
+	const { schoolId } = this;
+	if (!this.get('academicYearId')) {
+		const activeAcademicYear = await academicYearModel
+			.findOne({ isActive: true, schoolId })
+			.lean()
+			.exec();
+		if (!activeAcademicYear) {
+			return next(new ErrorResponse('Please Select An Academic Year', 400));
 		}
 
-		next();
+		this.academicYearId = activeAcademicYear._id;
 	}
 
-	Object.keys(schema.paths).forEach(path => {
-		const { ref } = schema.paths[path].options;
-		if (ref && ref === academicYearModelName) {
-			schema.pre('save', addAcademicYearId);
-			schema.pre('find', filterByActiveAcademicYearMiddleware);
-			schema.pre('findOne', filterByActiveAcademicYearMiddleware);
-			schema.pre('aggregate', filterByActiveAcademicYearMiddleware);
-		}
-	});
-};
+	next();
+}
 
-module.exports = { academicYearPlugin, myCache };
+module.exports = { addAcademicYearId, filterByActiveAcademicYearMiddleware };

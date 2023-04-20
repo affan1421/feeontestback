@@ -3,16 +3,15 @@ const Feetype = require('../models/feeType');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
-const AcademicYear = require('../models/academicYear');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { feeType, accountType, schoolId, description } = req.body;
-	if (!feeType || !accountType || !schoolId || !description) {
+	const { feeType, accountType, schoolId, description, categoryId } = req.body;
+	if (!feeType || !accountType || !schoolId || !categoryId) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
-	const isExist = await Feetype.findOne({ feeType, schoolId });
+	const isExist = await Feetype.findOne({ feeType, schoolId, categoryId });
 	if (isExist) {
 		return next(new ErrorResponse('Fee Type Already Exist', 400));
 	}
@@ -23,6 +22,7 @@ exports.create = async (req, res, next) => {
 			feeType,
 			accountType,
 			schoolId,
+			categoryId,
 			description,
 		});
 	} catch (error) {
@@ -36,12 +36,15 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let { schoolId, accountType, page = 0, limit = 5 } = req.query;
+	let { schoolId, accountType, categoryId, page = 0, limit = 5 } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
+	if (categoryId) {
+		payload.categoryId = mongoose.Types.ObjectId(categoryId);
 	}
 	if (accountType) {
 		payload.accountType = accountType;
@@ -67,9 +70,11 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { school_id: schoolId } = req.user;
+
 	const feetype = await Feetype.findOne({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));
@@ -80,14 +85,21 @@ exports.read = catchAsync(async (req, res, next) => {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { feeType, description, accountType, schoolId, academicYearId } =
-		req.body;
+	const {
+		feeType,
+		description,
+		accountType,
+		schoolId,
+		academicYearId,
+		categoryId,
+	} = req.body;
 	const feetype = await Feetype.findOneAndUpdate(
 		{ _id: id, schoolId: req.body.schoolId },
 		{
 			feeType,
 			description,
 			academicYearId,
+			categoryId,
 			accountType,
 			schoolId,
 		}
@@ -101,9 +113,11 @@ exports.update = catchAsync(async (req, res, next) => {
 // DELETE
 exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { school_id: schoolId } = req.user;
+
 	const feetype = await Feetype.findOneAndDelete({
 		_id: id,
-		schoolId: req.user.school_id,
+		schoolId,
 	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));

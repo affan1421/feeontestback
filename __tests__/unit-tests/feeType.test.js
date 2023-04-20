@@ -106,7 +106,7 @@ describe('Fee type controller', () => {
 					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
@@ -121,7 +121,7 @@ describe('Fee type controller', () => {
 					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 				user: {
-					school_id: '5f5f5f5f5f5f5f5f5f5f5f5f',
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
 				},
 			});
 			const res = mockResponse();
@@ -158,6 +158,7 @@ describe('Fee type controller', () => {
 					description: 'Tuition fee',
 					accountType: 'Income',
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
 			const res = mockResponse();
@@ -166,6 +167,7 @@ describe('Fee type controller', () => {
 				feeType: 'Tuition',
 				description: 'Tuition fee',
 				accountType: 'Income',
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce(null);
@@ -210,6 +212,8 @@ describe('Fee type controller', () => {
 					feeType: 'Tuition',
 					description: 'Tuition fee',
 					accountType: 'income',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
@@ -220,6 +224,7 @@ describe('Fee type controller', () => {
 				description: 'Tuition fee',
 				accountType: 'income',
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			await create(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();

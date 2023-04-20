@@ -5,7 +5,6 @@ const SuccessResponse = require('../utils/successResponse');
 const catchAsync = require('../utils/catchAsync');
 const FeeTypes = require('../models/feeType');
 const FeeSchedule = require('../models/feeSchedule');
-const { myCache } = require('../middleware/academicYear');
 // Create a new AcademicYear
 const create = async (req, res, next) => {
 	try {
@@ -135,7 +134,6 @@ const changeState = catchAsync(async (req, res, next) => {
 			{ isActive: false }
 		);
 	}
-	myCache.set(`academicYear-schoolId:${academicYear.schoolId}`, id);
 	res
 		.status(200)
 		.json(SuccessResponse(academicYear, 1, 'Updated Successfully'));
@@ -206,13 +204,14 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+		const { school_id: schoolId } = req.user;
 		const isTypeMapped = await FeeTypes.findOne({
 			academicYearId: id,
-			schoolId: req.user.school_id,
+			schoolId,
 		});
 		const isScheduleMapped = await FeeSchedule.findOne({
 			academicYearId: id,
-			schoolId: req.user.school_id,
+			schoolId,
 		});
 		if (isTypeMapped || isScheduleMapped) {
 			return next(

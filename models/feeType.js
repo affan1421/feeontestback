@@ -1,15 +1,35 @@
-const mongoose = require('mongoose');
-const { academicYearPlugin } = require('../middleware/academicYear');
+const { Schema, model } = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
+const {
+	addAcademicYearId,
+	filterByActiveAcademicYearMiddleware,
+} = require('../middleware/academicYear');
 
-const feetypeSchema = new mongoose.Schema(
+const feetypeSchema = new Schema(
 	{
 		feeType: {
 			type: String,
 			required: [true, 'Please enter feetype name'],
+			trim: true,
 		},
 		description: {
 			type: String,
-			required: [true, 'Please enter feetype description'],
+			required: [false, 'Please enter feetype description'],
+			default: '',
+			trim: true,
+		},
+		deleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
+		},
+		deletedBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			default: null,
 		},
 		accountType: {
 			type: String,
@@ -30,13 +50,18 @@ const feetypeSchema = new mongoose.Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: [true, 'Please enter category id'],
+		},
 		academicYearId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
 			required: [false, 'Please enter academic year id'],
 		},
 		schoolId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'Please enter school id'],
 		},
@@ -44,8 +69,18 @@ const feetypeSchema = new mongoose.Schema(
 	{ timestamps: true }
 );
 
-feetypeSchema.plugin(academicYearPlugin, { refPath: 'academicYearId' });
+const options = {
+	deletedAt: true,
+	overrideMethods: true,
+	deletedBy: true,
+};
 
-const Feetype = mongoose.model('Feetype', feetypeSchema);
+feetypeSchema.pre('save', addAcademicYearId);
+feetypeSchema.pre('find', filterByActiveAcademicYearMiddleware);
+feetypeSchema.pre('findOne', filterByActiveAcademicYearMiddleware);
+feetypeSchema.pre('aggregate', filterByActiveAcademicYearMiddleware);
+feetypeSchema.plugin(mongoose_delete, options);
+
+const Feetype = model('Feetype', feetypeSchema);
 
 module.exports = Feetype;
