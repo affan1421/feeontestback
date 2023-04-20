@@ -16,6 +16,15 @@ const expenseTypeSchema = new Schema(
 			ref: 'School',
 			required: true,
 		},
+		expensesHistory: {
+			type: [
+				{
+					type: Schema.Types.ObjectId,
+					ref: 'Expense',
+				},
+			],
+			default: [],
+		},
 		userId: {
 			type: Schema.Types.ObjectId,
 			ref: 'User', // change model name if wrong
