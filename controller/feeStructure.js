@@ -18,6 +18,7 @@ async function runChildProcess(
 	feeStructure,
 	schoolId,
 	academicYearId,
+	categoryId,
 	isStudent = false
 ) {
 	// If isStudent is true, then sectionIds is treated as studentList
@@ -39,6 +40,7 @@ async function runChildProcess(
 		feeStructure,
 		schoolId,
 		academicYearId,
+		categoryId,
 	]);
 
 	childSpawn.stdout.on('data', data => {
@@ -139,6 +141,7 @@ exports.create = async (req, res, next) => {
 			feeStructure._id,
 			schoolId,
 			feeStructure.academicYearId,
+			categoryId,
 			true
 		);
 		res
@@ -297,6 +300,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				id,
 				schoolId,
 				academicYearId,
+				categoryId,
 				true
 			);
 		}
@@ -334,6 +338,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				id,
 				schoolId,
 				academicYearId,
+				categoryId,
 				true
 			);
 		}
@@ -544,7 +549,8 @@ exports.assignFeeStructure = async (req, res, next) => {
 		// 	studentList,
 		// 	feeStructureId,
 		// 	schoolId,
-		// 	academicYearId
+		// 	academicYearId,
+		// categoryId,
 		// );
 		res.status(200).json(SuccessResponse(null, 1, 'Assigned Successfully'));
 	} catch (err) {

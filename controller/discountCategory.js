@@ -68,8 +68,6 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		{
 			$group: {
 				_id: {
-					feeStructureId: '$feeStructureId',
-					categoryId: '$categoryId',
 					sectionId: '$sectionId',
 					sectionName: '$sectionName',
 					totalStudents: '$totalStudents',
@@ -85,6 +83,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 						feeTypeId: '$feeTypeId',
 						totalAmount: '$totalAmount',
 						isPercentage: '$isPercentage',
+						breakdown: '$breakdown',
 						value: '$value',
 					},
 				},
@@ -118,6 +117,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 						totalAmount: '$rows.totalAmount',
 						isPercentage: '$rows.isPercentage',
 						value: '$rows.value',
+						breakdown: '$rows.breakdown',
 					},
 				},
 			},
@@ -126,13 +126,11 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 0,
 				sectionId: '$_id.sectionId',
-				categoryId: '$_id.categoryId',
 				sectionName: '$_id.sectionName',
 				totalStudents: '$_id.totalStudents',
 				totalApproved: '$_id.totalApproved',
 				totalPending: '$_id.totalPending',
 				totalRejected: '$_id.totalRejected',
-				feeStructureId: '$_id.feeStructureId',
 				rows: 1,
 			},
 		},
@@ -249,6 +247,27 @@ const getStudentsByFilter = catchAsync(async (req, res, next) => {
 		query.discounts.$elemMatch.status = status;
 	}
 	console.log(query);
+	const students = await FeeInstallment.aggregate([
+		{
+			$match: query,
+		},
+		{
+			$unwind: {
+				path: '$discounts',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$match: {
+				'discounts.discountId': mongoose.Types.ObjectId(id),
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+			},
+		},
+	]);
 });
 
 // Get all discounts
