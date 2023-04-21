@@ -69,6 +69,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$group: {
 				_id: {
 					feeStructureId: '$feeStructureId',
+					categoryId: '$categoryId',
 					sectionId: '$sectionId',
 					sectionName: '$sectionName',
 					totalStudents: '$totalStudents',
@@ -125,6 +126,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 0,
 				sectionId: '$_id.sectionId',
+				categoryId: '$_id.categoryId',
 				sectionName: '$_id.sectionName',
 				totalStudents: '$_id.totalStudents',
 				totalApproved: '$_id.totalApproved',
@@ -228,6 +230,25 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 	res
 		.status(200)
 		.json(SuccessResponse(students, students.length, 'Fetched Successfully'));
+});
+
+const getStudentsByFilter = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { sectionId, status, page = 0, limit = 5 } = req.query;
+	const query = {
+		discounts: {
+			$elemMatch: {
+				discountId: mongoose.Types.ObjectId(id),
+			},
+		},
+	};
+	if (sectionId) {
+		query.sectionId = mongoose.Types.ObjectId(sectionId);
+	}
+	if (status) {
+		query.discounts.$elemMatch.status = status;
+	}
+	console.log(query);
 });
 
 // Get all discounts
@@ -350,7 +371,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		}
 		// TODO: Create a new document for sectionDiscount model.
 		// TODO: before storing fetch the total amount of that row/fee type from the fee structure.
-		const { feeStructure } = await FeeStructure.findOne(
+		const feeStructure = await FeeStructure.findOne(
 			{
 				sectionId,
 				categoryId,
@@ -397,6 +418,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					sectionId,
 					sectionName,
 					feeTypeId,
+					categoryId,
 					feeStructureId: feeStructure._id,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
@@ -420,6 +442,7 @@ const mapDiscountCategory = async (req, res, next) => {
 
 module.exports = {
 	createDiscountCategory,
+	getStudentsByFilter,
 	getDiscountCategory,
 	getDiscountCategoryById,
 	getStudentsByStructure,

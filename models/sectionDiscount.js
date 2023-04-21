@@ -19,6 +19,11 @@ const sectionDiscountSchema = new Schema({
 		ref: 'Section',
 		required: true,
 	},
+	categoryId: {
+		type: Schema.Types.ObjectId,
+		ref: 'FeeCategory',
+		required: true,
+	},
 	sectionName: {
 		type: String,
 		required: true,
