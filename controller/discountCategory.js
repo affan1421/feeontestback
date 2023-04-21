@@ -68,6 +68,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		{
 			$group: {
 				_id: {
+					feeStructureId: '$feeStructureId',
 					sectionId: '$sectionId',
 					sectionName: '$sectionName',
 					totalStudents: '$totalStudents',
@@ -129,6 +130,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalApproved: '$_id.totalApproved',
 				totalPending: '$_id.totalPending',
 				totalRejected: '$_id.totalRejected',
+				feeStructureId: '$_id.feeStructureId',
 				rows: 1,
 			},
 		},
@@ -140,6 +142,92 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	res
 		.status(200)
 		.json(SuccessResponse(classList, classList.length, 'Fetched Successfully'));
+});
+
+const getStudentsByStructure = catchAsync(async (req, res, next) => {
+	const { id, structureId } = req.params;
+	let students = await FeeInstallment.aggregate([
+		{
+			$match: {
+				feeStructureId: mongoose.Types.ObjectId(structureId),
+			},
+		},
+		{
+			$unwind: {
+				path: '$discounts',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				discounts: {
+					$addToSet: {
+						$cond: {
+							if: {
+								$eq: ['$discounts.discountId', mongoose.Types.ObjectId(id)],
+							},
+							then: '$discounts',
+							else: '$$REMOVE',
+						},
+					},
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: '_id',
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				studentName: {
+					$first: '$_id.name',
+				},
+				studentId: {
+					$first: '$_id._id',
+				},
+				discountStatus: {
+					$arrayElemAt: ['$discounts.status', 0],
+				},
+			},
+		},
+	]);
+	if (students.length === 0) {
+		return next(new ErrorResponse('No Discounts Found', 404));
+	}
+	// check if status field exists if yes then isSelected = true else false
+	students = students.map(student => {
+		if (student.discountStatus) {
+			student.isSelected = true;
+		} else {
+			student.isSelected = false;
+		}
+		return student;
+	});
+	res
+		.status(200)
+		.json(SuccessResponse(students, students.length, 'Fetched Successfully'));
 });
 
 // Get all discounts
@@ -262,7 +350,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		}
 		// TODO: Create a new document for sectionDiscount model.
 		// TODO: before storing fetch the total amount of that row/fee type from the fee structure.
-		let { feeDetails } = await FeeStructure.findOne(
+		const { feeStructure } = await FeeStructure.findOne(
 			{
 				sectionId,
 				categoryId,
@@ -270,6 +358,7 @@ const mapDiscountCategory = async (req, res, next) => {
 			},
 			'feeDetails'
 		).lean();
+		let { feeDetails } = feeStructure;
 		feeDetails = feeDetails.reduce((acc, curr) => {
 			acc[curr.feeTypeId] = curr;
 			return acc;
@@ -308,7 +397,9 @@ const mapDiscountCategory = async (req, res, next) => {
 					sectionId,
 					sectionName,
 					feeTypeId,
+					feeStructureId: feeStructure._id,
 					totalStudents: studentList.length,
+					totalPending: studentList.length,
 					totalAmount, // totalAmount
 					discountAmount,
 					breakdown,
@@ -331,6 +422,7 @@ module.exports = {
 	createDiscountCategory,
 	getDiscountCategory,
 	getDiscountCategoryById,
+	getStudentsByStructure,
 	updateDiscountCategory,
 	deleteDiscountCategory,
 	mapDiscountCategory,

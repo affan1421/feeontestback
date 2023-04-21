@@ -9,6 +9,11 @@ const sectionDiscountSchema = new Schema({
 		ref: 'Discount',
 		required: true,
 	},
+	feeStructureId: {
+		type: Schema.Types.ObjectId,
+		ref: 'FeeStructure',
+		required: true,
+	},
 	sectionId: {
 		type: Schema.Types.ObjectId,
 		ref: 'Section',

@@ -8,6 +8,7 @@ const {
 	deleteDiscountCategory,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
+	getStudentsByStructure,
 } = require('../controller/discountCategory');
 
 router.route('/').get(getDiscountCategory).post(createDiscountCategory);
@@ -15,6 +16,8 @@ router.route('/').get(getDiscountCategory).post(createDiscountCategory);
 router.post('/:discountId/map', mapDiscountCategory);
 
 router.get('/:id/class', getDiscountCategoryByClass);
+
+router.get('/:id/structure/:structureId', getStudentsByStructure);
 
 router
 	.route('/:id')
