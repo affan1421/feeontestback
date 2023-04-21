@@ -174,3 +174,189 @@ exports.expenseDelete = catchAsync(async (req, res, next) => {
 	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
+
+exports.totalExpences = catchAsync(async (req, res, next) => {
+	const expenseData = await ExpenseModel.aggregate([
+		{
+			$match: { schoolId: req.body.schoolId },
+		},
+		{
+			$group: {
+				_id: '$expenseType',
+				data: {
+					$push: '$$ROOT',
+				},
+			},
+		},
+		{
+			$project: {
+				_id: 1,
+				voucherNumber: 1,
+				date: 1,
+				paymentMethod: 1,
+				totalExpense: {
+					$sum: '$data.amount',
+				},
+			},
+		},
+		// {
+		// 	$group: {
+		// 		_id: '$_id',
+		// 		data: {
+		// 			$push: '$$ROOT',
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	$project: {
+		// 		_id: 1,
+		// 		totalExpense: {
+		// 			$sum: '$data.totalExpense',
+		// 		},
+		// 	},
+		// },
+		{
+			$lookup: {
+				from: 'ExpenseTypes',
+				let: {
+					expense_id: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$expense_id'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+							description: 1,
+						},
+					},
+				],
+				as: '_id',
+			},
+		},
+	]);
+	if (expenseData[0] === null) {
+		return next(new ErrorResponse('Expense Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(expenseData[0], 1, 'data fetched Successfully'));
+});
+
+function getDailyDates(date) {
+	let startDate = new Date(date);
+	startDate = new Date(
+		startDate.getFullYear(),
+		startDate.getMonth(),
+		startDate.getDate()
+	);
+	const endDate = new Date(
+		startDate.getFullYear(),
+		startDate.getMonth(),
+		startDate.getDate() + 1
+	);
+	return { startDate, endDate };
+}
+function getWeekDates(date) {
+	let weekStart = new Date(date);
+	weekStart = new Date(
+		weekStart.getFullYear(),
+		weekStart.getMonth(),
+		weekStart.getDate() - 7
+	);
+	let weekEnd = new Date(date);
+	weekEnd = new Date(
+		weekEnd.getFullYear(),
+		weekEnd.getMonth(),
+		weekEnd.getDate()
+	);
+	return { weekStart, weekEnd };
+}
+function MonthlyDates(date, prev) {
+	let monthStart = new Date(date);
+	let monthEnd = new Date(date);
+	if (prev) {
+		const prevMonthStart = new Date(
+			monthStart.getFullYear(),
+			monthStart.getMonth() - 1,
+			1
+		);
+		const prevMonthEnd = new Date(
+			monthEnd.getFullYear(),
+			monthEnd.getMonth() - 1,
+			monthEnd.getDate()
+		);
+		return { prevMonthStart, prevMonthEnd };
+	}
+	monthStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1);
+	monthEnd = new Date(
+		monthEnd.getFullYear(),
+		monthEnd.getMonth(),
+		monthEnd.getDate() + 1
+	);
+	return { monthStart, monthEnd };
+}
+
+exports.totalExpenceFilter = catchAsync(async (req, res, next) => {
+	const matchFilter = { schoolId: req.body.schoolId };
+	const filterType = req.body.filtertype;
+	const date = new Date();
+	let startDate;
+	let endDate;
+	if (filterType == 'daily') {
+		const { startDate, endDate } = getDailyDates(date);
+		startDate = startDate;
+		endDate = endDate;
+	} else if (filterType == 'weekly') {
+		const { weekStart, weekEnd } = getWeekDates(date);
+		startDate = weekStart;
+		endDate = weekEnd;
+	} else if (filterType == 'monthly') {
+		const prev = false;
+		const { monthStart, monthEnd } = MonthlyDates(date, prev);
+		startDate = monthStart;
+		endDate = monthEnd;
+	} else {
+		startDate = req.body.startDate;
+		endDate = req.body.endDate;
+	}
+
+	matchFilter.date = { $gte: startDate, $lte: endDate };
+
+	const expenseData = await ExpenseModel.aggregate([
+		{
+			$match: matchFilter,
+		},
+		{
+			$group: {
+				_id: '$expenseType',
+				data: {
+					$push: '$$ROOT',
+				},
+			},
+		},
+		{
+			$project: {
+				_id: 1,
+				voucherNumber: 1,
+				date: 1,
+				paymentMethod: 1,
+				totalExpense: {
+					$sum: '$data.amount',
+				},
+			},
+		},
+	]);
+	if (expenseData[0] === null) {
+		return next(new ErrorResponse('Expense Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(expenseData[0], 1, 'Deleted Successfully'));
+});
