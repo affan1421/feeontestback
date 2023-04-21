@@ -68,6 +68,8 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		{
 			$group: {
 				_id: {
+					feeStructureId: '$feeStructureId',
+					categoryId: '$categoryId',
 					sectionId: '$sectionId',
 					sectionName: '$sectionName',
 					totalStudents: '$totalStudents',
@@ -126,8 +128,12 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 0,
 				sectionId: '$_id.sectionId',
+				feeStructureId: '$_id.feeStructureId',
+				categoryId: '$_id.categoryId',
+
 				sectionName: '$_id.sectionName',
 				totalStudents: '$_id.totalStudents',
+				totalAmount: 1,
 				totalApproved: '$_id.totalApproved',
 				totalPending: '$_id.totalPending',
 				totalRejected: '$_id.totalRejected',
