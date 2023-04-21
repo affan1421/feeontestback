@@ -113,7 +113,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				},
 				rows: {
 					$push: {
-						feeTypeId: {
+						feeType: {
 							$first: '$rows.feeTypeId',
 						},
 						totalAmount: '$rows.totalAmount',
@@ -252,7 +252,6 @@ const getStudentsByFilter = catchAsync(async (req, res, next) => {
 	if (status) {
 		query.discounts.$elemMatch.status = status;
 	}
-	console.log(query);
 	const students = await FeeInstallment.aggregate([
 		{
 			$match: query,
@@ -268,12 +267,10 @@ const getStudentsByFilter = catchAsync(async (req, res, next) => {
 				'discounts.discountId': mongoose.Types.ObjectId(id),
 			},
 		},
-		{
-			$group: {
-				_id: '$studentId',
-			},
-		},
 	]);
+	res
+		.status(200)
+		.json(SuccessResponse(students, students.length, 'Fetched Successfully'));
 });
 
 // Get all discounts
