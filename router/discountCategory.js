@@ -9,6 +9,7 @@ const {
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
 	getStudentsByFilter,
+	getStudentForApproval,
 	getStudentsByStructure,
 } = require('../controller/discountCategory');
 
@@ -21,6 +22,8 @@ router.get('/:id/class', getDiscountCategoryByClass);
 router.get('/:id/structure/:structureId', getStudentsByStructure);
 
 router.get('/:id/studentFilter', getStudentsByFilter);
+
+router.get('/:discountId/approval', getStudentForApproval);
 
 router
 	.route('/:id')

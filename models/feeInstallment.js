@@ -52,6 +52,7 @@ const FeeInstallmentSchema = new Schema(
 		paidDate: { type: Date, required: false },
 		totalAmount: { type: Number, required: true },
 		discounts: {
+			// 80
 			type: [
 				{
 					_id: 0,
@@ -62,28 +63,18 @@ const FeeInstallmentSchema = new Schema(
 					},
 					isPercentage: { type: Boolean, required: true },
 					value: { type: Number, required: true },
-					discountAmount: { type: Number, required: false, default: 0 },
-					status: {
-						type: String,
-						enum: ['Approved', 'Pending', 'Rejected'],
-						default: 'Pending',
-					},
+					discountAmount: { type: Number, required: false, default: 0 }, // 80
 				},
 			],
 			required: false,
 			default: [],
 		},
-		discountAmount: { type: Number, required: false, default: 0 },
-		netAmount: { type: Number, required: true },
+		totalDiscountAmount: { type: Number, required: false, default: 0 },
+		netAmount: { type: Number, required: true }, // totalAmount - totalDiscountAmount
 		status: {
 			type: String,
 			enum: ['Paid', 'Upcoming', 'Due'],
 			default: 'Upcoming',
-		},
-		categoryId: {
-			type: Schema.Types.ObjectId,
-			ref: 'FeeCategory',
-			required: true,
 		},
 		// feeReceiptId: { type: Schema.Types.ObjectId, ref: 'FeeReceipt' },
 	},
