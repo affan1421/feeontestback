@@ -6,6 +6,7 @@ const SectionDiscount = require('../models/sectionDiscount');
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
+const discountCategory = require('../models/discountCategory');
 
 // Create a new discount
 const createDiscountCategory = async (req, res, next) => {
@@ -391,8 +392,8 @@ const mapDiscountCategory = async (req, res, next) => {
 		if (!sectionId || !categoryId || !rows || !studentList) {
 			throw new ErrorResponse('Please Provide All Required Fields', 422);
 		}
-		// TODO: Create a new document for sectionDiscount model.
-		// TODO: before storing fetch the total amount of that row/fee type from the fee structure.
+
+		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
 			{
 				sectionId,
@@ -401,40 +402,59 @@ const mapDiscountCategory = async (req, res, next) => {
 			},
 			'feeDetails'
 		).lean();
-		let { feeDetails } = feeStructure;
-		feeDetails = feeDetails.reduce((acc, curr) => {
-			acc[curr.feeTypeId] = curr;
-			return acc;
-		}, {});
+		const feeDetails = feeStructure.feeDetails.reduce(
+			(acc, { feeTypeId, totalAmount, scheduledDates }) => {
+				acc[feeTypeId] = { totalAmount, scheduledDates };
+				return acc;
+			},
+			{}
+		);
 
+		// Process each row in parallel
 		const classList = await Promise.all(
-			rows.map(async row => {
-				const { rowId, feeTypeId, isPercentage, value, breakdown } = row;
+			rows.map(async ({ rowId, feeTypeId, isPercentage, value, breakdown }) => {
 				if (!rowId || isPercentage === undefined || !value) {
 					throw new ErrorResponse('Please Provide All Required Fields', 422);
 				}
-				// TODO: While approving, the discount amount and percentage should be divided by number of breakdowns.
-				const discountToPush = {
-					discountId,
-					isPercentage,
-					value,
-				};
-				await FeeInstallment.updateMany(
-					{
-						rowId,
-						studentId: { $in: studentList },
-					},
-					{
-						$push: { discounts: discountToPush },
-					},
-					{
-						multi: true,
-					}
-				);
-				const { totalAmount } = feeDetails[feeTypeId];
-				const discountAmount = isPercentage
+
+				const { totalAmount, scheduledDates } = feeDetails[feeTypeId];
+				const tempDiscountAmount = isPercentage
 					? (totalAmount * value) / 100
 					: value;
+				const calPercentage = isPercentage
+					? value
+					: (value * 100) / totalAmount;
+
+				// Update discounts for all matching fee installments in a single operation
+
+				const bulkOps = [];
+				for (const { amount, date } of scheduledDates) {
+					const discountToPush = {
+						discountId,
+						isPercentage,
+						value,
+						discountAmount: 0,
+					};
+					const calAmount = isPercentage
+						? (amount * value) / 100
+						: (amount * calPercentage) / 100;
+					discountToPush.discountAmount += calAmount;
+
+					bulkOps.push({
+						updateMany: {
+							filter: {
+								rowId,
+								studentId: { $in: studentList },
+								date: new Date(date),
+							},
+							update: { $push: { discounts: discountToPush } },
+						},
+					});
+				}
+
+				await FeeInstallment.bulkWrite(bulkOps);
+
+				// Return a summary of the discount for the row
 				return {
 					discountId,
 					sectionId,
@@ -445,7 +465,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
 					totalAmount, // totalAmount
-					discountAmount,
+					discountAmount: tempDiscountAmount,
 					breakdown,
 					isPercentage,
 					value,
@@ -462,7 +482,185 @@ const mapDiscountCategory = async (req, res, next) => {
 	}
 };
 
+const getStudentForApproval = catchAsync(async (req, res, next) => {
+	const { discountId } = req.params;
+	const { sectionId, status, page = 0, limit = 5 } = req.query;
+
+	// Create payload for the query
+	const payload = {
+		discounts: {
+			$elemMatch: {
+				discountId: mongoose.Types.ObjectId(discountId),
+			},
+		},
+	};
+	if (sectionId) payload.sectionId = mongoose.Types.ObjectId(sectionId);
+	if (status) payload.discounts.$elemMatch.status = status;
+	// Get the total count of the students
+	const { totalStudents } = await DiscountCategory.findOne(
+		{
+			_id: mongoose.Types.ObjectId(discountId),
+			schoolId: req.user.school_id,
+		},
+		'totalStudents'
+	).lean();
+	// Need to push the sectionName in the student array
+	// Get the aggregated data of the students from feeInstallments
+	const students = await FeeInstallment.aggregate([
+		{
+			$match: payload,
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				sectionId: {
+					$first: '$sectionId',
+				},
+				totalFees: {
+					$sum: '$totalAmount',
+				},
+				totalDiscountAmount: {
+					$sum: '$discountAmount',
+				},
+				totalPendingAmount: {
+					$sum: {
+						$reduce: {
+							input: '$discounts',
+							initialValue: 0,
+							in: {
+								$cond: [
+									{
+										$and: [
+											{
+												$eq: [
+													'$$this.discountId',
+													mongoose.Types.ObjectId(discountId),
+												],
+											},
+											{
+												$eq: ['$$this.status', 'Pending'],
+											},
+										],
+									},
+									'$$this.discountAmount',
+									0,
+								],
+							},
+						},
+					},
+				},
+				totalApprovedAmount: {
+					$sum: {
+						$reduce: {
+							input: '$discounts',
+							initialValue: 0,
+							in: {
+								$cond: [
+									{
+										$and: [
+											{
+												$eq: [
+													'$$this.discountId',
+													mongoose.Types.ObjectId(discountId),
+												],
+											},
+											{
+												$eq: ['$$this.status', 'Approved'],
+											},
+										],
+									},
+									'$$this.discountAmount',
+									0,
+								],
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: 'student',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: { sectionId: '$sectionId' },
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				studentId: '$_id',
+				studentName: {
+					$first: '$student.name',
+				},
+				sectionName: {
+					$first: '$section.className',
+				},
+				isPending: {
+					$cond: [
+						{
+							$gt: ['$totalPendingAmount', 0],
+						},
+						true,
+						false,
+					],
+				},
+				totalPendingAmount: 1,
+				totalDiscountAmount: 1,
+				totalApprovedAmount: 1,
+				totalFees: 1,
+			},
+		},
+	]);
+	if (!students.length) {
+		throw new ErrorResponse('No Students Found', 404);
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(students, students.length, 'Fetched SuccessFully'));
+});
+
 module.exports = {
+	getStudentForApproval,
 	createDiscountCategory,
 	getStudentsByFilter,
 	getDiscountCategory,
