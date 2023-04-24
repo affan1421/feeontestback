@@ -7,8 +7,9 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { reason, amount, paymentMethod, expenseType, schoolId } = req.body;
-	if (!paymentMethod || !schoolId || !expenseType) {
+	const { reason, amount, paymentMethod, expenseType, schoolId, createdBy } =
+		req.body;
+	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
@@ -21,6 +22,7 @@ exports.create = async (req, res, next) => {
 			expenseDate: new Date(),
 			paymentMethod,
 			expenseType,
+			createdBy,
 		});
 		await ExpenseType.findOneAndUpdate(
 			{
@@ -86,6 +88,13 @@ exports.getExpenses = catchAsync(async (req, res, next) => {
 					case 'equal_to':
 						filterMatch[filter.filterName] = {
 							$eq: parseFloat(filter.filterValue),
+						};
+						break;
+
+					case 'contains':
+						filterMatch[filter.filterName] = {
+							$regex: filter.filterValue,
+							$options: 'i',
 						};
 						break;
 

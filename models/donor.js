@@ -1,9 +1,5 @@
 const { Schema, model } = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
-const {
-	addAcademicYearId,
-	filterByActiveAcademicYearMiddleware,
-} = require('../middleware/academicYear');
 
 const feetypeSchema = new Schema(
 	{
@@ -47,6 +43,11 @@ const feetypeSchema = new Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		donorType: {
+			type: String,
+			enum: ['Individual', 'Organisation', 'Company'],
+			required: [true, 'Please enter donor type'],
+		},
 		studentList: {
 			type: [
 				{
@@ -75,10 +76,6 @@ const options = {
 	deletedBy: true,
 };
 
-feetypeSchema.pre('save', addAcademicYearId);
-feetypeSchema.pre('find', filterByActiveAcademicYearMiddleware);
-feetypeSchema.pre('findOne', filterByActiveAcademicYearMiddleware);
-feetypeSchema.pre('aggregate', filterByActiveAcademicYearMiddleware);
 feetypeSchema.plugin(mongoose_delete, options);
 
 const Feetype = model('Feetype', feetypeSchema);

@@ -11,7 +11,6 @@ const expenseSchema = new mongoose.Schema(
 		},
 		voucherNumber: {
 			type: Number,
-			default: 0,
 		},
 		amount: {
 			type: Number,
@@ -24,7 +23,7 @@ const expenseSchema = new mongoose.Schema(
 		paymentMethod: {
 			type: String,
 			required: true,
-			enum: ['UPI', 'Net Banking', 'Cheque', 'NEFT', 'Cash'],
+			enum: ['UPI', 'NetBanking', 'Cheque', 'NEFT', 'Cash'],
 		},
 		schoolId: {
 			type: mongoose.Schema.Types.ObjectId,
@@ -36,11 +35,14 @@ const expenseSchema = new mongoose.Schema(
 			ref: 'ExpenseType',
 			required: true,
 		},
-		// userId: {
-		// 	type: Schema.Types.ObjectId,
-		// 	ref: 'User', // change model name if wrong
-		// 	required: true,
-		// },
+		createdBy: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'User', // change model name if wrong
+			required: true,
+		},
+		approvedBy: {
+			type: String,
+		},
 	},
 	{
 		timestamps: true,

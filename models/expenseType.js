@@ -33,7 +33,7 @@ const expenseTypeSchema = new Schema(
 		budget: {
 			type: Number,
 		},
-		remainignBudget: {
+		remainingBudget: {
 			type: Number,
 		},
 	},
