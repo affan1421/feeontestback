@@ -680,9 +680,17 @@ const approveStudentDiscount = async (req, res, next) => {
 		for (const installment of feeInstallments) {
 			let totalDiscountAmount = 0;
 			let netAmount = 0;
+			// find the discount amount in the discounts array
+			const discount = installment.discounts.find(
+				d => d.discountId.toString() === discountId
+			);
+			if (!discount) {
+				throw new ErrorResponse('No Discount Found', 404);
+			}
 			if (status === 'Approved') {
-				totalDiscountAmount = installment.totalDiscountAmount + approvalAmount;
-				netAmount = installment.netAmount - approvalAmount;
+				totalDiscountAmount =
+					installment.totalDiscountAmount + discount.discountAmount;
+				netAmount = installment.netAmount - discount.discountAmount;
 			}
 			const UpdatedIns = await FeeInstallment.findOneAndUpdate(
 				{
@@ -699,37 +707,37 @@ const approveStudentDiscount = async (req, res, next) => {
 			);
 		}
 		// Update the totalPending and totalApproved in DiscountCategory
-		// await DiscountCategory.updateOne(
-		// 	{
-		// 		_id: discountId,
-		// 	},
-		// 	{
-		// 		$inc: {
-		// 			budgetRemaining: -approvalAmount,
-		// 			totalPending: status === 'Approved' ? -1 : 0,
-		// 			totalApproved: status === 'Approved' ? 1 : 0,
-		// 		},
-		// 	}
-		// );
+		await DiscountCategory.updateOne(
+			{
+				_id: discountId,
+			},
+			{
+				$inc: {
+					budgetRemaining: -approvalAmount,
+					totalPending: status === 'Approved' ? -1 : 0,
+					totalApproved: status === 'Approved' ? 1 : 0,
+				},
+			}
+		);
 
 		// update the totalApproved and totalPending in sectionDiscount
 
-		// await SectionDiscount.updateMany(
-		// 	{
-		// 		discountId: mongoose.Types.ObjectId(discountId),
-		// 		sectionName,
-		// 	},
-		// 	{
-		// 		$inc: {
-		// 			totalPending: status === 'Approved' ? -1 : 0,
-		// 			totalApproved: status === 'Approved' ? 1 : 0,
-		// 		},
-		// 	},
-		// 	{
-		// 		new: true,
-		// 		multi: true,
-		// 	}
-		// );
+		await SectionDiscount.updateMany(
+			{
+				discountId: mongoose.Types.ObjectId(discountId),
+				sectionName,
+			},
+			{
+				$inc: {
+					totalPending: status === 'Approved' ? -1 : 0,
+					totalApproved: status === 'Approved' ? 1 : 0,
+				},
+			},
+			{
+				new: true,
+				multi: true,
+			}
+		);
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
 	} catch (err) {
 		console.log(err.message);
