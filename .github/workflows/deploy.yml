@@ -40,7 +40,7 @@ jobs:
       - name: NPM INSTALL & NPM BUILD
         run: |
           cd /home/runner/work/feeOn-backend/feeOn-backend
-          npm install --verbose
+          npm install --verbose --legacy-peer-deps
           npm run test --verbose
 
       - name: Sonar-Scanner

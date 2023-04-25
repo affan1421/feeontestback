@@ -469,6 +469,18 @@ const mapDiscountCategory = async (req, res, next) => {
 		);
 		//  Create multiple new document in the sectionDiscount model.
 		await SectionDiscount.insertMany(classList);
+		// Update the total students and total pending of the discount category
+		await DiscountCategory.updateOne(
+			{
+				_id: discountId,
+			},
+			{
+				$inc: {
+					totalStudents: studentList.length,
+					totalPending: studentList.length,
+				},
+			}
+		);
 
 		res.json(SuccessResponse(null, 1, 'Mapped Successfully'));
 	} catch (error) {
@@ -654,8 +666,82 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(students, students.length, 'Fetched SuccessFully'));
 });
 
+const approveStudentDiscount = async (req, res, next) => {
+	const { discountId } = req.params;
+	const { studentId, status, approvalAmount, sectionName } = req.body;
+	// Update the status, if approved increment the totalDiscountedAmount and decrement the netAmount in FeeInstallment.
+	// If rejected, just update the status
+	try {
+		// Update the status, if approved add the discountAmount to totalDiscountAmount and subtract the netAmount in FeeInstallment.
+		// If rejected, just update the status
+
+		const { nModifiedCount } = await FeeInstallment.updateMany(
+			{
+				studentId: mongoose.Types.ObjectId(studentId),
+				discounts: {
+					$elemMatch: {
+						discountId: mongoose.Types.ObjectId(discountId),
+						status: 'Pending',
+					},
+				},
+			},
+			{
+				$set: {
+					'discounts.$.status': status,
+				},
+				$inc: {
+					totalDiscountAmount:
+						status === 'Approved' ? '$discounts.$discountAmount' : 0,
+					netAmount: status === 'Approved' ? -'$discounts.$discountAmount' : 0,
+				},
+			},
+			{
+				new: true,
+				multi: true,
+			}
+		);
+
+		// Update the totalPending and totalApproved in DiscountCategory
+		// await DiscountCategory.updateOne(
+		// 	{
+		// 		_id: discountId,
+		// 	},
+		// 	{
+		// 		$inc: {
+		// 			budgetRemaining: -approvalAmount,
+		// 			totalPending: status === 'Approved' ? -1 : 0,
+		// 			totalApproved: status === 'Approved' ? 1 : 0,
+		// 		},
+		// 	}
+		// );
+
+		// update the totalApproved and totalPending in sectionDiscount
+
+		// await SectionDiscount.updateMany(
+		// 	{
+		// 		discountId: mongoose.Types.ObjectId(discountId),
+		// 		sectionName,
+		// 	},
+		// 	{
+		// 		$inc: {
+		// 			totalPending: status === 'Approved' ? -1 : 0,
+		// 			totalApproved: status === 'Approved' ? 1 : 0,
+		// 		},
+		// 	},
+		// 	{
+		// 		new: true,
+		// 		multi: true,
+		// 	}
+		// );
+		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
+	} catch (err) {
+		next(err);
+	}
+};
+
 module.exports = {
 	getStudentForApproval,
+	approveStudentDiscount,
 	createDiscountCategory,
 	getStudentsByFilter,
 	getDiscountCategory,

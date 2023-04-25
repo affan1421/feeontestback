@@ -8,6 +8,7 @@ const {
 	deleteDiscountCategory,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
+	approveStudentDiscount,
 	getStudentsByFilter,
 	getStudentForApproval,
 	getStudentsByStructure,
@@ -23,7 +24,10 @@ router.get('/:id/structure/:structureId', getStudentsByStructure);
 
 router.get('/:id/studentFilter', getStudentsByFilter);
 
-router.get('/:discountId/approval', getStudentForApproval);
+router
+	.route('/:discountId/approval')
+	.get(getStudentForApproval)
+	.post(approveStudentDiscount);
 
 router
 	.route('/:id')
