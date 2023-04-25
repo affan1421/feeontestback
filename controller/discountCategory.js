@@ -669,30 +669,60 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 const approveStudentDiscount = async (req, res, next) => {
 	const { discountId } = req.params;
 	const { studentId, status, approvalAmount, sectionName } = req.body;
-	// Update the status, if approved increment the totalDiscountedAmount and decrement the netAmount in FeeInstallment.
-	// If rejected, just update the status
 	try {
-		// Update the status, if approved add the discountAmount to totalDiscountAmount and subtract the netAmount in FeeInstallment.
-		// If rejected, just update the status
-
-		const { nModifiedCount } = await FeeInstallment.updateMany(
-			{
-				studentId: mongoose.Types.ObjectId(studentId),
-				discounts: {
-					$elemMatch: {
-						discountId: mongoose.Types.ObjectId(discountId),
-						status: 'Pending',
-					},
+		const feeInstallments = await FeeInstallment.find({
+			studentId: mongoose.Types.ObjectId(studentId),
+			'discounts.discountId': mongoose.Types.ObjectId(discountId),
+		});
+		if (!feeInstallments.length) {
+			throw new ErrorResponse('No Fee Installment Found', 404);
+		}
+		for (const installment of feeInstallments) {
+			let totalDiscountAmount = 0;
+			let netAmount = 0;
+			if (status === 'Approved') {
+				totalDiscountAmount = installment.totalDiscountAmount + approvalAmount;
+				netAmount = installment.netAmount - approvalAmount;
+			}
+			const UpdatedIns = await FeeInstallment.findOneAndUpdate(
+				{
+					_id: installment._id,
+					'discounts.discountId': discountId,
 				},
+				{
+					$set: {
+						totalDiscountAmount,
+						netAmount,
+						'discounts.$.status': status,
+					},
+				}
+			);
+		}
+		// Update the totalPending and totalApproved in DiscountCategory
+		await DiscountCategory.updateOne(
+			{
+				_id: discountId,
 			},
 			{
-				$set: {
-					'discounts.$.status': status,
-				},
 				$inc: {
-					totalDiscountAmount:
-						status === 'Approved' ? '$discounts.$discountAmount' : 0,
-					netAmount: status === 'Approved' ? -'$discounts.$discountAmount' : 0,
+					budgetRemaining: -approvalAmount,
+					totalPending: status === 'Approved' ? -1 : 0,
+					totalApproved: status === 'Approved' ? 1 : 0,
+				},
+			}
+		);
+
+		// update the totalApproved and totalPending in sectionDiscount
+
+		await SectionDiscount.updateMany(
+			{
+				discountId: mongoose.Types.ObjectId(discountId),
+				sectionName,
+			},
+			{
+				$inc: {
+					totalPending: status === 'Approved' ? -1 : 0,
+					totalApproved: status === 'Approved' ? 1 : 0,
 				},
 			},
 			{
@@ -700,41 +730,9 @@ const approveStudentDiscount = async (req, res, next) => {
 				multi: true,
 			}
 		);
-
-		// Update the totalPending and totalApproved in DiscountCategory
-		// await DiscountCategory.updateOne(
-		// 	{
-		// 		_id: discountId,
-		// 	},
-		// 	{
-		// 		$inc: {
-		// 			budgetRemaining: -approvalAmount,
-		// 			totalPending: status === 'Approved' ? -1 : 0,
-		// 			totalApproved: status === 'Approved' ? 1 : 0,
-		// 		},
-		// 	}
-		// );
-
-		// update the totalApproved and totalPending in sectionDiscount
-
-		// await SectionDiscount.updateMany(
-		// 	{
-		// 		discountId: mongoose.Types.ObjectId(discountId),
-		// 		sectionName,
-		// 	},
-		// 	{
-		// 		$inc: {
-		// 			totalPending: status === 'Approved' ? -1 : 0,
-		// 			totalApproved: status === 'Approved' ? 1 : 0,
-		// 		},
-		// 	},
-		// 	{
-		// 		new: true,
-		// 		multi: true,
-		// 	}
-		// );
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
 	} catch (err) {
+		console.log(err.message);
 		next(err);
 	}
 };
