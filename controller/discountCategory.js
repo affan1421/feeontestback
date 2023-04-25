@@ -143,7 +143,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		},
 	]);
 	if (classList.length === 0) {
-		return next(new ErrorResponse('No Discounts Found', 404));
+		return next(new ErrorResponse('No Classes Mapped', 404));
 	}
 
 	res
@@ -699,37 +699,37 @@ const approveStudentDiscount = async (req, res, next) => {
 			);
 		}
 		// Update the totalPending and totalApproved in DiscountCategory
-		await DiscountCategory.updateOne(
-			{
-				_id: discountId,
-			},
-			{
-				$inc: {
-					budgetRemaining: -approvalAmount,
-					totalPending: status === 'Approved' ? -1 : 0,
-					totalApproved: status === 'Approved' ? 1 : 0,
-				},
-			}
-		);
+		// await DiscountCategory.updateOne(
+		// 	{
+		// 		_id: discountId,
+		// 	},
+		// 	{
+		// 		$inc: {
+		// 			budgetRemaining: -approvalAmount,
+		// 			totalPending: status === 'Approved' ? -1 : 0,
+		// 			totalApproved: status === 'Approved' ? 1 : 0,
+		// 		},
+		// 	}
+		// );
 
 		// update the totalApproved and totalPending in sectionDiscount
 
-		await SectionDiscount.updateMany(
-			{
-				discountId: mongoose.Types.ObjectId(discountId),
-				sectionName,
-			},
-			{
-				$inc: {
-					totalPending: status === 'Approved' ? -1 : 0,
-					totalApproved: status === 'Approved' ? 1 : 0,
-				},
-			},
-			{
-				new: true,
-				multi: true,
-			}
-		);
+		// await SectionDiscount.updateMany(
+		// 	{
+		// 		discountId: mongoose.Types.ObjectId(discountId),
+		// 		sectionName,
+		// 	},
+		// 	{
+		// 		$inc: {
+		// 			totalPending: status === 'Approved' ? -1 : 0,
+		// 			totalApproved: status === 'Approved' ? 1 : 0,
+		// 		},
+		// 	},
+		// 	{
+		// 		new: true,
+		// 		multi: true,
+		// 	}
+		// );
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
 	} catch (err) {
 		console.log(err.message);

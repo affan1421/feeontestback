@@ -7,8 +7,8 @@ async function filterByActiveAcademicYearMiddleware(next) {
 	let pipeline;
 	let isAggregation;
 	let activeAcademicYear = null;
-	if (this._conditions._id) next();
 	if (this._conditions) {
+		if (this._conditions._id) next();
 		// For find and findOne
 		schoolId = this._conditions.schoolId;
 		isAggregation = false;
