@@ -79,7 +79,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					totalRejected: '$totalRejected',
 				},
 				totalAmount: {
-					$sum: '$totalAmount',
+					$sum: '$discountAmount',
 				},
 				rows: {
 					$addToSet: {
@@ -160,22 +160,32 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$unwind: {
-				path: '$discounts',
-				preserveNullAndEmptyArrays: true,
+			$group: {
+				_id: '$studentId',
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+				discounts: {
+					$addToSet: {
+						$filter: {
+							input: '$discounts',
+							as: 'discount',
+							cond: {
+								$eq: ['$$discount.discountId', mongoose.Types.ObjectId(id)],
+							},
+						},
+					},
+				},
 			},
 		},
 		{
-			$group: {
-				_id: '$studentId',
+			$addFields: {
 				discounts: {
-					$addToSet: {
-						$cond: {
-							if: {
-								$eq: ['$discounts.discountId', mongoose.Types.ObjectId(id)],
-							},
-							then: '$discounts',
-							else: '$$REMOVE',
+					$reduce: {
+						input: '$discounts',
+						initialValue: [],
+						in: {
+							$concatArrays: ['$$value', '$$this'],
 						},
 					},
 				},
@@ -184,36 +194,20 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'students',
-				let: {
-					studentId: '$_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$studentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							name: 1,
-						},
-					},
-				],
-				as: '_id',
+				localField: '_id',
+				foreignField: '_id',
+				as: 'student',
 			},
+		},
+		{
+			$unwind: '$student',
 		},
 		{
 			$project: {
 				_id: 0,
-				studentName: {
-					$first: '$_id.name',
-				},
-				studentId: {
-					$first: '$_id._id',
-				},
+				studentName: '$student.name',
+				studentId: '$student._id',
+				totalDiscountAmount: 1,
 				discountStatus: {
 					$arrayElemAt: ['$discounts.status', 0],
 				},
@@ -434,6 +428,7 @@ const mapDiscountCategory = async (req, res, next) => {
 						isPercentage,
 						value,
 						discountAmount: 0,
+						status: 'Pending',
 					};
 					const calAmount = isPercentage
 						? (amount * value) / 100
