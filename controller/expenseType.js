@@ -6,7 +6,7 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { name, schoolId, userId, description, budget, remainignBudget } =
+	const { name, schoolId, userId, description, budget, remainingBudget } =
 		req.body;
 	if (!userId || !schoolId || !budget) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -25,7 +25,7 @@ exports.create = async (req, res, next) => {
 			userId,
 			description,
 			budget,
-			remainignBudget,
+			remainingBudget,
 		});
 	} catch (error) {
 		console.log('error', error);
@@ -46,7 +46,7 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
 	if (userId) {
-		payload.categoryId = mongoose.Types.ObjectId(userId);
+		payload.userId = mongoose.Types.ObjectId(userId);
 	}
 	if (name) {
 		payload.name = name;
@@ -87,7 +87,7 @@ exports.read = catchAsync(async (req, res, next) => {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { name, schoolId, userId, description, budget, remainignBudget } =
+	const { name, schoolId, userId, description, budget, remainingBudget } =
 		req.body;
 	const expensetype = await ExpenseType.findOneAndUpdate(
 		{ _id: id, schoolId: req.body.schoolId },
@@ -97,7 +97,7 @@ exports.update = catchAsync(async (req, res, next) => {
 			userId,
 			description,
 			budget,
-			remainignBudget,
+			remainingBudget,
 		}
 	);
 	if (expensetype === null) {

@@ -47,6 +47,9 @@ mongoose
 
 		app.use('/api/v1/config', require('./router/academicYear'));
 		app.use('/api/v1/feetype', require('./router/feeType'));
+		app.use('/api/v1/expenseType', require('./router/expenseType'));
+		app.use('/api/v1/expense', require('./router/expense'));
+		app.use('/api/v1/donor', require('./router/donor'));
 		app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
 		app.use('/api/v1/feecategory', require('./router/feeCategory'));
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));

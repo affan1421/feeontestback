@@ -15,6 +15,7 @@ exports.create = async (req, res, next) => {
 		IFSC,
 		accountNumber,
 		accountType,
+		donorType,
 		studentList,
 	} = req.body;
 	if (
@@ -25,6 +26,7 @@ exports.create = async (req, res, next) => {
 		!IFSC ||
 		!accountNumber ||
 		!accountType ||
+		!donorType ||
 		!contactNumber
 	) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -46,6 +48,7 @@ exports.create = async (req, res, next) => {
 			IFSC,
 			accountNumber,
 			accountType,
+			donorType,
 			studentList: studentList ?? [],
 		});
 	} catch (error) {
