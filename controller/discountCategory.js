@@ -14,11 +14,11 @@ const createDiscountCategory = async (req, res, next) => {
 			name,
 			description = '',
 			schoolId,
-			budgetAllocated = 0,
+			totalBudget = 0,
 			budgetRemaining = 0,
 			createdBy,
 		} = req.body;
-		if (!name || !schoolId || !budgetAllocated || !budgetRemaining) {
+		if (!name || !schoolId || !totalBudget || !budgetRemaining) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
 		const isExists = await DiscountCategory.findOne({
@@ -34,7 +34,7 @@ const createDiscountCategory = async (req, res, next) => {
 			name,
 			description,
 			schoolId,
-			budgetAllocated,
+			totalBudget,
 			budgetRemaining,
 			createdBy,
 		});
@@ -311,14 +311,19 @@ const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 
 const updateDiscountCategory = async (req, res, next) => {
 	const { id } = req.params;
-
+	const { name, description, totalBudget } = req.body;
 	try {
-		const discount = await DiscountCategory.findByOneAndUpdate(
-			{ _id: id, schoolId: req.body.schoolId },
-			req.body,
+		const discount = await DiscountCategory.findOneAndUpdate(
+			{ _id: id },
+			{
+				$set: {
+					name,
+					description,
+					totalBudget,
+				},
+			},
 			{
 				new: true,
-				runValidators: true,
 			}
 		);
 		if (!discount) {
@@ -326,6 +331,7 @@ const updateDiscountCategory = async (req, res, next) => {
 		}
 		res.status(200).json(SuccessResponse(discount, 1, 'Updated Successfully'));
 	} catch (error) {
+		console.log(error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
