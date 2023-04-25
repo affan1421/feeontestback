@@ -10,6 +10,7 @@ const {
 	getDiscountCategoryByClass,
 	approveStudentDiscount,
 	getStudentsByFilter,
+	addStudentToDiscount,
 	getStudentForApproval,
 	getStudentsByStructure,
 } = require('../controller/discountCategory');
@@ -23,6 +24,8 @@ router.get('/:id/class', getDiscountCategoryByClass);
 router.get('/:id/structure/:structureId', getStudentsByStructure);
 
 router.get('/:id/studentFilter', getStudentsByFilter);
+
+router.post('/:discountId/addStudent', addStudentToDiscount);
 
 router
 	.route('/:discountId/approval')
