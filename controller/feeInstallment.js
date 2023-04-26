@@ -301,6 +301,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 1,
 				name: 1,
+				parent_id: 1,
 				classSec: {
 					$first: '$sec',
 				},
