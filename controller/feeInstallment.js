@@ -298,11 +298,43 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{ $concat: ['$$studname', "'s", ' (Parent)'] },
+								],
+							},
+						},
+					},
+				],
+				as: 'parent_id',
+			},
+		},
+		{
 			$project: {
 				_id: 1,
 				name: 1,
 				classSec: {
 					$first: '$sec',
+				},
+				parent: {
+					$first: '$parent_id',
 				},
 				feeinstallments: {
 					$first: '$feeinstallments',
@@ -317,4 +349,33 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	return res
 		.status(200)
 		.json(SuccessResponse(foundStudents, foundStudents.length));
+});
+
+exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
+	const { categoryId = null, studentId = null } = req.query;
+
+	if (!categoryId || !studentId) {
+		return next(new ErrorResponse('Categoryid & studentid is required', 400));
+	}
+
+	const foundFeeInstallments = await FeeInstallment.find({
+		categoryId,
+		studentId,
+	})
+		.populate('feeTypeId', 'feeType')
+		.select({
+			feeTypeId: 1,
+			rowId: 1,
+			date: 1,
+			paidDate: 1,
+			totalAmount: 1,
+			totalDiscountAmount: 1,
+			netAmount: 1,
+			status: 1,
+		})
+		.lean();
+
+	return res
+		.status(200)
+		.json(SuccessResponse(foundFeeInstallments, foundFeeInstallments.length));
 });
