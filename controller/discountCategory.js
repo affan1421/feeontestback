@@ -792,8 +792,8 @@ const addStudentToDiscount = async (req, res, next) => {
 			'feeDetails'
 		).lean();
 		const feeDetails = feeStructure.feeDetails.reduce(
-			(acc, { feeTypeId, totalAmount, scheduledDates }) => {
-				acc[feeTypeId] = { totalAmount, scheduledDates };
+			(acc, { feeTypeId, totalAmount, scheduledDates, _id }) => {
+				acc[feeTypeId] = { totalAmount, scheduledDates, _id };
 				return acc;
 			},
 			{}
@@ -801,14 +801,18 @@ const addStudentToDiscount = async (req, res, next) => {
 
 		// Process each row in parallel
 		await Promise.all(
-			rows.map(async ({ rowId, feeTypeId, isPercentage, value }) => {
-				if (!rowId || isPercentage === undefined || !value) {
+			rows.map(async ({ feeTypeId, isPercentage, value }) => {
+				if (isPercentage === undefined || !value) {
 					return next(
 						new ErrorResponse('Please Provide All Required Fields', 422)
 					);
 				}
 
-				const { totalAmount, scheduledDates } = feeDetails[feeTypeId];
+				const {
+					totalAmount,
+					scheduledDates,
+					_id: rowId,
+				} = feeDetails[feeTypeId];
 				const tempDiscountAmount = isPercentage
 					? (totalAmount * value) / 100
 					: value;
