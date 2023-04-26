@@ -137,12 +137,12 @@ exports.getExpenses = catchAsync(async (req, res, next) => {
 	]);
 	const { data, pagination } = expenseTypes[0];
 
-	if (pagination[0]?.total.length === 0) {
+	if (pagination[0]?.total === 0) {
 		return next(new ErrorResponse('No Expense Found', 404));
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(data, pagination[0].total, 'Fetched Successfully'));
+		.json(SuccessResponse(data, pagination[0]?.total, 'Fetched Successfully'));
 });
 
 // READ
@@ -226,7 +226,7 @@ exports.totalExpences = catchAsync(async (req, res, next) => {
 		// },
 		{
 			$lookup: {
-				from: 'ExpenseTypes',
+				from: 'expensetypes',
 				let: {
 					expense_id: '$_id',
 				},

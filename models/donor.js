@@ -1,7 +1,7 @@
 const { Schema, model } = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
 
-const feetypeSchema = new Schema(
+const donorSchema = new Schema(
 	{
 		name: {
 			type: String,
@@ -76,8 +76,8 @@ const options = {
 	deletedBy: true,
 };
 
-feetypeSchema.plugin(mongoose_delete, options);
+donorSchema.plugin(mongoose_delete, options);
 
-const Feetype = model('Feetype', feetypeSchema);
+const Donor = model('Donor', donorSchema);
 
-module.exports = Feetype;
+module.exports = Donor;

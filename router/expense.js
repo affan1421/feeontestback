@@ -11,7 +11,7 @@ const {
 	totalExpenceFilter,
 } = require('../controller/expesnse');
 
-router.get('/', getExpenses).post('/', create);
+router.post('/getAll', getExpenses).post('/', create);
 router.post('/totalExpence', totalExpences);
 router.post('/totalExpenceFilter', totalExpenceFilter);
 
