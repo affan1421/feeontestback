@@ -34,7 +34,7 @@
     "flatted": "^3.2.7",
     "jsonwebtoken": "^9.0.0",
     "moment": "^2.29.4",
-    "mongoose": "^6.10.0",
+    "mongoose": "^6.10.5",
     "mongoose-auto-increment": "^5.0.1",
     "mongoose-delete": "^0.5.4",
     "morgan": "^1.10.0",

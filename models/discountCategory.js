@@ -29,11 +29,18 @@ const discountSchema = new Schema(
 			ref: 'AcademicYear',
 			required: false,
 		},
-		budgetAllocated: {
+		totalBudget: {
 			type: Number,
 			required: false,
 			default: 0,
 		},
+		// pending + approved
+		budgetAlloted: {
+			type: Number,
+			required: false,
+			default: 0,
+		},
+		// approved
 		budgetRemaining: {
 			type: Number,
 			required: false,

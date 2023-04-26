@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1682338894823" clover="3.2.0">
-  <project timestamp="1682338894824" name="All files">
-    <metrics statements="243" coveredstatements="195" conditionals="83" coveredconditionals="48" methods="21" coveredmethods="18" elements="347" coveredelements="261" complexity="0" loc="243" ncloc="243" packages="4" files="12" classes="12"/>
+<coverage generated="1682412343429" clover="3.2.0">
+  <project timestamp="1682412343430" name="All files">
+    <metrics statements="244" coveredstatements="195" conditionals="85" coveredconditionals="48" methods="21" coveredmethods="18" elements="350" coveredelements="261" complexity="0" loc="244" ncloc="244" packages="4" files="12" classes="12"/>
     <package name="controller">
       <metrics statements="125" coveredstatements="118" conditionals="53" coveredconditionals="42" methods="13" coveredmethods="13"/>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\controller\feeSchedule.js">
@@ -137,13 +137,14 @@
       </file>
     </package>
     <package name="middleware">
-      <metrics statements="60" coveredstatements="19" conditionals="26" coveredconditionals="5" methods="4" coveredmethods="1"/>
+      <metrics statements="61" coveredstatements="19" conditionals="28" coveredconditionals="5" methods="4" coveredmethods="1"/>
       <file name="academicYear.js" path="G:\ERP\feeOn-backend\middleware\academicYear.js">
-        <metrics statements="33" coveredstatements="4" conditionals="16" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <metrics statements="34" coveredstatements="4" conditionals="18" coveredconditionals="0" methods="3" coveredmethods="0"/>
         <line num="1" count="5" type="stmt"/>
         <line num="2" count="5" type="stmt"/>
         <line num="3" count="5" type="stmt"/>
         <line num="9" count="0" type="stmt"/>
+        <line num="10" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="11" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="13" count="0" type="stmt"/>
         <line num="14" count="0" type="stmt"/>
@@ -222,8 +223,8 @@
         <line num="3" count="1" type="stmt"/>
         <line num="5" count="1" type="stmt"/>
         <line num="8" count="1" type="stmt"/>
-        <line num="84" count="1" type="stmt"/>
-        <line num="90" count="1" type="stmt"/>
+        <line num="89" count="1" type="stmt"/>
+        <line num="95" count="1" type="stmt"/>
       </file>
       <file name="feeSchedule.js" path="G:\ERP\feeOn-backend\models\feeSchedule.js">
         <metrics statements="11" coveredstatements="11" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>

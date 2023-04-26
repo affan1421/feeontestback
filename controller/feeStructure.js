@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 const feeInstallment = require('../models/feeInstallment');
+const SectionDiscount = require('../models/sectionDiscount');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -444,7 +445,7 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 });
 //  unmapped?schoolId=schoolId&categoryId=categoryId
 exports.getUnmappedClassList = async (req, res, next) => {
-	const { schoolId, categoryId } = req.query;
+	const { schoolId, categoryId, discountId } = req.query;
 	let mappedClassIds = [];
 	const payload = {
 		schoolId: mongoose.Types.ObjectId(schoolId),
@@ -513,6 +514,26 @@ exports.getUnmappedClassList = async (req, res, next) => {
 				mappedClassIds = mappedClassList.map(c => c._id.toString());
 				sectionList = sectionList.filter(
 					c => !mappedClassIds.includes(c.sectionId)
+				);
+			}
+		}
+		if (discountId) {
+			const mappedSections = await SectionDiscount.aggregate([
+				{
+					$match: {
+						discountId: mongoose.Types.ObjectId(discountId),
+					},
+				},
+				{
+					$group: {
+						_id: '$sectionId',
+					},
+				},
+			]);
+			if (mappedSections.length > 0) {
+				const mappedSectionIds = mappedSections.map(s => s._id.toString());
+				sectionList = sectionList.filter(
+					section => !mappedSectionIds.includes(section.sectionId)
 				);
 			}
 		}
