@@ -298,12 +298,43 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{ $concat: ['$$studname', "'s", ' (Parent)'] },
+								],
+							},
+						},
+					},
+				],
+				as: 'parent_id',
+			},
+		},
+		{
 			$project: {
 				_id: 1,
 				name: 1,
-				parent_id: 1,
 				classSec: {
 					$first: '$sec',
+				},
+				parent: {
+					$first: '$parent_id',
 				},
 				feeinstallments: {
 					$first: '$feeinstallments',
