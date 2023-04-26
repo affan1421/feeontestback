@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 const FeeInstallment = require('../models/feeInstallment');
+const FeeStructure = require('../models/feeStructure');
+
+const Student = mongoose.connection.db.collection('students');
+
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
@@ -210,7 +214,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		matchQuery.$text = { $search: search };
 	}
 
-	const foundStudents = await FeeInstallment.aggregate([
+	const foundStudents = await Student.aggregate([
 		{
 			$match: matchQuery,
 		},
@@ -236,47 +240,10 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 						},
 					},
 					{
-						$lookup: {
-							let: {
-								classId: '$class_id',
-							},
-							from: 'classes',
-							as: 'class',
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$classId'],
-										},
-									},
-								},
-								{
-									$project: {
-										_id: 1,
-										name: 1,
-									},
-								},
-							],
-						},
-					},
-					{
 						$project: {
 							_id: 1,
 							name: 1,
-							class: {
-								$first: '$class',
-							},
-						},
-					},
-					{
-						$project: {
-							name: {
-								$concat: ['$class.name', ' ', '$name'],
-							},
-							sectionId: '$_id',
-							sectionName: '$name',
-							classId: '$class._id',
-							className: '$class.name',
+							className: 1,
 						},
 					},
 				],
@@ -299,12 +266,31 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					},
 					{
 						$group: {
-							_id: '$status',
+							_id: null,
+							categoryId: {
+								$addToSet: '$categoryId',
+							},
 							totalAmount: {
-								$sum: '$totalAmount',
+								$sum: {
+									$cond: [
+										{
+											$in: ['$status', ['Due', 'Upcoming']],
+										},
+										'$totalAmount',
+										0,
+									],
+								},
 							},
 							netAmount: {
-								$sum: '$netAmount',
+								$sum: {
+									$cond: [
+										{
+											$in: ['$status', ['Due', 'Upcoming']],
+										},
+										'$netAmount',
+										0,
+									],
+								},
 							},
 						},
 					},
@@ -318,10 +304,15 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 				classSec: {
 					$first: '$sec',
 				},
-				feeinstallments: 1,
+				feeinstallments: {
+					$first: '$feeinstallments',
+				},
+				categoryId: {
+					$first: '$feeinstallments.categoryId',
+				},
 			},
 		},
-	]);
+	]).toArray();
 
 	return res
 		.status(200)
