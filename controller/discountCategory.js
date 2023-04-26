@@ -488,6 +488,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					budgetAlloted: discountAmount * studentList.length,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
+					classesAssociated: 1,
 				},
 			}
 		);

@@ -29,6 +29,11 @@ const discountSchema = new Schema(
 			ref: 'AcademicYear',
 			required: false,
 		},
+		classesAssociated: {
+			type: Number,
+			required: false,
+			default: 0,
+		},
 		totalBudget: {
 			type: Number,
 			required: false,
