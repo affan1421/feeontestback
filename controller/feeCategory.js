@@ -187,10 +187,31 @@ const deleteFeeCategory = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
+const getByList = catchAsync(async (req, res, next) => {
+	const { categoryList } = req.body;
+	if (categoryList.length === 0) {
+		return next(new ErrorResponse('Category Is Required', 422));
+	}
+	const categories = await FeeCategory.find(
+		{
+			_id: { $in: categoryList },
+		},
+		{ name: 1 }
+	);
+	if (categories.length === 0) {
+		return next(new ErrorResponse('Fee Category Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(
+			SuccessResponse(categories, categories.length, 'Fetched Successfully')
+		);
+});
 
 module.exports = {
 	createFeeCategory,
 	getFeeCategory,
+	getByList,
 	updateFeeCategory,
 	deleteFeeCategory,
 	getFeeCategoryBySectionId,

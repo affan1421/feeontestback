@@ -521,14 +521,6 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 	};
 	if (sectionId) payload.sectionId = mongoose.Types.ObjectId(sectionId);
 	if (status) payload.discounts.$elemMatch.status = status;
-	// Get the total count of the students
-	const { totalStudents } = await DiscountCategory.findOne(
-		{
-			_id: mongoose.Types.ObjectId(discountId),
-			schoolId: req.user.school_id,
-		},
-		'totalStudents'
-	).lean();
 	// Need to push the sectionName in the student array
 	// Get the aggregated data of the students from feeInstallments
 	const students = await FeeInstallment.aggregate([
