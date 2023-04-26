@@ -350,3 +350,32 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		.status(200)
 		.json(SuccessResponse(foundStudents, foundStudents.length));
 });
+
+exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
+	const { categoryId = null, studentId = null } = req.query;
+
+	if (!categoryId || !studentId) {
+		return next(new ErrorResponse('Categoryid & studentid is required', 400));
+	}
+
+	const foundFeeInstallments = await FeeInstallment.find({
+		categoryId,
+		studentId,
+	})
+		.populate('feeTypeId', 'feeType')
+		.select({
+			feeTypeId: 1,
+			rowId: 1,
+			date: 1,
+			paidDate: 1,
+			totalAmount: 1,
+			totalDiscountAmount: 1,
+			netAmount: 1,
+			status: 1,
+		})
+		.lean();
+
+	return res
+		.status(200)
+		.json(SuccessResponse(foundFeeInstallments, foundFeeInstallments.length));
+});

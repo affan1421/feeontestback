@@ -11,5 +11,9 @@ router.get(
 );
 
 router.get('/studentsList', feeInstallmentController.StudentsList);
+router.get(
+	'/studentstructure',
+	feeInstallmentController.getStudentFeeStructure
+);
 
 module.exports = router;
