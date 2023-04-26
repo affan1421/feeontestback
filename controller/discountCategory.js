@@ -313,22 +313,30 @@ const updateDiscountCategory = async (req, res, next) => {
 	const { id } = req.params;
 	const { name, description, totalBudget } = req.body;
 	try {
-		const discount = await DiscountCategory.findOneAndUpdate(
-			{ _id: id },
-			{
-				$set: {
-					name,
-					description,
-					totalBudget,
-				},
-			},
-			{
-				new: true,
-			}
-		);
+		const discount = await DiscountCategory.findById(id);
+
 		if (!discount) {
 			return next(new ErrorResponse('Discount Not Found', 404));
 		}
+		const budgetSpent = discount.totalBudget - discount.budgetRemaining; // budgetSpent
+		// Error if totalBudget < discount.totalBudget - discount.remainingBudget
+		if (totalBudget < budgetSpent) {
+			return next(
+				new ErrorResponse(
+					'Cannot Update Total Budget Less Than Budget Spent',
+					400
+				)
+			);
+		}
+		// find the difference
+		const difference = totalBudget - discount.totalBudget;
+		// update the remaining budget
+		discount.name = name;
+		discount.description = description;
+		discount.totalBudget = totalBudget;
+		discount.budgetRemaining += difference;
+		await discount.save();
+
 		res.status(200).json(SuccessResponse(discount, 1, 'Updated Successfully'));
 	} catch (error) {
 		console.log(error);
@@ -488,6 +496,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					budgetAlloted: discountAmount * studentList.length,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
+					classesAssociated: 1,
 				},
 			}
 		);

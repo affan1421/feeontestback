@@ -81,6 +81,11 @@ const FeeInstallmentSchema = new Schema(
 			enum: ['Paid', 'Upcoming', 'Due'],
 			default: 'Upcoming',
 		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: true,
+		},
 		// feeReceiptId: { type: Schema.Types.ObjectId, ref: 'FeeReceipt' },
 	},
 	{ timestamps: true }

@@ -78,6 +78,6 @@ const options = {
 
 donorSchema.plugin(mongoose_delete, options);
 
-const Feetype = model('donor', donorSchema);
+const Donor = model('Donor', donorSchema);
 
-module.exports = Feetype;
+module.exports = Donor;
