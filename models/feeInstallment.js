@@ -75,6 +75,7 @@ const FeeInstallmentSchema = new Schema(
 			default: [],
 		},
 		totalDiscountAmount: { type: Number, required: false, default: 0 },
+		paidAmount: { type: Number, required: false, default: 0 },
 		netAmount: { type: Number, required: true }, // totalAmount - totalDiscountAmount
 		status: {
 			type: String,

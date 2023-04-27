@@ -147,7 +147,6 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
-	console.log(classList);
 	if (classList.length === 0) {
 		return next(new ErrorResponse('No Classes Mapped', 404));
 	}
@@ -459,16 +458,38 @@ const mapDiscountCategory = async (req, res, next) => {
 						: (amount * calPercentage) / 100;
 					discountToPush.discountAmount += calAmount;
 
-					bulkOps.push({
-						updateMany: {
-							filter: {
-								rowId,
-								studentId: { $in: studentList },
-								date: new Date(date),
-							},
-							update: { $push: { discounts: discountToPush } },
-						},
-					});
+					// only ofr update if the found installment for each student is not paid and if due then paid amount should be less than the total amount
+					for (const si of studentList) {
+						const feeInstallment = await FeeInstallment.findOne({
+							studentId: si,
+							rowId,
+							date: new Date(date),
+							status: { $ne: 'Paid' },
+						}).lean();
+
+						// paid = 700, discount = 400, total = 1000
+						if (
+							feeInstallment &&
+							tempDiscountAmount <=
+								feeInstallment.netAmount - feeInstallment.paidAmount
+						) {
+							bulkOps.push({
+								updateOne: {
+									filter: {
+										studentId: si,
+										rowId,
+										date: new Date(date),
+										status: { $ne: 'Paid' },
+									},
+									update: {
+										$push: {
+											discounts: discountToPush,
+										},
+									},
+								},
+							});
+						}
+					}
 				}
 
 				await FeeInstallment.bulkWrite(bulkOps);
