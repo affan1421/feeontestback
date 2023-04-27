@@ -7,7 +7,7 @@ const { Schema, model } = mongoose;
 
 const FeeInstallmentSchema = new Schema(
 	{
-		feeTypeId: { type: Schema.Types.ObjectId, ref: 'FeeType', required: true }, // populate
+		feeTypeId: { type: Schema.Types.ObjectId, ref: 'Feetype', required: true }, // populate
 		scheduleTypeId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeSchedule',
