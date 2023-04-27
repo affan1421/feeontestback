@@ -20,7 +20,7 @@ describe('AcademicYear', () => {
 		});
 		const error = academicYear.validateSync();
 		expect(error).toBeUndefined();
-		expect(academicYear).toHaveProperty('isActive', false);
+		expect(academicYear).toHaveProperty('isActive', true);
 	});
 	test('fails validation with invalid date', () => {
 		const academicYear = new AcademicYear({

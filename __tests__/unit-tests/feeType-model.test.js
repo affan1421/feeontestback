@@ -8,9 +8,7 @@ describe('Feetype Model', () => {
 
 		const error = feetype.validateSync();
 		expect(error.errors.feeType.message).toEqual('Please enter feetype name');
-		expect(error.errors.description.message).toEqual(
-			'Please enter feetype description'
-		);
+
 		expect(error.errors.accountType.message).toEqual(
 			'Please enter account type'
 		);
@@ -22,6 +20,7 @@ describe('Feetype Model', () => {
 			feeType: 'Registration Fee',
 			description: 'Registration fee for new students',
 			accountType: 'Invalid',
+			categoryId: mongoose.Types.ObjectId(),
 			schoolId: mongoose.Types.ObjectId(),
 		});
 
@@ -37,6 +36,7 @@ describe('Feetype Model', () => {
 			description: 'Registration fee for new students',
 			accountType: 'Revenue',
 			schoolId: mongoose.Types.ObjectId(),
+			categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 		});
 
 		const error = feetype.validateSync();

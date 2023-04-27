@@ -5,23 +5,32 @@ const SuccessResponse = require('../utils/successResponse');
 const catchAsync = require('../utils/catchAsync');
 const FeeTypes = require('../models/feeType');
 const FeeSchedule = require('../models/feeSchedule');
-
 // Create a new AcademicYear
 const create = async (req, res, next) => {
 	try {
+		const timezoneOffset = new Date().getTimezoneOffset();
 		let { name, startDate, endDate, schoolId } = req.body;
+		let isActive = true;
 		if (!name || !startDate || !endDate || !schoolId) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
-		const isExists = await AcademicYear.findOne({
-			name,
+		const isExists = await AcademicYear.find({
 			schoolId,
-		});
-		if (isExists) {
+		}).lean();
+		// check isExists and set isActive false
+		if (isExists.length > 0) {
+			isActive = false;
+		}
+
+		const nameObj = isExists.find(item => item.name === name);
+
+		// check for name
+		if (nameObj) {
 			return next(
 				new ErrorResponse(`Academic Year ${name} Already Exists`, 422)
 			);
 		}
+
 		const months = [];
 		startDate = new Date(startDate);
 		endDate = new Date(endDate);
@@ -34,12 +43,19 @@ const create = async (req, res, next) => {
 			months.push(startDate.getMonth() + 1);
 			startDate.setMonth(startDate.getMonth() + 1);
 		}
+		// Adjust for timezone offset
+		const adjustedMonths = months.map(month => {
+			const date = new Date(Date.UTC(startDate.getFullYear(), month - 1, 1));
+			date.setMinutes(date.getMinutes() + timezoneOffset);
+			return date.getMonth() + 1;
+		});
 		const academicYear = await AcademicYear.create({
 			name,
 			startDate: req.body.startDate,
 			endDate,
 			schoolId,
-			months,
+			months: adjustedMonths,
+			isActive,
 		});
 		res
 			.status(201)
@@ -62,7 +78,6 @@ const getAll = catchAsync(async (req, res, next) => {
 	if (isActive != null) {
 		payload.isActive = true;
 	}
-	console.log(payload);
 	const academicYears = await AcademicYear.aggregate([
 		{
 			$facet: {
@@ -84,7 +99,7 @@ const getAll = catchAsync(async (req, res, next) => {
 // Get an AcademicYear by ID
 const getAcademicYear = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const academicYear = await AcademicYear.findById(id);
+	const academicYear = await AcademicYear.findOne({ _id: id });
 	if (!academicYear) {
 		return next(new ErrorResponse('Academic year Not Found', 404));
 	}
@@ -96,7 +111,10 @@ const getAcademicYear = catchAsync(async (req, res, next) => {
 
 const changeState = catchAsync(async (req, res, next) => {
 	const { id, isActive } = req.body;
-	const academicYear = await AcademicYear.findByIdAndUpdate(
+	if (!id || isActive == null) {
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	}
+	const academicYear = await AcademicYear.findOneAndUpdate(
 		{
 			_id: id,
 		},
@@ -156,10 +174,14 @@ const update = async (req, res, next) => {
 			req.body.months = months;
 		}
 
-		const academicYear = await AcademicYear.findByIdAndUpdate(id, req.body, {
-			new: true,
-			runValidators: true,
-		});
+		const academicYear = await AcademicYear.findOneAndUpdate(
+			{ _id: id },
+			req.body,
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
 		}
@@ -182,13 +204,14 @@ const update = async (req, res, next) => {
 const deleteAcademicYear = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+		const { school_id: schoolId } = req.user;
 		const isTypeMapped = await FeeTypes.findOne({
 			academicYearId: id,
-			schoolId: req.user.school_id,
+			schoolId,
 		});
 		const isScheduleMapped = await FeeSchedule.findOne({
 			academicYearId: id,
-			schoolId: req.user.school_id,
+			schoolId,
 		});
 		if (isTypeMapped || isScheduleMapped) {
 			return next(
@@ -198,7 +221,7 @@ const deleteAcademicYear = async (req, res, next) => {
 				)
 			);
 		}
-		const academicYear = await AcademicYear.findByIdAndDelete(id);
+		const academicYear = await AcademicYear.findOneAndDelete({ _id: id });
 		if (!academicYear) {
 			return next(new ErrorResponse('Academic year Not Found', 404));
 		}

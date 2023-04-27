@@ -7,6 +7,7 @@ const discountSchema = new Schema(
 		discountName: {
 			type: String,
 			required: true,
+			trim: true,
 		},
 		description: {
 			type: String,

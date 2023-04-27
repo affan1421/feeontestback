@@ -1,4 +1,9 @@
 const mongoose = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
+const {
+	addAcademicYearId,
+	filterByActiveAcademicYearMiddleware,
+} = require('../middleware/academicYear');
 
 const { Schema, model } = mongoose;
 
@@ -30,9 +35,23 @@ const feeStructureSchema = new Schema(
 		feeStructureName: {
 			type: String,
 			required: [true, 'Fee Structure Name is Mandatory'],
+			trim: true,
+		},
+		deleted: {
+			type: Boolean,
+			default: false,
+		},
+		deletedAt: {
+			type: Date,
+			default: null,
+		},
+		deletedBy: {
+			type: Schema.Types.ObjectId,
+			ref: 'User',
+			default: null,
 		},
 		academicYearId: {
-			type: mongoose.Schema.Types.ObjectId,
+			type: Schema.Types.ObjectId,
 			ref: 'AcademicYear',
 			required: [false, 'Academic Year is Mandatory'],
 		},
@@ -40,6 +59,11 @@ const feeStructureSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'School is Mandatory'],
+		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: [true, 'Fee Category is Mandatory'],
 		},
 		classes: {
 			type: [
@@ -68,8 +92,15 @@ const feeStructureSchema = new Schema(
 	{ timestamps: true }
 );
 
-feeStructureSchema.plugin(require('../middleware/academicYear'), {
-	refPath: 'academicYearId',
+feeStructureSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	overrideMethods: true,
+	deleteBy: true,
 });
+
+feeStructureSchema.pre('save', addAcademicYearId);
+feeStructureSchema.pre('find', filterByActiveAcademicYearMiddleware);
+feeStructureSchema.pre('findOne', filterByActiveAcademicYearMiddleware);
+feeStructureSchema.pre('aggregate', filterByActiveAcademicYearMiddleware);
 
 module.exports = model('FeeStructure', feeStructureSchema);

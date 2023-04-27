@@ -66,6 +66,8 @@ describe('Fee Structure Model', () => {
 			feeStructureName: 'Some Fee Structure',
 			academicYear: '2023-2024',
 			schoolId: mongoose.Types.ObjectId(),
+			categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 			classes: [
 				{
 					name: 'Class 1',

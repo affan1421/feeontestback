@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const mongoose_delete = require('mongoose-delete');
+
 const { Schema, model } = mongoose;
 
 const academicYearSchema = new Schema(
@@ -7,6 +9,7 @@ const academicYearSchema = new Schema(
 		name: {
 			type: String, // 2023-2024
 			required: [true, 'Please add a name'],
+			trim: true,
 		},
 		startDate: {
 			type: Date, // 2023-05-01T00:00:00.000Z
@@ -18,7 +21,7 @@ const academicYearSchema = new Schema(
 		},
 		isActive: {
 			type: Boolean, // true
-			default: false,
+			default: true,
 		},
 		months: {
 			type: [Number], // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -32,5 +35,11 @@ const academicYearSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+academicYearSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	deletedBy: true,
+	overrideMethods: true,
+});
 
 module.exports = model('AcademicYear', academicYearSchema);

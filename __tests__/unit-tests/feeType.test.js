@@ -101,25 +101,31 @@ describe('Fee type controller', () => {
 	});
 	describe('GET - /:id', () => {
 		it('should return no fee type found', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce(null);
 			await read(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
 		});
 		it('should return a fee type', async () => {
-			const req = (mockRequest().params = {
+			const req = (mockRequest().body = {
 				params: {
 					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'findById').mockResolvedValueOnce({
+			jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce({
 				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				feeType: 'Tuition',
 				description: 'Tuition fee',
@@ -152,6 +158,7 @@ describe('Fee type controller', () => {
 					description: 'Tuition fee',
 					accountType: 'Income',
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
 			const res = mockResponse();
@@ -160,6 +167,7 @@ describe('Fee type controller', () => {
 				feeType: 'Tuition',
 				description: 'Tuition fee',
 				accountType: 'Income',
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			jest.spyOn(FeeType, 'findOne').mockResolvedValueOnce(null);
@@ -204,6 +212,8 @@ describe('Fee type controller', () => {
 					feeType: 'Tuition',
 					description: 'Tuition fee',
 					accountType: 'income',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
@@ -214,6 +224,7 @@ describe('Fee type controller', () => {
 				description: 'Tuition fee',
 				accountType: 'income',
 				schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 			});
 			await create(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
@@ -234,7 +245,7 @@ describe('Fee type controller', () => {
 				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'findByIdAndUpdate').mockResolvedValueOnce(null);
+			jest.spyOn(FeeType, 'findOneAndUpdate').mockResolvedValueOnce(null);
 			await update(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
@@ -249,7 +260,7 @@ describe('Fee type controller', () => {
 		// 		},
 		// 	});
 		// 	const res = mockResponse();
-		// 	jest.spyOn(FeeType, 'findByIdAndUpdate').mockResolvedValueOnce({
+		// 	jest.spyOn(FeeType, 'findOneAndUpdate').mockResolvedValueOnce({
 		// 		_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 		// 		feeType: 'Tuition',
 		// 		description: 'Tuition fee',
@@ -280,9 +291,12 @@ describe('Fee type controller', () => {
 				params: {
 					id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
+				user: {
+					school_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce(null);
+			jest.spyOn(FeeType, 'findOneAndDelete').mockResolvedValueOnce(null);
 			await feeDelete(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Type Not Found', 404);
@@ -298,9 +312,12 @@ describe('Fee type controller', () => {
 					account: 'income',
 					schoolId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
+				user: {
+					school_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeType, 'findByIdAndDelete').mockResolvedValueOnce({
+			jest.spyOn(FeeType, 'findOneAndDelete').mockResolvedValueOnce({
 				_id: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				feeType: 'Tuition',
 				description: 'Tuition fee',

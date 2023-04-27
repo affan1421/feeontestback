@@ -32,6 +32,7 @@ describe('FeeInstallment Model', () => {
 		expect(errors.errors.scheduleTypeId.message).toEqual(
 			'Path `scheduleTypeId` is required.'
 		);
+		expect(errors.errors.rowId.message).toEqual('Path `rowId` is required.');
 	});
 
 	it('should be valid if all required fields are present', () => {
@@ -41,8 +42,10 @@ describe('FeeInstallment Model', () => {
 			feeStructureId: mongoose.Types.ObjectId(),
 			sectionId: mongoose.Types.ObjectId(),
 			academicYearId: mongoose.Types.ObjectId(),
+			rowId: mongoose.Types.ObjectId(),
 			schoolId: mongoose.Types.ObjectId(),
 			studentId: mongoose.Types.ObjectId(),
+			categoryId: mongoose.Types.ObjectId(),
 			date: new Date(),
 			totalAmount: 100,
 			netAmount: 80,

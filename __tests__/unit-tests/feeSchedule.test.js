@@ -59,6 +59,7 @@ describe('Fee Schedule Controller', () => {
 					months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 					existMonths: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 					schoolId: '5f9f1b9b9c9d440000a1b0f1',
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
 				},
 			});
 			const res = mockResponse();
@@ -78,6 +79,8 @@ describe('Fee Schedule Controller', () => {
 					description: 'Monthly fee schedule',
 					day: 9,
 					existMonths: [7, 8, 9, 10, 11, 12, 1, 2, 3, 4],
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					months: [1, 11, 12, 2, 4, 9],
 					schoolId: '5f9f1b0b0b1b9c0b8c8b8b8b',
 				},
@@ -97,6 +100,8 @@ describe('Fee Schedule Controller', () => {
 					'2024-02-08T18:30:00.000Z',
 					'2024-04-08T18:30:00.000Z',
 				],
+				categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 				_id: '6426799d714d49a034f79dd5',
 				createdAt: '2023-03-31T06:11:41.387Z',
 				updatedAt: '2023-03-31T06:11:41.387Z',
@@ -119,6 +124,8 @@ describe('Fee Schedule Controller', () => {
 						'2024-02-08T18:30:00.000Z',
 						'2024-04-08T18:30:00.000Z',
 					],
+					categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 					_id: '6426799d714d49a034f79dd5',
 					createdAt: '2023-03-31T06:11:41.387Z',
 					updatedAt: '2023-03-31T06:11:41.387Z',
@@ -248,19 +255,29 @@ describe('Fee Schedule Controller', () => {
 	describe('Get Fee Schedule By Id', () => {
 		// fee schedule not found 404
 		it('should return 404 if fee schedule not found', async () => {
-			const req = (mockRequest().params = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeSchedule, 'findById').mockResolvedValueOnce(null);
+			jest.spyOn(FeeSchedule, 'findOne').mockResolvedValueOnce(null);
 			await getFeeSchedule(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Schedule Not Found', 404);
 		});
 		// get fee schedule by id successfully 200
 		it('should return 200 if get fee schedule by id successfully', async () => {
-			const req = (mockRequest().params = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
 			const mockFeeSchedule = {
@@ -278,9 +295,7 @@ describe('Fee Schedule Controller', () => {
 				createdAt: '2020-11-03T18:30:00.000Z',
 				updatedAt: '2020-11-03T18:30:00.000Z',
 			};
-			jest
-				.spyOn(FeeSchedule, 'findById')
-				.mockResolvedValueOnce(mockFeeSchedule);
+			jest.spyOn(FeeSchedule, 'findOne').mockResolvedValueOnce(mockFeeSchedule);
 			await getFeeSchedule(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(SuccessResponse).toHaveBeenCalledWith(
@@ -294,7 +309,9 @@ describe('Fee Schedule Controller', () => {
 		// fee schedule not found 404
 		it('should return 404 if fee schedule not found', async () => {
 			const req = (mockRequest().body = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
 				body: {
 					scheduleName: 'Test Schedule',
 					scheduleType: 'Monthly',
@@ -305,7 +322,7 @@ describe('Fee Schedule Controller', () => {
 				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeSchedule, 'findById').mockImplementationOnce(() => ({
+			jest.spyOn(FeeSchedule, 'findOne').mockImplementationOnce(() => ({
 				lean: jest.fn().mockResolvedValueOnce(null),
 			}));
 			await update(req, res, mockNext);
@@ -315,7 +332,9 @@ describe('Fee Schedule Controller', () => {
 		// update fee schedule successfully 200
 		it('should return 200 if update fee schedule successfully', async () => {
 			const req = (mockRequest().body = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
 				body: {
 					scheduleName: 'new monthly',
 					description: 'Monthly fee schedule',
@@ -341,11 +360,11 @@ describe('Fee Schedule Controller', () => {
 				createdAt: '2020-11-03T18:30:00.000Z',
 				updatedAt: '2020-11-03T18:30:00.000Z',
 			};
-			jest.spyOn(FeeSchedule, 'findById').mockImplementationOnce(() => ({
+			jest.spyOn(FeeSchedule, 'findOne').mockImplementationOnce(() => ({
 				lean: jest.fn().mockResolvedValueOnce(mockFeeSchedule),
 			}));
 			jest
-				.spyOn(FeeSchedule, 'findByIdAndUpdate')
+				.spyOn(FeeSchedule, 'findOneAndUpdate')
 				.mockResolvedValueOnce(mockFeeSchedule);
 			await update(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
@@ -359,22 +378,32 @@ describe('Fee Schedule Controller', () => {
 	describe('Delete Fee Schedule', () => {
 		// fee schedule not found 404
 		it('should return 404 if fee schedule not found', async () => {
-			const req = (mockRequest().params = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeSchedule, 'findByIdAndDelete').mockResolvedValueOnce(null);
+			jest.spyOn(FeeSchedule, 'findOneAndDelete').mockResolvedValueOnce(null);
 			await deleteFeeSchedule(req, res, mockNext);
 			expect(mockNext).toHaveBeenCalled();
 			expect(ErrorResponse).toHaveBeenCalledWith('Fee Schedule Not Found', 404);
 		});
 		// delete fee schedule successfully 200
 		it('should return 200 if delete fee schedule successfully', async () => {
-			const req = (mockRequest().params = {
-				params: '5f9f1b9b9c9d440000a1b0f1',
+			const req = (mockRequest().body = {
+				params: {
+					id: '5f9f1b9b9c9d440000a1b0f1',
+				},
+				user: {
+					school_id: { _id: '5f5f5f5f5f5f5f5f5f5f5f5f' },
+				},
 			});
 			const res = mockResponse();
-			jest.spyOn(FeeSchedule, 'findByIdAndDelete').mockResolvedValueOnce(true);
+			jest.spyOn(FeeSchedule, 'findOneAndDelete').mockResolvedValueOnce(true);
 			await deleteFeeSchedule(req, res, mockNext);
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(SuccessResponse).toHaveBeenCalledWith(

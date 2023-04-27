@@ -20,6 +20,8 @@ describe('FeeSchedule Model', () => {
 			description: 'Tuition fees for the academic year',
 			day: 1,
 			months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 			schoolId: mongoose.Types.ObjectId(),
 			scheduledDates: [
 				new Date('2023-04-01'),
@@ -36,6 +38,8 @@ describe('FeeSchedule Model', () => {
 		const feeSchedule = new FeeSchedule({
 			scheduleName: 'Tuition Fees',
 			day: 1,
+			categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 			months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			schoolId: mongoose.Types.ObjectId(),
 			scheduledDates: [
@@ -52,6 +56,8 @@ describe('FeeSchedule Model', () => {
 	it('should be valid if scheduledDates field is missing', () => {
 		const feeSchedule = new FeeSchedule({
 			scheduleName: 'Tuition Fees',
+			categoryId: '5f8c6c5e0e0a8c0a1c8f1b2a',
+
 			description: 'Tuition fees for the academic year',
 			day: 1,
 			months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],

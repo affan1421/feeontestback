@@ -76,7 +76,7 @@ const getDiscounts = catchAsync(async (req, res, next) => {
 // Get a discount by id
 const getDiscountById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const discount = await Discount.findById(id);
+	const discount = await Discount.findOne({ id });
 	if (!discount) {
 		return next(new ErrorResponse('Discount Not Found', 404));
 	}
@@ -97,10 +97,14 @@ const updateDiscount = async (req, res, next) => {
 	const { id } = req.params;
 
 	try {
-		const discount = await Discount.findByIdAndUpdate(id, req.body, {
-			new: true,
-			runValidators: true,
-		});
+		const discount = await Discount.findByOneAndUpdate(
+			{ _id: id, schoolId: req.body.schoolId },
+			req.body,
+			{
+				new: true,
+				runValidators: true,
+			}
+		);
 		if (!discount) {
 			return next(new ErrorResponse('Discount Not Found', 404));
 		}
@@ -113,7 +117,7 @@ const updateDiscount = async (req, res, next) => {
 // Delete a discount
 const deleteDiscount = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const discount = await Discount.findByIdAndDelete(id);
+	const discount = await Discount.findOneAndDelete(id);
 	if (!discount) {
 		return next(new ErrorResponse('Discount Not Found', 404));
 	}
