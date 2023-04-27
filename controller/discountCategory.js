@@ -80,6 +80,9 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalAmount: {
 					$sum: '$discountAmount',
 				},
+				totalFees: {
+					$sum: '$totalAmount',
+				},
 				rows: {
 					$addToSet: {
 						feeTypeId: '$feeTypeId',
@@ -111,6 +114,9 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalAmount: {
 					$first: '$totalAmount',
 				},
+				totalFees: {
+					$first: '$totalFees',
+				},
 				rows: {
 					$push: {
 						feeType: {
@@ -130,10 +136,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				sectionId: '$_id.sectionId',
 				feeStructureId: '$_id.feeStructureId',
 				categoryId: '$_id.categoryId',
-
 				sectionName: '$_id.sectionName',
 				totalStudents: '$_id.totalStudents',
 				totalAmount: 1,
+				totalFees: 1,
 				totalApproved: '$_id.totalApproved',
 				totalPending: '$_id.totalPending',
 				totalRejected: '$_id.totalRejected',
@@ -141,6 +147,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
+	console.log(classList);
 	if (classList.length === 0) {
 		return next(new ErrorResponse('No Classes Mapped', 404));
 	}
