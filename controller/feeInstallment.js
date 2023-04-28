@@ -208,12 +208,13 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	const matchQuery = {};
 
 	if (schoolId) {
-		matchQuery.schoolId = schoolId;
+		matchQuery.school_id = mongoose.Types.ObjectId(schoolId);
 	}
 	if (search) {
 		matchQuery.$text = { $search: search };
 	}
 
+	const totalStudents = await Student.countDocuments(matchQuery);
 	const foundStudents = await Student.aggregate([
 		{
 			$match: matchQuery,
@@ -230,7 +231,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 				let: {
 					sectionId: '$section',
 				},
-				as: 'sec',
+				as: 'className',
 				pipeline: [
 					{
 						$match: {
@@ -241,8 +242,6 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					},
 					{
 						$project: {
-							_id: 1,
-							name: 1,
 							className: 1,
 						},
 					},
@@ -267,88 +266,35 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					{
 						$group: {
 							_id: null,
-							categoryId: {
-								$addToSet: '$categoryId',
-							},
-							totalAmount: {
-								$sum: {
-									$cond: [
-										{
-											$in: ['$status', ['Due', 'Upcoming']],
-										},
-										'$totalAmount',
-										0,
-									],
-								},
+							paidAmount: {
+								$sum: '$paidAmount',
 							},
 							netAmount: {
-								$sum: {
-									$cond: [
-										{
-											$in: ['$status', ['Due', 'Upcoming']],
-										},
-										'$netAmount',
-										0,
-									],
-								},
+								$sum: '$netAmount',
 							},
 						},
 					},
 				],
-			},
-		},
-		{
-			$lookup: {
-				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-					studname: '$name',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: {
-								$ifNull: [
-									'$name',
-									{ $concat: ['$$studname', "'s", ' (Parent)'] },
-								],
-							},
-						},
-					},
-				],
-				as: 'parent_id',
 			},
 		},
 		{
 			$project: {
 				_id: 1,
 				name: 1,
-				classSec: {
-					$first: '$sec',
+				className: {
+					$first: '$className.className',
 				},
-				parent: {
-					$first: '$parent_id',
-				},
-				feeinstallments: {
-					$first: '$feeinstallments',
-				},
-				categoryId: {
-					$first: '$feeinstallments.categoryId',
+				pendingAmount: {
+					$subtract: [
+						{ $first: '$feeinstallments.netAmount' },
+						{ $first: '$feeinstallments.paidAmount' },
+					],
 				},
 			},
 		},
 	]).toArray();
 
-	return res
-		.status(200)
-		.json(SuccessResponse(foundStudents, foundStudents.length));
+	return res.status(200).json(SuccessResponse(foundStudents, totalStudents));
 });
 
 exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
