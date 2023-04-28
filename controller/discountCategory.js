@@ -306,7 +306,7 @@ const getDiscountCategory = catchAsync(async (req, res, next) => {
 const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const discount = await DiscountCategory.findOne({
-		id,
+		_id: id,
 		schoolId: req.user.school_id,
 	});
 	if (!discount) {
@@ -410,7 +410,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
 			{
-				sectionId,
+				'classes.sectionId': sectionId,
 				categoryId,
 				schoolId: req.user.school_id,
 			},
@@ -437,14 +437,18 @@ const mapDiscountCategory = async (req, res, next) => {
 				const tempDiscountAmount = isPercentage
 					? (totalAmount * value) / 100
 					: value;
-				discountAmount += tempDiscountAmount;
 				const calPercentage = isPercentage
 					? value
 					: (value * 100) / totalAmount;
 
-				// Update discounts for all matching fee installments in a single operation
-
 				const bulkOps = [];
+				const filter = {
+					studentId: { $in: studentList },
+					rowId,
+					// status: { $ne: 'Paid' },
+				};
+				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
+
 				for (const { amount, date } of scheduledDates) {
 					const discountToPush = {
 						discountId,
@@ -458,43 +462,29 @@ const mapDiscountCategory = async (req, res, next) => {
 						: (amount * calPercentage) / 100;
 					discountToPush.discountAmount += calAmount;
 
-					// only ofr update if the found installment for each student is not paid and if due then paid amount should be less than the total amount
-					for (const si of studentList) {
-						const feeInstallment = await FeeInstallment.findOne({
-							studentId: si,
-							rowId,
-							date: new Date(date),
-							status: { $ne: 'Paid' },
-						}).lean();
+					const feeInstallments = await FeeInstallment.find(
+						{ ...filter, date: new Date(date) },
+						projections
+					).lean();
 
-						// paid = 700, discount = 400, total = 1000
-						if (
-							feeInstallment &&
-							tempDiscountAmount <=
-								feeInstallment.netAmount - feeInstallment.paidAmount
-						) {
+					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
+						if (tempDiscountAmount <= netAmount - paidAmount) {
+							discountAmount += calAmount;
+
 							bulkOps.push({
 								updateOne: {
-									filter: {
-										studentId: si,
-										rowId,
-										date: new Date(date),
-										status: { $ne: 'Paid' },
-									},
-									update: {
-										$push: {
-											discounts: discountToPush,
-										},
-									},
+									filter: { studentId, date: new Date(date), rowId },
+									update: { $push: { discounts: discountToPush } },
 								},
 							});
 						}
 					}
 				}
 
-				await FeeInstallment.bulkWrite(bulkOps);
+				if (bulkOps.length > 0) {
+					await FeeInstallment.bulkWrite(bulkOps);
+				}
 
-				// Return a summary of the discount for the row
 				return {
 					discountId,
 					sectionId,
@@ -504,7 +494,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					feeStructureId: feeStructure._id,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
-					totalAmount, // totalAmount
+					totalAmount,
 					discountAmount: tempDiscountAmount,
 					breakdown,
 					isPercentage,
@@ -512,6 +502,7 @@ const mapDiscountCategory = async (req, res, next) => {
 				};
 			})
 		);
+
 		//  Create multiple new document in the sectionDiscount model.
 		await SectionDiscount.insertMany(classList);
 		// Update the total students and total pending of the discount category
@@ -521,7 +512,7 @@ const mapDiscountCategory = async (req, res, next) => {
 			},
 			{
 				$inc: {
-					budgetAlloted: discountAmount * studentList.length,
+					budgetAlloted: discountAmount,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
 					classesAssociated: 1,
@@ -814,7 +805,8 @@ const addStudentToDiscount = async (req, res, next) => {
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
 			{
-				sectionId,
+				'classes.sectionId': sectionId,
+
 				categoryId,
 				schoolId: req.user.school_id,
 			},
@@ -845,14 +837,17 @@ const addStudentToDiscount = async (req, res, next) => {
 				const tempDiscountAmount = isPercentage
 					? (totalAmount * value) / 100
 					: value;
-				discountAmount += tempDiscountAmount;
 				const calPercentage = isPercentage
 					? value
 					: (value * 100) / totalAmount;
 
-				// Update discounts for all matching fee installments in a single operation
-
 				const bulkOps = [];
+				const filter = {
+					studentId: { $in: studentList },
+					rowId,
+				};
+				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
+
 				for (const { amount, date } of scheduledDates) {
 					const discountToPush = {
 						discountId,
@@ -866,19 +861,28 @@ const addStudentToDiscount = async (req, res, next) => {
 						: (amount * calPercentage) / 100;
 					discountToPush.discountAmount += calAmount;
 
-					bulkOps.push({
-						updateMany: {
-							filter: {
-								rowId,
-								studentId: { $in: studentList },
-								date: new Date(date),
-							},
-							update: { $push: { discounts: discountToPush } },
-						},
-					});
+					const feeInstallments = await FeeInstallment.find(
+						{ ...filter, date: new Date(date) },
+						projections
+					).lean();
+
+					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
+						if (tempDiscountAmount <= netAmount - paidAmount) {
+							discountAmount += calAmount;
+
+							bulkOps.push({
+								updateOne: {
+									filter: { studentId, date: new Date(date), rowId },
+									update: { $push: { discounts: discountToPush } },
+								},
+							});
+						}
+					}
 				}
 
-				await FeeInstallment.bulkWrite(bulkOps);
+				if (bulkOps.length > 0) {
+					await FeeInstallment.bulkWrite(bulkOps);
+				}
 			})
 		);
 		//  Update the totalPending and totalApproved in SectionDiscount
@@ -901,7 +905,7 @@ const addStudentToDiscount = async (req, res, next) => {
 			},
 			{
 				$inc: {
-					budgetAlloted: discountAmount * studentList.length,
+					budgetAlloted: discountAmount,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
 				},
