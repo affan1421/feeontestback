@@ -86,7 +86,6 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-	console.log(studentList.length);
 	const isExist = await FeeStructure.findOne({
 		feeStructureName,
 		schoolId,
