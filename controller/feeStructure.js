@@ -86,7 +86,7 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-	console.log(studentList.length);
+
 	const isExist = await FeeStructure.findOne({
 		feeStructureName,
 		schoolId,
@@ -145,6 +145,22 @@ exports.create = async (req, res, next) => {
 			categoryId,
 			true
 		);
+
+		const studIds = studentList.map(stud => mongoose.Types.ObjectId(stud._id));
+
+		await Students.updateMany(
+			{
+				_id: {
+					$in: studIds,
+				},
+			},
+			{
+				$addToSet: {
+					feeCategoryIds: [mongoose.Types.ObjectId(categoryId)],
+				},
+			}
+		);
+
 		res
 			.status(201)
 			.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
