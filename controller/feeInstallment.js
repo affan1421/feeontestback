@@ -208,7 +208,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	const matchQuery = {};
 
 	if (schoolId) {
-		matchQuery.schoolId = schoolId;
+		matchQuery.school_id = mongoose.Types.ObjectId(schoolId);
 	}
 	if (search) {
 		matchQuery.$text = { $search: search };
