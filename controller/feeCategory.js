@@ -5,6 +5,8 @@ const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 const FeeStructure = require('../models/feeStructure');
 
+const Student = mongoose.connection.db.collection('students');
+
 // @desc    Create Fee Category
 // @route   POST /api/v1/feecategory
 // @access  Private
@@ -187,31 +189,72 @@ const deleteFeeCategory = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
-const getByList = catchAsync(async (req, res, next) => {
-	const { categoryList } = req.body;
-	if (categoryList.length === 0) {
-		return next(new ErrorResponse('Category Is Required', 422));
-	}
-	const categories = await FeeCategory.find(
+
+const getAllStudentCategories = catchAsync(async (req, res, next) => {
+	const { studentId } = req.params;
+
+	const feeCategories = await Student.aggregate([
 		{
-			_id: { $in: categoryList },
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
 		},
-		{ name: 1 }
-	);
-	if (categories.length === 0) {
-		return next(new ErrorResponse('Fee Category Not Found', 404));
-	}
+		{
+			$unwind: {
+				path: '$feeCategoryIds',
+			},
+		},
+		{
+			$lookup: {
+				from: 'feecategories',
+				let: {
+					feeCategory: '$feeCategoryIds',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$feeCategory'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: 'feeCategoryIds',
+			},
+		},
+		{
+			$project: {
+				_id: {
+					$first: '$feeCategoryIds._id',
+				},
+				name: {
+					$first: '$feeCategoryIds.name',
+				},
+			},
+		},
+	]).toArray();
+
 	res
 		.status(200)
 		.json(
-			SuccessResponse(categories, categories.length, 'Fetched Successfully')
+			SuccessResponse(
+				feeCategories,
+				feeCategories.length,
+				'Fetched Successfully'
+			)
 		);
 });
 
 module.exports = {
 	createFeeCategory,
 	getFeeCategory,
-	getByList,
+	getAllStudentCategories,
 	updateFeeCategory,
 	deleteFeeCategory,
 	getFeeCategoryBySectionId,
