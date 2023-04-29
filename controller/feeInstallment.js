@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
+const FeeReciept = require('../models/feeReciept.js');
 
 const Student = mongoose.connection.db.collection('students');
 
@@ -406,4 +407,261 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 				foundFeeInstallments.length
 			)
 		);
+});
+
+exports.MakePayment = catchAsync(async (req, res, next) => {
+	const {
+		feeDetails,
+		studentId,
+		paymentMethod,
+		bankName,
+		chequeDate,
+		chequeNumber,
+		transactionDate,
+		transactionId,
+		upiId,
+		payerName,
+		ddNumber,
+		ddDate,
+		issueDate,
+	} = req.body;
+
+	for (const item of feeDetails) {
+		const foundInstallment = await FeeInstallment.findOne({
+			_id: mongoose.Types.ObjectId(item._id),
+		}).lean();
+
+		const isPaid =
+			foundInstallment.netAmount -
+				(item.paidAmount + foundInstallment.paidAmount) ==
+			0;
+
+		const updateData = {
+			paidDate: new Date(),
+			paidAmount: item.paidAmount + foundInstallment.paidAmount,
+		};
+
+		if (isPaid) {
+			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
+		}
+
+		await FeeInstallment.updateOne(
+			{ _id: item._id },
+			{
+				$set: updateData,
+			}
+		);
+	}
+
+	const foundStudent = await Student.aggregate([
+		{
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'schools',
+				let: {
+					schoolId: '$school_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$schoolId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: '$schoolName',
+							address: {
+								$concat: [
+									'$address',
+									' ',
+									{
+										$toString: '$pincode',
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'school',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{
+										$concat: ['$$studname', ' (Parent)'],
+									},
+								],
+							},
+							username: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$lookup: {
+				from: 'academicyears',
+				let: {
+					schoolId: '$school_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$schoolId', '$$schoolId'],
+									},
+									{
+										$eq: ['$isActive', true],
+									},
+								],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'academicYear',
+			},
+		},
+		{
+			$project: {
+				studentId: '$_id',
+				studentName: '$name',
+				classId: '$class',
+				className: {
+					$first: '$section.className',
+				},
+				schoolId: '$school_id',
+				schoolName: {
+					$first: '$school.name',
+				},
+				schoolAddress: {
+					$first: '$school.address',
+				},
+				parentName: {
+					$first: '$parent.name',
+				},
+				parentId: '$parent_id',
+				parentMobile: {
+					$first: '$parent.username',
+				},
+				academicYear: {
+					$first: '$academicYear.name',
+				},
+				academicYearId: {
+					$first: '$academicYear._id',
+				},
+			},
+		},
+	]).toArray();
+
+	const {
+		studentName = '',
+		className = '',
+		classId = '',
+		parentName = '',
+		parentMobile = '',
+		parentId = '',
+		academicYear = '',
+		academicYearId = '',
+		schoolName = '',
+		schoolAddress = '',
+		schoolId = '',
+	} = foundStudent[0];
+
+	const createdReciept = await FeeReciept.create({
+		student: {
+			name: studentName,
+			studentId,
+			class: {
+				name: className,
+				classId,
+			},
+		},
+		parent: {
+			name: parentName,
+			mobile: parentMobile,
+			parentId,
+		},
+		academicYear: {
+			name: academicYear,
+			academicYearId,
+		},
+		school: {
+			name: schoolName,
+			address: schoolAddress,
+			schoolId,
+		},
+		totalAmount: Number,
+		paidAmount: Number,
+		dueAmount: Number,
+		payment: {
+			method: paymentMethod,
+			bankName,
+			chequeDate,
+			chequeNumber,
+			transactionDate,
+			transactionId,
+			upiId,
+			payerName,
+			ddNumber,
+			ddDate,
+		},
+		issueDate,
+	});
+
+	return res.status(201).json(SuccessResponse(createdReciept, 1));
 });

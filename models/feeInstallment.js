@@ -79,7 +79,7 @@ const FeeInstallmentSchema = new Schema(
 		netAmount: { type: Number, required: true }, // totalAmount - totalDiscountAmount
 		status: {
 			type: String,
-			enum: ['Paid', 'Upcoming', 'Due'],
+			enum: ['Paid', 'Late', 'Upcoming', 'Due'],
 			default: 'Upcoming',
 		},
 		categoryId: {
