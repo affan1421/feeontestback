@@ -3,6 +3,8 @@ const NODE_ENV = 'development';
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: `.${NODE_ENV}.env` });
+require('./jobs/installmentDue');
+
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');

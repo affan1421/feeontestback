@@ -86,7 +86,6 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-
 	const isExist = await FeeStructure.findOne({
 		feeStructureName,
 		schoolId,
@@ -156,7 +155,7 @@ exports.create = async (req, res, next) => {
 			},
 			{
 				$addToSet: {
-					feeCategoryIds: [mongoose.Types.ObjectId(categoryId)],
+					feeCategoryIds: mongoose.Types.ObjectId(categoryId),
 				},
 			}
 		);
@@ -268,97 +267,90 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
 		const { id } = req.params;
+		const { studentList, feeStructureName, classes, ...rest } = req.body;
 		const newStudents = [];
-		const removedStudents = [];
-		const existingStudents = [];
-
-		const {
-			studentList,
-			feeStructureName,
-			classes,
-			schoolId,
-			feeDetails,
-			categoryId,
-			totalAmount,
-			academicYearId,
-			description,
-			isRowAdded = false,
-		} = req.body;
-
-		for (const student of studentList) {
-			// Filter out student who where as it is in selected list
-			// 1. isSelected = true and isPaid = true and no isNew flag
-			// 2. isSelected = true and isPaid = false and no isNew flag
-			// 3. isSelected = false and isPaid = true and no isNew flag
-
-			if (
+		const existingStudents = studentList.filter(
+			student =>
 				!student.isNew &&
 				((student.isSelected && student.isPaid) ||
 					(student.isSelected && !student.isPaid) ||
 					(!student.isSelected && student.isPaid))
-			)
-				existingStudents.push(student);
-			// Check isNew flag exists
-			if (student.isNew) newStudents.push(student);
-			// check if a student is removed
-			if (student.isSelected === false && !student.isPaid)
-				removedStudents.push(student);
-		}
-		if (isRowAdded) {
-			const feeTypeSet = new Set(feeDetails.map(f => f.feeTypeId));
-			const newRows = req.body.feeDetails
+		);
+		const studentsToUpdate = studentList
+			.filter(student => student.isNew)
+			.map(student => student._id);
+		const studentsToRemove = studentList.filter(
+			student => student.isSelected === false && !student.isPaid
+		);
+
+		if (rest.isRowAdded) {
+			const feeTypeSet = new Set(rest.feeDetails.map(f => f.feeTypeId));
+			const newRows = rest.feeDetails
 				.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
 				.map(f => f.feeTypeId);
 
-			// studentList without isNew flag and isSelected flag should be true
 			await runChildProcess(
 				newRows,
 				existingStudents,
 				id,
-				schoolId,
-				academicYearId,
-				categoryId,
+				rest.schoolId,
+				rest.academicYearId,
+				rest.categoryId,
 				true
 			);
 		}
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
-			{ _id: id, schoolId },
+			{ _id: id, schoolId: rest.schoolId },
 			{
 				$set: {
 					feeStructureName,
-					schoolId,
-					description,
-					categoryId,
-					totalAmount,
-					academicYearId,
-					feeDetails,
 					classes,
+					...rest,
 				},
 			}
 		);
 
-		// Remove Installments for removed students (soft delete) add deletedBy
-		if (updatedDocs && removedStudents.length > 0) {
-			await FeeInstallment.deleteMany(
-				{
-					studentId: { $in: removedStudents.map(s => s._id) },
-				},
-				{ deletedBy: req.user._id }
-			);
+		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
+			await Promise.all([
+				Students.updateMany(
+					{
+						_id: { $in: studentsToUpdate },
+					},
+					{
+						$addToSet: {
+							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+						},
+					}
+				),
+				Students.updateMany(
+					{
+						_id: { $in: studentsToRemove.map(s => s._id) },
+					},
+					{
+						$pull: {
+							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+						},
+					}
+				),
+				FeeInstallment.deleteMany(
+					{
+						studentId: { $in: studentsToRemove.map(s => s._id) },
+					},
+					{ deletedBy: req.user._id }
+				),
+				runChildProcess(
+					updatedDocs.feeDetails,
+					newStudents,
+					id,
+					rest.schoolId,
+					rest.academicYearId,
+					rest.categoryId,
+					true
+				),
+			]);
 		}
-		// Create Installments for new students
-		if (updatedDocs && newStudents.length > 0) {
-			await runChildProcess(
-				updatedDocs.feeDetails,
-				newStudents,
-				id,
-				schoolId,
-				academicYearId,
-				categoryId,
-				true
-			);
-		}
+
 		res
 			.status(200)
 			.json(
