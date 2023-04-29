@@ -184,7 +184,7 @@ exports.expenseDelete = catchAsync(async (req, res, next) => {
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
 
-exports.totalExpences = catchAsync(async (req, res, next) => {
+exports.totalExpenses = catchAsync(async (req, res, next) => {
 	const expenseData = await ExpenseModel.aggregate([
 		{
 			$match: { schoolId: req.body.schoolId },
@@ -312,7 +312,7 @@ function MonthlyDates(date, prev) {
 	return { monthStart, monthEnd };
 }
 
-exports.totalExpenceFilter = catchAsync(async (req, res, next) => {
+exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
 	const matchFilter = { schoolId: req.body.schoolId };
 	const filterType = req.body.filtertype;
 	const date = new Date();

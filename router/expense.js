@@ -7,13 +7,13 @@ const {
 	read,
 	update,
 	expenseDelete,
-	totalExpences,
-	totalExpenceFilter,
-} = require('../controller/expesnse');
+	totalExpenses,
+	totalExpenseFilter,
+} = require('../controller/expense');
 
 router.post('/getAll', getExpenses).post('/', create);
-router.post('/totalExpence', totalExpences);
-router.post('/totalExpenceFilter', totalExpenceFilter);
+router.post('/totalExpense', totalExpenses);
+router.post('/totalExpenseFilter', totalExpenseFilter);
 
 router.get('/:id', read).put('/:id', update).delete('/:id', expenseDelete);
 

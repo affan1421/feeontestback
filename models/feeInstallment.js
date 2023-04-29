@@ -92,6 +92,18 @@ const FeeInstallmentSchema = new Schema(
 	{ timestamps: true }
 );
 
+// make index
+FeeInstallmentSchema.index({ schoolId: 1, status: 1 });
+FeeInstallmentSchema.index({
+	studentId: 1,
+	rowId: 1,
+	date: 1,
+});
+FeeInstallmentSchema.index({
+	'discounts.discountId': 1,
+	'discounts.status': 1,
+});
+
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	overrideMethods: true,
