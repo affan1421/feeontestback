@@ -172,7 +172,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 					$sum: '$totalDiscountAmount',
 				},
 				discounts: {
-					$addToSet: {
+					$push: {
 						$filter: {
 							input: '$discounts',
 							as: 'discount',
@@ -214,6 +214,15 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				studentName: '$student.name',
 				studentId: '$student._id',
 				totalDiscountAmount: 1,
+				discountApplied: {
+					$sum: {
+						$map: {
+							input: '$discounts',
+							as: 'obj',
+							in: '$$obj.discountAmount',
+						},
+					},
+				},
 				discountStatus: {
 					$arrayElemAt: ['$discounts.status', 0],
 				},
@@ -470,7 +479,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					).lean();
 
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
-						if (tempDiscountAmount <= netAmount - paidAmount) {
+						if (calAmount <= netAmount - paidAmount) {
 							discountAmount += calAmount;
 
 							bulkOps.push({
@@ -699,8 +708,10 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 });
 
 const approveStudentDiscount = async (req, res, next) => {
+	// TODO: Need to take confirmation from the approver with the amount that can be approved.
 	const { discountId } = req.params;
 	const { studentId, status, approvalAmount, sectionName } = req.body;
+	let updatedAmount = 0;
 	try {
 		const feeInstallments = await FeeInstallment.find({
 			studentId: mongoose.Types.ObjectId(studentId),
@@ -714,27 +725,34 @@ const approveStudentDiscount = async (req, res, next) => {
 		if (!feeInstallments.length) {
 			return next(new ErrorResponse('No Fee Installment Found', 404));
 		}
-		for (const installment of feeInstallments) {
+		for (const { _id, discounts, paidAmount, netAmount } of feeInstallments) {
 			// find the discount amount in the discounts array
-			const discount = installment.discounts.find(
+			const discount = discounts.find(
 				d => d.discountId.toString() === discountId.toString()
 			);
 			if (!discount) {
 				return next(new ErrorResponse('No Discount Found', 404));
 			}
-			if (status === 'Approved') {
+			const { discountAmount } = discount;
+			if (status === 'Approved' && discountAmount <= netAmount - paidAmount) {
+				updatedAmount += discountAmount;
 				await FeeInstallment.findOneAndUpdate(
 					{
-						_id: installment._id,
-						'discounts.discountId': discountId,
+						_id,
+						discounts: {
+							$elemMatch: {
+								discountId: mongoose.Types.ObjectId(discountId),
+								status: 'Pending',
+							},
+						},
 					},
 					{
 						$set: {
-							'discounts.$.status': status,
+							'discounts.$.status': 'Approved',
 						},
 						$inc: {
-							totalDiscountAmount: discount.discountAmount,
-							netAmount: -discount.discountAmount,
+							totalDiscountAmount: discountAmount,
+							netAmount: -discountAmount,
 						},
 					}
 				);
@@ -742,7 +760,7 @@ const approveStudentDiscount = async (req, res, next) => {
 				// remove that match from the discounts array
 				await FeeInstallment.findOneAndUpdate(
 					{
-						_id: installment._id,
+						_id,
 						'discounts.discountId': discountId,
 					},
 					{
@@ -763,7 +781,7 @@ const approveStudentDiscount = async (req, res, next) => {
 		};
 		if (status === 'Approved') {
 			update.$inc.totalApproved = 1;
-			update.$inc.budgetRemaining = -approvalAmount;
+			update.$inc.budgetRemaining = -updatedAmount;
 		} else {
 			update.$inc.budgetAlloted = -approvalAmount;
 			update.$inc.totalStudents = -1;
@@ -875,7 +893,7 @@ const addStudentToDiscount = async (req, res, next) => {
 					).lean();
 
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
-						if (tempDiscountAmount <= netAmount - paidAmount) {
+						if (calAmount <= netAmount - paidAmount) {
 							discountAmount += calAmount;
 
 							bulkOps.push({
