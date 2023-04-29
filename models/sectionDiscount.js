@@ -74,6 +74,13 @@ const sectionDiscountSchema = new Schema({
 	},
 });
 
+sectionDiscountSchema.index({ discountId: 1 });
+
+sectionDiscountSchema.index({
+	discountId: 1,
+	sectionId: 1,
+});
+
 const SectionDiscount = mongoose.model(
 	'sectionDiscount',
 	sectionDiscountSchema
