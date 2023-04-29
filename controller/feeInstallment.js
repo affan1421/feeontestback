@@ -304,6 +304,83 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Categoryid & studentid is required', 400));
 	}
 
+	const foundStudent = await Student.aggregate([
+		{
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{
+										$concat: ['$$studname', ' (Parent)'],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$project: {
+				studentName: '$name',
+				parentName: {
+					$first: '$parent.name',
+				},
+				class: {
+					$first: '$section.className',
+				},
+			},
+		},
+	]).toArray();
+
+	if (foundStudent.length < 1) {
+		return next(new ErrorResponse('Student not found', 404));
+	}
+
 	const foundFeeInstallments = await FeeInstallment.find({
 		categoryId,
 		studentId,
@@ -323,5 +400,10 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 
 	return res
 		.status(200)
-		.json(SuccessResponse(foundFeeInstallments, foundFeeInstallments.length));
+		.json(
+			SuccessResponse(
+				{ ...foundStudent[0], feeDetails: foundFeeInstallments },
+				foundFeeInstallments.length
+			)
+		);
 });
