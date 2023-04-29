@@ -4,6 +4,7 @@ const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
 const SectionDiscount = require('../models/sectionDiscount');
 const catchAsync = require('../utils/catchAsync');
+const FeeType = require('../models/feeType');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
@@ -918,6 +919,43 @@ const addStudentToDiscount = async (req, res, next) => {
 	}
 };
 
+const getSectionDiscount = catchAsync(async (req, res, next) => {
+	const { id, sectionId } = req.params;
+	const filter = {
+		discountId: id,
+		sectionId,
+	};
+	const projections = {
+		_id: 0,
+		feeType: '$feeTypeId',
+		totalAmount: 1,
+		isPercentage: 1,
+		value: 1,
+		breakdown: 1,
+	};
+	// find in sectionDiscount
+	const sectionDiscount = await SectionDiscount.find(
+		filter,
+		projections
+	).lean();
+	if (!sectionDiscount) {
+		return next(new ErrorResponse('No Discount Found', 404));
+	}
+	for (const discount of sectionDiscount) {
+		discount.feeType = await FeeType.findOne(
+			{ _id: discount.feeType },
+			'feeType'
+		).lean();
+	}
+	res.json(
+		SuccessResponse(
+			sectionDiscount,
+			sectionDiscount.length,
+			'Fetched Successfully'
+		)
+	);
+});
+
 module.exports = {
 	getStudentForApproval,
 	addStudentToDiscount,
@@ -931,4 +969,5 @@ module.exports = {
 	deleteDiscountCategory,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
+	getSectionDiscount,
 };

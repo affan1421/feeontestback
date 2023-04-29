@@ -9,6 +9,7 @@ const {
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
 	approveStudentDiscount,
+	getSectionDiscount,
 	getStudentsByFilter,
 	addStudentToDiscount,
 	getStudentForApproval,
@@ -26,6 +27,9 @@ router.get('/:id/structure/:structureId', getStudentsByStructure);
 router.get('/:id/studentFilter', getStudentsByFilter);
 
 router.post('/:discountId/addStudent', addStudentToDiscount);
+
+// Fetch only the section Discount.
+router.get('/:id/section/:sectionId', getSectionDiscount);
 
 router
 	.route('/:discountId/approval')
