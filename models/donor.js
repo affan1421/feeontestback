@@ -45,7 +45,7 @@ const donorSchema = new Schema(
 		},
 		donorType: {
 			type: String,
-			enum: ['Individual', 'Organisation', 'Company'],
+			enum: ['Individual', 'Trust', 'Company'],
 			required: [true, 'Please enter donor type'],
 		},
 		studentList: {
