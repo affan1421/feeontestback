@@ -15,5 +15,6 @@ router.get(
 	'/studentstructure',
 	feeInstallmentController.getStudentFeeStructure
 );
+router.post('/makePayment', feeInstallmentController.MakePayment);
 
 module.exports = router;
