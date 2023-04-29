@@ -402,6 +402,7 @@ const mapDiscountCategory = async (req, res, next) => {
 	try {
 		const { sectionId, categoryId, rows, studentList, sectionName } = req.body;
 		const { discountId } = req.params;
+		const { school_id } = req.user;
 		let discountAmount = 0;
 
 		if (!sectionId || !categoryId || !rows || !studentList) {
@@ -495,6 +496,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					feeStructureId: feeStructure._id,
 					totalStudents: studentList.length,
 					totalPending: studentList.length,
+					schoolId: school_id,
 					totalAmount,
 					discountAmount: tempDiscountAmount,
 					breakdown,
@@ -956,12 +958,48 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 	);
 });
 
+const discountReport = catchAsync(async (req, res, next) => {
+	const { school_id } = req.user;
+	// find all the sectionDiscounts of the school and group it and sort by section.
+	const sectionDiscounts = await SectionDiscount.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(school_id),
+			},
+		},
+		{
+			$group: {
+				_id: '$sectionId',
+				sectionName: {
+					$first: '$sectionName',
+				},
+				discountAmount: { $sum: '$discountAmount' },
+				totalStudents: { $sum: '$totalStudents' },
+				totalPending: { $sum: '$totalPending' },
+				totalApproved: { $sum: '$totalApproved' },
+			},
+		},
+		{
+			$sort: {
+				discountAmount: -1,
+			},
+		},
+	]);
+	if (!sectionDiscounts) {
+		return next(new ErrorResponse('No Discount Mapped', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(sectionDiscounts, 1, 'Fetched Successfully'));
+});
+
 module.exports = {
 	getStudentForApproval,
 	addStudentToDiscount,
 	approveStudentDiscount,
 	createDiscountCategory,
 	getStudentsByFilter,
+	discountReport,
 	getDiscountCategory,
 	getDiscountCategoryById,
 	getStudentsByStructure,

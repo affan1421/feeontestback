@@ -6,6 +6,7 @@ const {
 	getDiscountCategoryById,
 	updateDiscountCategory,
 	deleteDiscountCategory,
+	discountReport,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
 	approveStudentDiscount,
@@ -30,6 +31,9 @@ router.post('/:discountId/addStudent', addStudentToDiscount);
 
 // Fetch only the section Discount.
 router.get('/:id/section/:sectionId', getSectionDiscount);
+
+// discount analytics
+router.get('/report', discountReport);
 
 router
 	.route('/:discountId/approval')
