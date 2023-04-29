@@ -704,15 +704,20 @@ const approveStudentDiscount = async (req, res, next) => {
 	try {
 		const feeInstallments = await FeeInstallment.find({
 			studentId: mongoose.Types.ObjectId(studentId),
-			'discounts.discountId': mongoose.Types.ObjectId(discountId),
-		});
+			discounts: {
+				$elemMatch: {
+					discountId: mongoose.Types.ObjectId(discountId),
+					status: 'Pending',
+				},
+			},
+		}).lean();
 		if (!feeInstallments.length) {
 			return next(new ErrorResponse('No Fee Installment Found', 404));
 		}
 		for (const installment of feeInstallments) {
 			// find the discount amount in the discounts array
 			const discount = installment.discounts.find(
-				d => d.discountId.toString() === discountId
+				d => d.discountId.toString() === discountId.toString()
 			);
 			if (!discount) {
 				return next(new ErrorResponse('No Discount Found', 404));
