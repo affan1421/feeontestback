@@ -392,6 +392,7 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 			rowId: 1,
 			date: 1,
 			paidDate: 1,
+			paidAmount: 1,
 			totalAmount: 1,
 			totalDiscountAmount: 1,
 			netAmount: 1,
