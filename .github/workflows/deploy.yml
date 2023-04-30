@@ -69,7 +69,7 @@ jobs:
 
   Slack_Notifications:
     runs-on: ubuntu-latest
-    needs: Quality_Gate_Check
+    needs: Approval
     steps:
       - name: Notify slack success
         if: success()
