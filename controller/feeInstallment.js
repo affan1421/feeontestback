@@ -524,6 +524,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				let: {
 					parentId: '$parent_id',
 					studname: '$name',
+					username: '$username',
 				},
 				pipeline: [
 					{
@@ -543,7 +544,14 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 									},
 								],
 							},
-							username: 1,
+							username: {
+								$ifNull: [
+									'$username',
+									{
+										$concat: ['$$username', ''],
+									},
+								],
+							},
 						},
 					},
 				],
