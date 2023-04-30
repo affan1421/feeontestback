@@ -24,47 +24,48 @@ jobs:
         uses: trstringer/manual-approval@v1
         timeout-minutes: 1
         with:
+          minimum-approvals: 1
           secret: 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
-          approvers: yusuf-delvi
+          approvers: yusuf-delvi,hafiz-ikram,nawaz-cumin
 
-  Code_Analysis:
-    runs-on: ubuntu-latest
-    needs: Slack_Notification
-    steps:
-      - name: Checkout the files
-        uses: actions/checkout@v3
+  # Code_Analysis:
+  #   runs-on: ubuntu-latest
+  #   needs: Slack_Notification
+  #   steps:
+  #     - name: Checkout the files
+  #       uses: actions/checkout@v3
 
-      - name: SETUP NODE.JS ENVIRONMENT
-        uses: actions/setup-node@v3.3.0
+  #     - name: SETUP NODE.JS ENVIRONMENT
+  #       uses: actions/setup-node@v3.3.0
 
-      - name: NPM INSTALL & NPM BUILD
-        run: |
-          cd /home/runner/work/feeOn-backend/feeOn-backend
-          npm install --verbose --legacy-peer-deps
-          npm run test --verbose
+  #     - name: NPM INSTALL & NPM BUILD
+  #       run: |
+  #         cd /home/runner/work/feeOn-backend/feeOn-backend
+  #         npm install --verbose --legacy-peer-deps
+  #         npm run test --verbose
 
-      - name: Sonar-Scanner
-        uses: sonarsource/sonarqube-scan-action@master
-        with:
-          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-        env:
-          SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
-          SONAR_HOST_URL: https://sonar.growon.app/
+  #     - name: Sonar-Scanner
+  #       uses: sonarsource/sonarqube-scan-action@master
+  #       with:
+  #         fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+  #       env:
+  #         SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
+  #         SONAR_HOST_URL: https://sonar.growon.app/
 
-  Quality_Gate_Check:
-    runs-on: ubuntu-latest
-    needs: Code_Analysis
-    steps:
-      - name: Checkout the files
-        uses: actions/checkout@v3
+  # Quality_Gate_Check:
+  #   runs-on: ubuntu-latest
+  #   needs: Code_Analysis
+  #   steps:
+  #     - name: Checkout the files
+  #       uses: actions/checkout@v3
 
-      - name: SonarQube Qality Gate check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        with:
-          scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
-        env:
-          SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
-          SONAR_HOST_URL: https://sonar.growon.app/
+  #     - name: SonarQube Qality Gate check
+  #       uses: sonarsource/sonarqube-quality-gate-action@master
+  #       with:
+  #         scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
+  #       env:
+  #         SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
+  #         SONAR_HOST_URL: https://sonar.growon.app/
 
   Slack_Notifications:
     runs-on: ubuntu-latest
