@@ -413,6 +413,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	const {
 		feeDetails,
 		studentId,
+		collectedFee,
+		totalFeeAmount,
+		dueAmount,
 		paymentMethod,
 		bankName,
 		chequeDate,
@@ -645,9 +648,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			address: schoolAddress,
 			schoolId,
 		},
-		totalAmount: Number,
-		paidAmount: Number,
-		dueAmount: Number,
+		paidAmount: collectedFee,
+		totalAmount: totalFeeAmount,
+		dueAmount,
 		payment: {
 			method: paymentMethod,
 			bankName,
