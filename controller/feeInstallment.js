@@ -591,6 +591,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		{
 			$project: {
 				studentId: '$_id',
+				username: 1,
 				studentName: '$name',
 				classId: '$class',
 				className: {
@@ -622,6 +623,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
 	const {
 		studentName = '',
+		username = '',
 		className = '',
 		classId = '',
 		parentName = '',
@@ -644,8 +646,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			},
 		},
 		parent: {
-			name: parentName,
-			mobile: parentMobile,
+			name: parentName ?? `${studentName} (Parent)`,
+			mobile: parentMobile ?? username,
 			parentId,
 		},
 		academicYear: {

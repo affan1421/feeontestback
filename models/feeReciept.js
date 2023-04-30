@@ -129,4 +129,4 @@ const feeRecieptSchema = new Schema(
 	}
 );
 
-module.exports = model('FeeRecieptSchema', feeRecieptSchema);
+module.exports = model('FeeReciept', feeRecieptSchema);
