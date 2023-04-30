@@ -83,7 +83,7 @@ const feeRecieptSchema = new Schema(
 				enum: [
 					'CASH',
 					'CHEQUE',
-					'ONLINE',
+					'ONLINE_TRANSFER',
 					'UPI',
 					'DD',
 					'DEBIT_CARD',
