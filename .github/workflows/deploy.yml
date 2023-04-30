@@ -20,6 +20,9 @@ jobs:
           channel: actions_notification
           status: STARTING
           color: 0000FF
+  Approval:
+    runs-on: ubuntu-latest
+    steps:
       - name: Approval
         uses: trstringer/manual-approval@v1
         timeout-minutes: 1
