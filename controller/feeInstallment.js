@@ -430,6 +430,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 	} = req.body;
 
+	const items = [];
+
 	for (const item of feeDetails) {
 		const foundInstallment = await FeeInstallment.findOne({
 			_id: mongoose.Types.ObjectId(item._id),
@@ -448,6 +450,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		if (isPaid) {
 			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
 		}
+
+		items.push({
+			installmentId: item._id,
+			feeTypeId: item.feeTypeId._id,
+			netAmount: item.netAmount,
+			paidAmount: item.paidAmount,
+		});
 
 		await FeeInstallment.updateOne(
 			{ _id: item._id },
@@ -675,6 +684,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			ddDate,
 		},
 		issueDate,
+		items,
 	});
 
 	return res.status(201).json(SuccessResponse(createdReciept, 1));
