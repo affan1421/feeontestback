@@ -409,10 +409,11 @@ Payload:
 */
 const mapDiscountCategory = async (req, res, next) => {
 	try {
-		const { sectionId, categoryId, rows, studentList, sectionName } = req.body;
+		let { sectionId, categoryId, rows, studentList, sectionName } = req.body;
 		const { discountId } = req.params;
 		const { school_id } = req.user;
 		let discountAmount = 0;
+		studentList = [...new Set(studentList)];
 
 		if (!sectionId || !categoryId || !rows || !studentList) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
@@ -818,9 +819,10 @@ const approveStudentDiscount = async (req, res, next) => {
 
 const addStudentToDiscount = async (req, res, next) => {
 	try {
-		const { sectionId, categoryId, rows, studentList } = req.body;
+		let { sectionId, categoryId, rows, studentList } = req.body;
 		const { discountId } = req.params;
 		let discountAmount = 0;
+		studentList = [...new Set(studentList)];
 
 		if (!sectionId || !categoryId || !rows || !studentList) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
