@@ -396,8 +396,11 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	} = req.body;
 
 	const items = [];
+	let currentPaidAmount = 0;
 
 	for (const item of feeDetails) {
+		currentPaidAmount += item.paidAmount;
+
 		const foundInstallment = await FeeInstallment.findOne({
 			_id: mongoose.Types.ObjectId(item._id),
 		}).lean();
@@ -633,9 +636,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			address: schoolAddress,
 			schoolId,
 		},
-		paidAmount: collectedFee,
+		paidAmount: currentPaidAmount,
 		totalAmount: totalFeeAmount,
-		dueAmount,
+		dueAmount: dueAmount - currentPaidAmount,
 		payment: {
 			method: paymentMethod,
 			bankName,
@@ -652,5 +655,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		items,
 	});
 
-	return res.status(201).json(SuccessResponse(createdReciept, 1));
+	return res.status(201).json(
+		SuccessResponse(
+			{
+				...JSON.parse(JSON.stringify(createdReciept)),
+				items: feeDetails,
+			},
+			1
+		)
+	);
 });
