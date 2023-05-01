@@ -652,5 +652,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		items,
 	});
 
-	return res.status(201).json(SuccessResponse(createdReciept, 1));
+	return res.status(201).json(
+		SuccessResponse(
+			{
+				...JSON.parse(JSON.stringify(createdReciept)),
+				items: feeDetails,
+			},
+			1
+		)
+	);
 });
