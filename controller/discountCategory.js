@@ -713,6 +713,11 @@ const approveStudentDiscount = async (req, res, next) => {
 	const { studentId, status, approvalAmount, sectionName } = req.body;
 	let updatedAmount = 0;
 	try {
+		const update = {
+			$inc: {
+				totalPending: -1,
+			},
+		};
 		const feeInstallments = await FeeInstallment.find({
 			studentId: mongoose.Types.ObjectId(studentId),
 			discounts: {
@@ -736,6 +741,8 @@ const approveStudentDiscount = async (req, res, next) => {
 			const { discountAmount } = discount;
 			if (status === 'Approved' && discountAmount <= netAmount - paidAmount) {
 				updatedAmount += discountAmount;
+				update.$inc.totalApproved = 1;
+				update.$inc.budgetRemaining = -updatedAmount;
 				await FeeInstallment.findOneAndUpdate(
 					{
 						_id,
@@ -757,6 +764,8 @@ const approveStudentDiscount = async (req, res, next) => {
 					}
 				);
 			} else {
+				update.$inc.budgetAlloted = -approvalAmount;
+				update.$inc.totalStudents = -1;
 				// remove that match from the discounts array
 				await FeeInstallment.findOneAndUpdate(
 					{
@@ -774,18 +783,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			}
 		}
 		// Update the totalPending and totalApproved in DiscountCategory
-		const update = {
-			$inc: {
-				totalPending: -1,
-			},
-		};
-		if (status === 'Approved') {
-			update.$inc.totalApproved = 1;
-			update.$inc.budgetRemaining = -updatedAmount;
-		} else {
-			update.$inc.budgetAlloted = -approvalAmount;
-			update.$inc.totalStudents = -1;
-		}
+
 		await DiscountCategory.updateOne(
 			{
 				_id: discountId,

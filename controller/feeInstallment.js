@@ -130,47 +130,12 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 						},
 					},
 					{
-						$lookup: {
-							let: {
-								classId: '$class_id',
-							},
-							from: 'classes',
-							as: 'class',
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$classId'],
-										},
-									},
-								},
-								{
-									$project: {
-										_id: 1,
-										name: 1,
-									},
-								},
-							],
-						},
-					},
-					{
 						$project: {
-							_id: 1,
-							name: 1,
-							class: {
-								$first: '$class',
-							},
-						},
-					},
-					{
-						$project: {
-							name: {
-								$concat: ['$class.name', ' ', '$name'],
-							},
+							name: '$className',
 							sectionId: '$_id',
 							sectionName: '$name',
-							classId: '$class._id',
-							className: '$class.name',
+							classId: '$class_id',
+							className: 1,
 						},
 					},
 				],
