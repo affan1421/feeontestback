@@ -454,13 +454,13 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 //  unmapped?schoolId=schoolId&categoryId=categoryId
 exports.getUnmappedClassList = async (req, res, next) => {
 	const { schoolId, categoryId, discountId } = req.query;
-	let mappedClassIds = [];
-	const payload = {
-		schoolId: mongoose.Types.ObjectId(schoolId),
-	};
-	if (categoryId) {
-		payload.categoryId = mongoose.Types.ObjectId(categoryId);
-	}
+	// const mappedClassIds = [];
+	// const payload = {
+	// 	schoolId: mongoose.Types.ObjectId(schoolId),
+	// };
+	// if (categoryId) {
+	// 	payload.categoryId = mongoose.Types.ObjectId(categoryId);
+	// }
 	try {
 		let sectionList = await Sections.aggregate([
 			{
@@ -510,21 +510,21 @@ exports.getUnmappedClassList = async (req, res, next) => {
 			sectionId: section.sectionId.toString(),
 			class_id: section.class_id,
 		}));
-		if (categoryId) {
-			const mappedClassList = await FeeStructure.aggregate([
-				{
-					$match: payload,
-				},
-				{ $unwind: '$classes' },
-				{ $group: { _id: '$classes.sectionId' } },
-			]);
-			if (mappedClassList.length > 0) {
-				mappedClassIds = mappedClassList.map(c => c._id.toString());
-				sectionList = sectionList.filter(
-					c => !mappedClassIds.includes(c.sectionId)
-				);
-			}
-		}
+		// if (categoryId) {
+		// 	const mappedClassList = await FeeStructure.aggregate([
+		// 		{
+		// 			$match: payload,
+		// 		},
+		// 		{ $unwind: '$classes' },
+		// 		{ $group: { _id: '$classes.sectionId' } },
+		// 	]);
+		// 	if (mappedClassList.length > 0) {
+		// 		mappedClassIds = mappedClassList.map(c => c._id.toString());
+		// 		sectionList = sectionList.filter(
+		// 			c => !mappedClassIds.includes(c.sectionId)
+		// 		);
+		// 	}
+		// }
 		if (discountId) {
 			const mappedSections = await SectionDiscount.aggregate([
 				{
