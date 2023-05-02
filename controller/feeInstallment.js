@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
+
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
 const FeeReciept = require('../models/feeReciept.js');
@@ -393,46 +395,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		ddNumber,
 		ddDate,
 		issueDate,
+		feeCategoryName,
+		feeCategoryId,
 	} = req.body;
-
-	const items = [];
-	let currentPaidAmount = 0;
-
-	for (const item of feeDetails) {
-		currentPaidAmount += item.paidAmount;
-
-		const foundInstallment = await FeeInstallment.findOne({
-			_id: mongoose.Types.ObjectId(item._id),
-		}).lean();
-
-		const isPaid =
-			foundInstallment.netAmount -
-				(item.paidAmount + foundInstallment.paidAmount) ==
-			0;
-
-		const updateData = {
-			paidDate: new Date(),
-			paidAmount: item.paidAmount + foundInstallment.paidAmount,
-		};
-
-		if (isPaid) {
-			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
-		}
-
-		items.push({
-			installmentId: item._id,
-			feeTypeId: item.feeTypeId._id,
-			netAmount: item.netAmount,
-			paidAmount: item.paidAmount,
-		});
-
-		await FeeInstallment.updateOne(
-			{ _id: item._id },
-			{
-				$set: updateData,
-			}
-		);
-	}
 
 	const foundStudent = await Student.aggregate([
 		{
@@ -613,6 +578,65 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		schoolId = '',
 	} = foundStudent[0];
 
+	const currentDate = moment();
+	const date = currentDate.format('DDMMYY');
+	const shortCategory = feeCategoryName.slice(0, 2);
+
+	let newCount = '00001';
+	const lastReceipt = await FeeReciept.findOne({
+		'school.schoolId': schoolId,
+	})
+		.sort({ createdAt: -1 })
+		.lean();
+
+	if (lastReceipt) {
+		if (lastReceipt.recieptId) {
+			newCount = lastReceipt.recieptId
+				.slice(-5)
+				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
+		}
+	}
+	const recieptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
+
+	const items = [];
+	let currentPaidAmount = 0;
+
+	for (const item of feeDetails) {
+		currentPaidAmount += item.paidAmount;
+
+		const foundInstallment = await FeeInstallment.findOne({
+			_id: mongoose.Types.ObjectId(item._id),
+		}).lean();
+
+		const isPaid =
+			foundInstallment.netAmount -
+				(item.paidAmount + foundInstallment.paidAmount) ==
+			0;
+
+		const updateData = {
+			paidDate: new Date(),
+			paidAmount: item.paidAmount + foundInstallment.paidAmount,
+		};
+
+		if (isPaid) {
+			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
+		}
+
+		items.push({
+			installmentId: item._id,
+			feeTypeId: item.feeTypeId._id,
+			netAmount: item.netAmount,
+			paidAmount: item.paidAmount,
+		});
+
+		await FeeInstallment.updateOne(
+			{ _id: item._id },
+			{
+				$set: updateData,
+			}
+		);
+	}
+
 	const createdReciept = await FeeReciept.create({
 		student: {
 			name: studentName,
@@ -621,6 +645,11 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				name: className,
 				classId,
 			},
+		},
+		recieptId,
+		category: {
+			name: feeCategoryName,
+			feeCategoryId,
 		},
 		parent: {
 			name: parentName ?? `${studentName} (Parent)`,

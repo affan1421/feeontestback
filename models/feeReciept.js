@@ -24,6 +24,21 @@ const feeRecieptSchema = new Schema(
 				},
 			},
 		},
+		category: {
+			feeCategoryId: {
+				type: Schema.Types.ObjectId,
+				ref: 'FeeCategory',
+				required: [true, 'Fee category is required'],
+			},
+			name: {
+				type: String,
+				required: [true, 'Fee category name is required'],
+			},
+		},
+		recieptId: {
+			type: String,
+			required: [true, 'Reciept id is required'],
+		},
 		parent: {
 			name: {
 				type: String,
