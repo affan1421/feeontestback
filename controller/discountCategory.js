@@ -60,23 +60,42 @@ With the row discount data.
 */
 const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const { structureId } = req.query;
 	const classList = await SectionDiscount.aggregate([
 		{
 			$match: {
 				discountId: mongoose.Types.ObjectId(id),
+				feeStructureId: mongoose.Types.ObjectId(structureId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'feetypes',
+				localField: 'feeTypeId',
+				foreignField: '_id',
+				as: 'feeTypeId',
 			},
 		},
 		{
 			$group: {
-				_id: {
-					feeStructureId: '$feeStructureId',
-					categoryId: '$categoryId',
-					sectionId: '$sectionId',
-					sectionName: '$sectionName',
-					totalStudents: '$totalStudents',
-					totalApproved: '$totalApproved',
-					totalPending: '$totalPending',
-					totalRejected: '$totalRejected',
+				_id: '$feeStructureId',
+				categoryId: {
+					$first: '$categoryId',
+				},
+				sectionId: {
+					$first: '$sectionId',
+				},
+				sectionName: {
+					$first: '$sectionName',
+				},
+				totalStudents: {
+					$first: '$totalStudents',
+				},
+				totalApproved: {
+					$first: '$totalApproved',
+				},
+				totalPending: {
+					$first: '$totalPending',
 				},
 				totalAmount: {
 					$sum: '$discountAmount',
@@ -85,8 +104,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					$sum: '$totalAmount',
 				},
 				rows: {
-					$addToSet: {
-						feeTypeId: '$feeTypeId',
+					$push: {
+						feeType: {
+							$first: '$feeTypeId',
+						},
 						totalAmount: '$totalAmount',
 						isPercentage: '$isPercentage',
 						breakdown: '$breakdown',
@@ -96,55 +117,8 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$unwind: {
-				path: '$rows',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$lookup: {
-				from: 'feetypes',
-				localField: 'rows.feeTypeId',
-				foreignField: '_id',
-				as: 'rows.feeTypeId',
-			},
-		},
-		{
-			$group: {
-				_id: '$_id',
-				totalAmount: {
-					$first: '$totalAmount',
-				},
-				totalFees: {
-					$first: '$totalFees',
-				},
-				rows: {
-					$push: {
-						feeType: {
-							$first: '$rows.feeTypeId',
-						},
-						totalAmount: '$rows.totalAmount',
-						isPercentage: '$rows.isPercentage',
-						value: '$rows.value',
-						breakdown: '$rows.breakdown',
-					},
-				},
-			},
-		},
-		{
-			$project: {
-				_id: 0,
-				sectionId: '$_id.sectionId',
-				feeStructureId: '$_id.feeStructureId',
-				categoryId: '$_id.categoryId',
-				sectionName: '$_id.sectionName',
-				totalStudents: '$_id.totalStudents',
-				totalAmount: 1,
-				totalFees: 1,
-				totalApproved: '$_id.totalApproved',
-				totalPending: '$_id.totalPending',
-				totalRejected: '$_id.totalRejected',
-				rows: 1,
+			$addFields: {
+				feeStructureId: '$_id',
 			},
 		},
 	]);
