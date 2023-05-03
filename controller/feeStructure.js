@@ -556,6 +556,26 @@ exports.getUnmappedClassList = async (req, res, next) => {
 	}
 };
 
+exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
+	const { sectionId, categoryId } = req.params;
+	const foundStructure = await FeeStructure.find(
+		{
+			classes: { $elemMatch: { sectionId } },
+			categoryId,
+			schoolId: req.user.school_id,
+		},
+		'feeStructureName'
+	).lean();
+
+	if (!foundStructure.length) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(foundStructure, 1, 'Fetched Successfully'));
+});
+
 exports.assignFeeStructure = async (req, res, next) => {
 	const { studentList, sectionId } = req.body;
 	// find the feestructure id for the section

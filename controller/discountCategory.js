@@ -61,12 +61,15 @@ With the row discount data.
 const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { structureId } = req.query;
+	const query = {
+		discountId: mongoose.Types.ObjectId(id),
+	};
+	if (structureId) {
+		query.feeStructureId = mongoose.Types.ObjectId(structureId);
+	}
 	const classList = await SectionDiscount.aggregate([
 		{
-			$match: {
-				discountId: mongoose.Types.ObjectId(id),
-				feeStructureId: mongoose.Types.ObjectId(structureId),
-			},
+			$match: query,
 		},
 		{
 			$lookup: {

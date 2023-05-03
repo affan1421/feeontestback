@@ -8,6 +8,11 @@ router.get('/unmapped', feeStructureController.getUnmappedClassList);
 // CREATE
 router.post('/', feeStructureController.create);
 
+router.get(
+	'/section/:sectionId/category/:categoryId',
+	feeStructureController.getFeeStructureBySectionId
+);
+
 // READ
 router.get('/:id', feeStructureController.read);
 
