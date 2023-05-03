@@ -60,34 +60,16 @@ With the row discount data.
 */
 const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { structureId } = req.query;
 	const query = {
 		discountId: mongoose.Types.ObjectId(id),
 	};
-	if (structureId) {
-		query.feeStructureId = mongoose.Types.ObjectId(structureId);
-	}
 	const classList = await SectionDiscount.aggregate([
 		{
 			$match: query,
 		},
 		{
-			$lookup: {
-				from: 'feetypes',
-				localField: 'feeTypeId',
-				foreignField: '_id',
-				as: 'feeTypeId',
-			},
-		},
-		{
 			$group: {
-				_id: '$feeStructureId',
-				categoryId: {
-					$first: '$categoryId',
-				},
-				sectionId: {
-					$first: '$sectionId',
-				},
+				_id: '$sectionId',
 				sectionName: {
 					$first: '$sectionName',
 				},
@@ -106,22 +88,11 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalFees: {
 					$sum: '$totalAmount',
 				},
-				rows: {
-					$push: {
-						feeType: {
-							$first: '$feeTypeId',
-						},
-						totalAmount: '$totalAmount',
-						isPercentage: '$isPercentage',
-						breakdown: '$breakdown',
-						value: '$value',
-					},
-				},
 			},
 		},
 		{
 			$addFields: {
-				feeStructureId: '$_id',
+				sectionId: '$_id',
 			},
 		},
 	]);
@@ -922,10 +893,10 @@ const addStudentToDiscount = async (req, res, next) => {
 };
 
 const getSectionDiscount = catchAsync(async (req, res, next) => {
-	const { id, sectionId } = req.params;
+	const { id, feeStructureId } = req.params;
 	const filter = {
 		discountId: id,
-		sectionId,
+		feeStructureId,
 	};
 	const projections = {
 		_id: 0,
