@@ -611,19 +611,18 @@ exports.assignFeeStructure = async (req, res, next) => {
 // TODO: Fetch the feeDetails with the students data from feeInstallments
 exports.getFeeCategory = async (req, res, next) => {
 	try {
-		const { categoryId, sectionId } = req.params;
+		const { id } = req.params;
 		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
 		const feeStructure = await FeeStructure.findOne(
 			{
-				schoolId,
-				categoryId,
-				classes: { $elemMatch: { sectionId } },
+				_id: id,
 			},
-			'_id feeDetails totalAmount'
+			'_id feeDetails totalAmount categoryId'
 		).lean();
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
+		const { categoryId } = feeStructure;
 		const FeeTypes = (await FeeType.find({ schoolId, categoryId })) || [];
 		const feeDetails = feeStructure.feeDetails.map(fee => {
 			const feeType = FeeTypes.find(

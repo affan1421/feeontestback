@@ -27,10 +27,7 @@ router.get('/', feeStructureController.getByFilter);
 
 router.post('/assign', feeStructureController.assignFeeStructure);
 
-router.get(
-	'/category/:categoryId/section/:sectionId',
-	feeStructureController.getFeeCategory
-);
+router.get('/:id/feedetails', feeStructureController.getFeeCategory);
 
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);
