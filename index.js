@@ -57,6 +57,7 @@ mongoose
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));
 		app.use('/api/v1/feeinstallment', require('./router/feeInstallment'));
 		app.use('/api/v1/discount', require('./router/discountCategory'));
+		app.use('/api/v1/applicationfee', require('./router/applicationFee'));
 
 		app.use((err, req, res, next) => {
 			res.status(err.statusCode || 500).json({

@@ -1,14 +1,25 @@
 // Application Fee with student details and receipt details
 // ***********************************************************
 // {
-//     name: string;
+//     studentName: string;
 //     classId: string;
 //     className: string;
 //     parentName: string;
 //     phoneNumber: number;
 //     course: string;
 //     amount: number;
-//     schoolId: string;
+//     schoolId: {
+//       name: string;
+//       schoolId: string;
+// 		 address: string;
+// 	   };
+// 	   academicYear: {
+//       name: string;
+//       academicYearId: string;
+// 	   }
+// 	   receiptId: string;
+// 	   issueDate: string;
+// 	   paymentMode: string;
 // }
 
 // Require mongoose and mongoose schema
@@ -41,14 +52,43 @@ const applicationFeeSchema = new Schema(
 			type: Number,
 			required: [true, 'Amount Is Required'],
 		},
-		schoolId: {
-			type: Schema.Types.ObjectId,
-			ref: 'School',
-			required: true,
+		academicYear: {
+			name: {
+				type: String,
+				required: [true, 'academic year is required'],
+			},
+			academicYearId: {
+				type: Schema.Types.ObjectId,
+				ref: 'AcademicYear',
+				required: [true, 'academicYearId is required'],
+			},
+		},
+		school: {
+			name: {
+				type: String,
+				required: [true, 'school name is required'],
+			},
+			address: {
+				type: String,
+				required: [true, 'school address is required'],
+			},
+			schoolId: {
+				type: Schema.Types.ObjectId,
+				ref: 'School',
+				required: [true, 'schoolId is required'],
+			},
 		},
 		// receipt details
-		receiptNumber: Number,
-		receiptDate: Date,
+		receiptId: {
+			type: String,
+			required: [true, 'Reciept id is required'],
+		},
+		accountType: {
+			type: String,
+			enum: ['Income', 'Expense', 'Revenue'],
+			default: 'Revenue',
+		},
+		issueDate: Date,
 		paymentMode: {
 			type: String,
 			enum: ['Cash', 'UPI'],
