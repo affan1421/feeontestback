@@ -59,42 +59,49 @@ const createApplicationFee = async (req, res, next) => {
 		}
 		const receiptId = `AP${formattedDate}${newCount}`;
 		const payload = {
-			student: {
-				name: studentName,
-				class: {
-					classId,
-					name: className,
-				},
-			},
-			parent: {
-				name: parentName,
-				mobile: phoneNumber,
-			},
+			studentName,
+			classId,
+			className,
+			parentName,
+			phoneNumber,
 			course,
 			amount,
-			school: {
-				name: schoolName,
-				address,
-				schoolId,
-			},
-			academicYear: {
-				name: academicYearName,
-				academicYearId,
-			},
-			receiptId,
-			issueDate,
-			payment: {
-				method: paymentMode,
-			},
-			item: [
-				{
-					feeTypeId: {
-						feeType: 'Application Fee',
+			receipt: {
+				student: {
+					name: studentName,
+					class: {
+						classId,
+						name: className,
 					},
-					netAmount: amount,
-					paidAmount: amount,
 				},
-			],
+				parent: {
+					name: parentName,
+					mobile: phoneNumber,
+				},
+				school: {
+					name: schoolName,
+					address,
+					schoolId,
+				},
+				academicYear: {
+					name: academicYearName,
+					academicYearId,
+				},
+				receiptId,
+				issueDate,
+				payment: {
+					method: paymentMode,
+				},
+				item: [
+					{
+						feeTypeId: {
+							feeType: 'Application Fee',
+						},
+						netAmount: amount,
+						paidAmount: amount,
+					},
+				],
+			},
 		};
 		const applicationFee = new ApplicationFee(payload);
 
@@ -111,20 +118,24 @@ const createApplicationFee = async (req, res, next) => {
 
 // Get all application fee records
 const getAllApplicationFees = catchAsync(async (req, res, next) => {
-	let { schoolId, page = 0, limit = 5 } = req.query;
+	let { schoolId, classId, page = 0, limit = 5 } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
-		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+		payload['receipt.school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+	if (classId) {
+		payload.classId = mongoose.Types.ObjectId(classId);
 	}
 	// find active academic year
 	const { _id: academicYearId } = await AcademicYear.findOne({
 		isActive: true,
 		schoolId,
 	});
-	payload['academicYear.academicYearId'] =
+	payload['receipt.academicYear.academicYearId'] =
 		mongoose.Types.ObjectId(academicYearId);
+	console.log(payload);
 	const applicationFee = await ApplicationFee.aggregate([
 		{
 			$facet: {
