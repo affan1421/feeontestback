@@ -1,29 +1,6 @@
-// Application Fee with student details and receipt details
-// ***********************************************************
-// {
-//     studentName: string;
-//     classId: string;
-//     className: string;
-//     parentName: string;
-//     phoneNumber: number;
-//     course: string;
-//     amount: number;
-//     schoolId: {
-//       name: string;
-//       schoolId: string;
-// 		 address: string;
-// 	   };
-// 	   academicYear: {
-//       name: string;
-//       academicYearId: string;
-// 	   }
-// 	   receiptId: string;
-// 	   issueDate: string;
-// 	   paymentMode: string;
-// }
-
 // Require mongoose and mongoose schema
 const { Schema, model } = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
 
 const applicationFeeSchema = new Schema(
 	{
@@ -96,5 +73,18 @@ const applicationFeeSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+// index schoolId and academicYearId
+applicationFeeSchema.index({
+	'school.schoolId': 1,
+	'academicYear.academicYearId': 1,
+});
+
+// soft delete plugin
+applicationFeeSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	deletedBy: true,
+	overrideMethods: true,
+});
 
 module.exports = model('ApplicationFee', applicationFeeSchema);

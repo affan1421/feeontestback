@@ -98,8 +98,15 @@ const getAllApplicationFees = catchAsync(async (req, res, next) => {
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
-		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
 	}
+	// find active academic year
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+	payload['academicYear.academicYearId'] =
+		mongoose.Types.ObjectId(academicYearId);
 	const applicationFee = await ApplicationFee.aggregate([
 		{
 			$facet: {
