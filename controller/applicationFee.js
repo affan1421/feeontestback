@@ -92,7 +92,7 @@ const createApplicationFee = async (req, res, next) => {
 				payment: {
 					method: paymentMode,
 				},
-				item: [
+				items: [
 					{
 						feeTypeId: {
 							feeType: 'Application Fee',
@@ -135,7 +135,6 @@ const getAllApplicationFees = catchAsync(async (req, res, next) => {
 	});
 	payload['receipt.academicYear.academicYearId'] =
 		mongoose.Types.ObjectId(academicYearId);
-	console.log(payload);
 	const applicationFee = await ApplicationFee.aggregate([
 		{
 			$facet: {

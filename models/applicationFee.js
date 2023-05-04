@@ -90,7 +90,7 @@ const applicationFeeSchema = new Schema(
 					enum: ['Cash', 'UPI'],
 				},
 			},
-			item: [
+			items: [
 				{
 					feeTypeId: {
 						feeType: {
