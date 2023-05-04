@@ -4,25 +4,32 @@ const mongoose_delete = require('mongoose-delete');
 
 const applicationFeeSchema = new Schema(
 	{
-		studentName: {
-			type: String,
-			required: true,
-			trim: [true, 'Student Name Is Required'],
+		student: {
+			name: {
+				type: String,
+				required: [true, 'student name is required'],
+			},
+			class: {
+				name: {
+					type: String,
+					required: [true, 'class name is required'],
+				},
+				classId: {
+					type: Schema.Types.ObjectId,
+					ref: 'Class',
+					required: [true, 'classId is required'],
+				},
+			},
 		},
-		classId: {
-			type: Schema.Types.ObjectId,
-			ref: 'Class',
-			required: true,
-		},
-		className: String,
-		parentName: {
-			type: String,
-			required: [true, 'Parent Name Is Required'],
-			trim: true,
-		},
-		phoneNumber: {
-			type: Number,
-			required: [true, 'Phone Number Is Required'],
+		parent: {
+			name: {
+				type: String,
+				required: [true, 'parent name is required'],
+			},
+			mobile: {
+				type: Number,
+				required: [true, 'Parent mobile is required'],
+			},
 		},
 		course: String,
 		amount: {
@@ -66,10 +73,24 @@ const applicationFeeSchema = new Schema(
 			default: 'Revenue',
 		},
 		issueDate: Date,
-		paymentMode: {
-			type: String,
-			enum: ['Cash', 'UPI'],
+		payment: {
+			method: {
+				type: String,
+				enum: ['Cash', 'UPI'],
+			},
 		},
+		item: [
+			{
+				feeTypeId: {
+					feeType: {
+						type: String,
+						required: true,
+					},
+				},
+				netAmount: Number,
+				paidAmount: Number,
+			},
+		],
 	},
 	{ timestamps: true }
 );

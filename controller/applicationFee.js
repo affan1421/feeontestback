@@ -58,12 +58,18 @@ const createApplicationFee = async (req, res, next) => {
 				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
 		}
 		const receiptId = `AP${formattedDate}${newCount}`;
-		const applicationFee = new ApplicationFee({
-			studentName,
-			classId,
-			className,
-			parentName,
-			phoneNumber,
+		const payload = {
+			student: {
+				name: studentName,
+				class: {
+					classId,
+					name: className,
+				},
+			},
+			parent: {
+				name: parentName,
+				mobile: phoneNumber,
+			},
 			course,
 			amount,
 			school: {
@@ -77,8 +83,20 @@ const createApplicationFee = async (req, res, next) => {
 			},
 			receiptId,
 			issueDate,
-			paymentMode,
-		});
+			payment: {
+				method: paymentMode,
+			},
+			item: [
+				{
+					feeTypeId: {
+						feeType: 'Application Fee',
+					},
+					netAmount: amount,
+					paidAmount: amount,
+				},
+			],
+		};
+		const applicationFee = new ApplicationFee(payload);
 
 		await applicationFee.save();
 
