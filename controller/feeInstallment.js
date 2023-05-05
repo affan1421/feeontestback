@@ -4,6 +4,7 @@ const moment = require('moment');
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
 const FeeReciept = require('../models/feeReceipt.js');
+const AcademicYear = require('../models/academicYear');
 
 const Student = mongoose.connection.db.collection('students');
 
@@ -18,10 +19,25 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
 	}
 
+	if (!schoolId) {
+		return next(new ErrorResponse('Schoolid is required', 400));
+	}
+
 	const matchQuery = {};
 
 	if (schoolId) {
-		matchQuery.school = { schoolId };
+		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+
+	const foundAcademicYear = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	})
+		.select('_id')
+		.lean();
+
+	if (foundAcademicYear) {
+		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
 	}
 
 	const foundTransactions = await FeeReciept.aggregate([
