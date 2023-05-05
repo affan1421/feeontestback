@@ -60,23 +60,27 @@ With the row discount data.
 */
 const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+	const query = {
+		discountId: mongoose.Types.ObjectId(id),
+	};
 	const classList = await SectionDiscount.aggregate([
 		{
-			$match: {
-				discountId: mongoose.Types.ObjectId(id),
-			},
+			$match: query,
 		},
 		{
 			$group: {
-				_id: {
-					feeStructureId: '$feeStructureId',
-					categoryId: '$categoryId',
-					sectionId: '$sectionId',
-					sectionName: '$sectionName',
-					totalStudents: '$totalStudents',
-					totalApproved: '$totalApproved',
-					totalPending: '$totalPending',
-					totalRejected: '$totalRejected',
+				_id: '$sectionId',
+				sectionName: {
+					$first: '$sectionName',
+				},
+				totalStudents: {
+					$first: '$totalStudents',
+				},
+				totalApproved: {
+					$first: '$totalApproved',
+				},
+				totalPending: {
+					$first: '$totalPending',
 				},
 				totalAmount: {
 					$sum: '$discountAmount',
@@ -84,67 +88,11 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalFees: {
 					$sum: '$totalAmount',
 				},
-				rows: {
-					$addToSet: {
-						feeTypeId: '$feeTypeId',
-						totalAmount: '$totalAmount',
-						isPercentage: '$isPercentage',
-						breakdown: '$breakdown',
-						value: '$value',
-					},
-				},
 			},
 		},
 		{
-			$unwind: {
-				path: '$rows',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$lookup: {
-				from: 'feetypes',
-				localField: 'rows.feeTypeId',
-				foreignField: '_id',
-				as: 'rows.feeTypeId',
-			},
-		},
-		{
-			$group: {
-				_id: '$_id',
-				totalAmount: {
-					$first: '$totalAmount',
-				},
-				totalFees: {
-					$first: '$totalFees',
-				},
-				rows: {
-					$push: {
-						feeType: {
-							$first: '$rows.feeTypeId',
-						},
-						totalAmount: '$rows.totalAmount',
-						isPercentage: '$rows.isPercentage',
-						value: '$rows.value',
-						breakdown: '$rows.breakdown',
-					},
-				},
-			},
-		},
-		{
-			$project: {
-				_id: 0,
-				sectionId: '$_id.sectionId',
-				feeStructureId: '$_id.feeStructureId',
-				categoryId: '$_id.categoryId',
-				sectionName: '$_id.sectionName',
-				totalStudents: '$_id.totalStudents',
-				totalAmount: 1,
-				totalFees: 1,
-				totalApproved: '$_id.totalApproved',
-				totalPending: '$_id.totalPending',
-				totalRejected: '$_id.totalRejected',
-				rows: 1,
+			$addFields: {
+				sectionId: '$_id',
 			},
 		},
 	]);
@@ -945,10 +893,10 @@ const addStudentToDiscount = async (req, res, next) => {
 };
 
 const getSectionDiscount = catchAsync(async (req, res, next) => {
-	const { id, sectionId } = req.params;
+	const { id, feeStructureId } = req.params;
 	const filter = {
 		discountId: id,
-		sectionId,
+		feeStructureId,
 	};
 	const projections = {
 		_id: 0,

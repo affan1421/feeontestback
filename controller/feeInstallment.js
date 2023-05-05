@@ -3,7 +3,7 @@ const moment = require('moment');
 
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
-const FeeReciept = require('../models/feeReciept.js');
+const FeeReciept = require('../models/feeReceipt.js');
 
 const Student = mongoose.connection.db.collection('students');
 
@@ -688,4 +688,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			1
 		)
 	);
+});
+
+exports.IncomeDashboard = catchAsync(async (req, res, next) => {
+	// Get the todays paid installments amount compared to previous date based on filters (daily, weekly, monthly or custom range)
 });

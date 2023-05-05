@@ -1,6 +1,7 @@
 const { Schema, model } = require('mongoose');
+const mongoose_delete = require('mongoose-delete');
 
-const feeRecieptSchema = new Schema(
+const feeReceiptSchema = new Schema(
 	{
 		student: {
 			name: {
@@ -142,4 +143,17 @@ const feeRecieptSchema = new Schema(
 	}
 );
 
-module.exports = model('FeeReciept', feeRecieptSchema);
+// index classId, academicYearId, schoolId
+
+feeReceiptSchema.index({
+	'academicYear.academicYearId': 1,
+	'school.schoolId': 1,
+});
+
+feeReceiptSchema.plugin(mongoose_delete, {
+	deletedAt: true,
+	deletedBy: true,
+	overrideMethods: 'all',
+});
+
+module.exports = model('FeeReciept', feeReceiptSchema);

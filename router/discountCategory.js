@@ -30,7 +30,7 @@ router.get('/:id/studentFilter', getStudentsByFilter);
 router.post('/:discountId/addStudent', addStudentToDiscount);
 
 // Fetch only the section Discount.
-router.get('/:id/section/:sectionId', getSectionDiscount);
+router.get('/:id/mappedStructure/:feeStructureId', getSectionDiscount);
 
 // discount analytics
 router.get('/report', discountReport);
