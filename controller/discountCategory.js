@@ -265,7 +265,6 @@ const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const discount = await DiscountCategory.findOne({
 		_id: id,
-		schoolId: req.user.school_id,
 	});
 	if (!discount) {
 		return next(new ErrorResponse('Discount Not Found', 404));

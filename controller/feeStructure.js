@@ -173,10 +173,8 @@ exports.create = async (req, res, next) => {
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { school_id: schoolId } = req.user;
-
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
-		schoolId,
 	})
 		.populate('academicYearId', 'name')
 		.lean();
@@ -301,7 +299,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		}
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
-			{ _id: id, schoolId: rest.schoolId },
+			{ _id: id },
 			{
 				$set: {
 					feeStructureName,
@@ -382,7 +380,6 @@ exports.deleteFeeStructure = async (req, res, next) => {
 	try {
 		await FeeStructure.findOneAndDelete({
 			_id: id,
-			schoolId,
 		});
 		await Sections.updateMany(
 			{

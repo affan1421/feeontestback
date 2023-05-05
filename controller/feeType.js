@@ -70,11 +70,9 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { school_id: schoolId } = req.user;
 
 	const feetype = await Feetype.findOne({
 		_id: id,
-		schoolId,
 	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));
@@ -94,7 +92,7 @@ exports.update = catchAsync(async (req, res, next) => {
 		categoryId,
 	} = req.body;
 	const feetype = await Feetype.findOneAndUpdate(
-		{ _id: id, schoolId: req.body.schoolId },
+		{ _id: id },
 		{
 			feeType,
 			description,
@@ -113,11 +111,9 @@ exports.update = catchAsync(async (req, res, next) => {
 // DELETE
 exports.feeDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { school_id: schoolId } = req.user;
 
 	const feetype = await Feetype.findOneAndDelete({
 		_id: id,
-		schoolId,
 	});
 	if (feetype === null) {
 		return next(new ErrorResponse('Fee Type Not Found', 404));

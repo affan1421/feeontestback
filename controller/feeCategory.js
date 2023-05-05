@@ -40,12 +40,9 @@ const createFeeCategory = async (req, res, next) => {
 // @route   GET /api/v1/feecategory/:id
 // @access  Private
 const getFeeCategory = catchAsync(async (req, res, next) => {
-	const { school_id: schoolId } = req.user;
-
 	const { id } = req.params;
 	const feeCategory = await FeeCategory.findOne({
 		_id: id,
-		schoolId,
 	});
 	if (!feeCategory) {
 		return next(new ErrorResponse('Fee Category Not Found', 404));
@@ -102,7 +99,7 @@ const updateFeeCategory = async (req, res, next) => {
 		const { id } = req.params;
 		const { name, description, schoolId } = req.body;
 		const feeCategory = await FeeCategory.findOneAndUpdate(
-			{ _id: id, schoolId },
+			{ _id: id },
 			{
 				name,
 				description,
@@ -173,11 +170,9 @@ const getFeeCategoryBySectionId = catchAsync(async (req, res, next) => {
 const deleteFeeCategory = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { school_id: schoolId } = req.user;
 
 		const feeCategory = await FeeCategory.findOneAndDelete({
 			_id: id,
-			schoolId,
 		});
 		if (!feeCategory) {
 			return res

@@ -697,4 +697,42 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
 exports.IncomeDashboard = catchAsync(async (req, res, next) => {
 	// Get the todays paid installments amount compared to previous date based on filters (daily, weekly, monthly or custom range)
+	// Get total receivable, total Collected, total Pending.
+	/*
+	{
+		totalReceivable: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		},
+			totalCollected: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		},
+			totalPending: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		}
+	}
+	*/
 });
