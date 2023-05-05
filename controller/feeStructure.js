@@ -29,6 +29,7 @@ async function runChildProcess(
 		studentList = await Students.find(
 			{
 				section: { $in: sectionIds },
+				deleted: false,
 			},
 			'_id section'
 		).toArray();
@@ -194,6 +195,7 @@ exports.read = catchAsync(async (req, res, next) => {
 
 	const query = {
 		section: { $in: sectionList },
+		deleted: false,
 	};
 
 	const [students, feeInstallments] = await Promise.all([
