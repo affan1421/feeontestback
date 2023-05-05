@@ -95,7 +95,7 @@ const feeStructureSchema = new Schema(
 feeStructureSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	overrideMethods: true,
-	deleteBy: true,
+	deletedBy: true,
 });
 
 feeStructureSchema.pre('save', addAcademicYearId);
