@@ -12,12 +12,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
-	const {
-		pageNum = 1,
-		limit = 10,
-		schoolId = null,
-		status = 'Paid',
-	} = req.query;
+	const { pageNum = 1, limit = 10, schoolId = null, status = null } = req.query;
 
 	if (limit > 50) {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
