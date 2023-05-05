@@ -21,13 +21,13 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	const matchQuery = {};
 
 	if (schoolId) {
-		matchQuery.schoolId = schoolId;
+		matchQuery.school = { schoolId };
 	}
 	if (status) {
 		matchQuery.status = status;
 	}
 
-	const foundTransactions = await FeeInstallment.aggregate([
+	const foundTransactions = await FeeReciept.aggregate([
 		{
 			$match: matchQuery,
 		},
@@ -45,7 +45,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'students',
-				let: { studentId: '$studentId' },
+				let: { studentId: '$student.studentId' },
 				as: 'studentId',
 				pipeline: [
 					{
@@ -71,11 +71,10 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 				studentId: {
 					$first: '$studentId',
 				},
-				date: 1,
-				paidDate: 1,
+				paidAmount: 1,
+				dueAmount: 1,
 				totalAmount: 1,
-				netAmount: 1,
-				status: 1,
+				date: '$createdAt',
 			},
 		},
 	]);
