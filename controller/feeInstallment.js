@@ -73,6 +73,10 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 				},
 				date: 1,
 				paidDate: 1,
+				paidAmount: 1,
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
 				totalAmount: 1,
 				netAmount: 1,
 				status: 1,
