@@ -179,6 +179,7 @@ exports.read = catchAsync(async (req, res, next) => {
 	})
 		.populate('academicYearId', 'name')
 		.lean();
+	const { categoryId } = feeStructure;
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
@@ -208,12 +209,15 @@ exports.read = catchAsync(async (req, res, next) => {
 						$in: sectionList,
 					},
 					schoolId: mongoose.Types.ObjectId(schoolId),
-					feeStructureId: mongoose.Types.ObjectId(id),
+					categoryId: mongoose.Types.ObjectId(categoryId),
 				},
 			},
 			{
 				$group: {
 					_id: '$studentId',
+					feeStructureId: {
+						$first: '$feeStructureId',
+					},
 					installments: { $push: '$$ROOT' },
 				},
 			},
@@ -228,24 +232,25 @@ exports.read = catchAsync(async (req, res, next) => {
 		acc[curr._id] = curr.installments;
 		return acc;
 	}, {});
-
 	const updatedStudents = students.reduce((acc, curr) => {
-		const foundInstallment = installmentObj[curr._id];
-		if (foundInstallment && foundInstallment.length) {
-			const hasPaidInstallment = foundInstallment.some(
-				installment => installment.status === 'Paid'
-			);
-			acc.push({
-				...curr,
-				isSelected: true,
-				isPaid: hasPaidInstallment,
-			});
-		} else {
-			acc.push({
-				...curr,
-				isSelected: false,
-			});
+		const { _id } = curr;
+		const foundInstallment = installmentObj[_id];
+		const hasInstallment = Boolean(foundInstallment);
+		const hasMatchingFeeStructure =
+			hasInstallment &&
+			foundInstallment[0].feeStructureId.toString() === id.toString();
+		const hasPaidInstallment =
+			hasInstallment &&
+			foundInstallment.some(installment => installment.status === 'Paid');
+
+		if (!hasInstallment || hasMatchingFeeStructure) {
+			if (hasMatchingFeeStructure) {
+				curr.isSelected = true;
+				curr.isPaid = hasPaidInstallment;
+			}
+			acc.push(curr);
 		}
+
 		return acc;
 	}, []);
 
