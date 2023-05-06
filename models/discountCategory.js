@@ -7,50 +7,6 @@ const {
 
 const { Schema } = mongoose;
 
-const classSchema = new Schema({
-	_id: 0,
-	feeTypeId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'FeeType',
-		required: true,
-	},
-	breakdown: {
-		type: Number,
-		required: true,
-	},
-	totalFee: {
-		type: Number,
-		required: true,
-	},
-	sectionId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'Section',
-		required: true,
-	},
-	feeStructureId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'FeeStructure',
-		required: true,
-	},
-	categoryId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'FeeCategory',
-		required: true,
-	},
-	isPercentage: {
-		type: Boolean,
-		required: true,
-	},
-	value: {
-		type: Number,
-		required: true,
-	},
-	discountAmount: {
-		type: Number,
-		required: true,
-	},
-});
-
 const discountSchema = new Schema(
 	{
 		name: {
@@ -73,20 +29,27 @@ const discountSchema = new Schema(
 			ref: 'AcademicYear',
 			required: false,
 		},
-		budgetAllocated: {
+		classesAssociated: {
 			type: Number,
 			required: false,
 			default: 0,
 		},
+		totalBudget: {
+			type: Number,
+			required: false,
+			default: 0,
+		},
+		// pending + approved
+		budgetAlloted: {
+			type: Number,
+			required: false,
+			default: 0,
+		},
+		// approved
 		budgetRemaining: {
 			type: Number,
 			required: false,
 			default: 0,
-		},
-		classList: {
-			type: [classSchema],
-			required: false,
-			default: [],
 		},
 		totalStudents: {
 			type: Number,

@@ -8,6 +8,7 @@ const catchAsync = require('../utils/catchAsync');
 const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 const feeInstallment = require('../models/feeInstallment');
+const SectionDiscount = require('../models/sectionDiscount');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -18,6 +19,7 @@ async function runChildProcess(
 	feeStructure,
 	schoolId,
 	academicYearId,
+	categoryId,
 	isStudent = false
 ) {
 	// If isStudent is true, then sectionIds is treated as studentList
@@ -27,6 +29,8 @@ async function runChildProcess(
 		studentList = await Students.find(
 			{
 				section: { $in: sectionIds },
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 			'_id section'
 		).toArray();
@@ -39,6 +43,7 @@ async function runChildProcess(
 		feeStructure,
 		schoolId,
 		academicYearId,
+		categoryId,
 	]);
 
 	childSpawn.stdout.on('data', data => {
@@ -83,7 +88,6 @@ exports.create = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-	console.log(studentList.length);
 	const isExist = await FeeStructure.findOne({
 		feeStructureName,
 		schoolId,
@@ -139,8 +143,25 @@ exports.create = async (req, res, next) => {
 			feeStructure._id,
 			schoolId,
 			feeStructure.academicYearId,
+			categoryId,
 			true
 		);
+
+		const studIds = studentList.map(stud => mongoose.Types.ObjectId(stud._id));
+
+		await Students.updateMany(
+			{
+				_id: {
+					$in: studIds,
+				},
+			},
+			{
+				$addToSet: {
+					feeCategoryIds: mongoose.Types.ObjectId(categoryId),
+				},
+			}
+		);
+
 		res
 			.status(201)
 			.json(SuccessResponse(feeStructure, 1, 'Created Successfully'));
@@ -154,13 +175,12 @@ exports.create = async (req, res, next) => {
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { school_id: schoolId } = req.user;
-
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
-		schoolId,
 	})
 		.populate('academicYearId', 'name')
 		.lean();
+	const { categoryId } = feeStructure;
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
@@ -177,6 +197,8 @@ exports.read = catchAsync(async (req, res, next) => {
 
 	const query = {
 		section: { $in: sectionList },
+		deleted: false,
+		profileStatus: 'APPROVED',
 	};
 
 	const [students, feeInstallments] = await Promise.all([
@@ -189,12 +211,15 @@ exports.read = catchAsync(async (req, res, next) => {
 						$in: sectionList,
 					},
 					schoolId: mongoose.Types.ObjectId(schoolId),
-					feeStructureId: mongoose.Types.ObjectId(id),
+					categoryId: mongoose.Types.ObjectId(categoryId),
 				},
 			},
 			{
 				$group: {
 					_id: '$studentId',
+					feeStructureId: {
+						$first: '$feeStructureId',
+					},
 					installments: { $push: '$$ROOT' },
 				},
 			},
@@ -209,24 +234,28 @@ exports.read = catchAsync(async (req, res, next) => {
 		acc[curr._id] = curr.installments;
 		return acc;
 	}, {});
-
 	const updatedStudents = students.reduce((acc, curr) => {
-		const foundInstallment = installmentObj[curr._id];
-		if (foundInstallment && foundInstallment.length) {
-			const hasPaidInstallment = foundInstallment.some(
-				installment => installment.status === 'Paid'
+		const { _id } = curr;
+		const foundInstallment = installmentObj[_id];
+		const hasInstallment = Boolean(foundInstallment);
+		const hasMatchingFeeStructure =
+			hasInstallment &&
+			foundInstallment[0].feeStructureId.toString() === id.toString();
+		const hasPaidInstallment =
+			hasInstallment &&
+			foundInstallment.some(
+				installment =>
+					installment.status === 'Paid' || installment.status === 'Late'
 			);
-			acc.push({
-				...curr,
-				isSelected: true,
-				isPaid: hasPaidInstallment,
-			});
-		} else {
-			acc.push({
-				...curr,
-				isSelected: false,
-			});
+
+		if (!hasInstallment || hasMatchingFeeStructure) {
+			curr.isSelected = hasMatchingFeeStructure;
+			if (hasMatchingFeeStructure) {
+				curr.isPaid = hasPaidInstallment;
+			}
+			acc.push(curr);
 		}
+
 		return acc;
 	}, []);
 
@@ -248,95 +277,106 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const newStudents = [];
-		const removedStudents = [];
-		const existingStudents = [];
+		let { studentList, feeStructureName, classes, feeDetails, ...rest } =
+			req.body;
+		const foundStructure = await FeeStructure.findOne({
+			_id: id,
+		});
+		const { existingStudents, studentsToUpdate, studentsToRemove } =
+			studentList.reduce(
+				(acc, student) => {
+					const { isNew, isRemoved, isSelected } = student;
+					if (!isNew && !isRemoved && isSelected) {
+						acc.existingStudents.push(student);
+					} else if (isNew) {
+						acc.studentsToUpdate.push(student);
+					} else if (isRemoved) {
+						acc.studentsToRemove.push(student);
+					}
+					return acc;
+				},
+				{
+					existingStudents: [],
+					studentsToUpdate: [],
+					studentsToRemove: [],
+				}
+			);
 
-		const {
-			studentList,
-			feeStructureName,
-			classes,
-			schoolId,
-			feeDetails,
-			categoryId,
-			totalAmount,
-			academicYearId,
-			description,
-			isRowAdded = false,
-		} = req.body;
+		if (rest.isRowAdded) {
+			feeDetails = feeDetails.map(fee =>
+				fee.isNewFieldinEdit ? { ...fee, _id: mongoose.Types.ObjectId() } : fee
+			);
+			const existingTypes = foundStructure.feeDetails.map(fee =>
+				fee.feeTypeId.toString()
+			);
+			// extract new rows from the fedetails
+			const newRows = feeDetails.filter(
+				fee => !existingTypes.includes(fee.feeTypeId)
+			);
 
-		for (const student of studentList) {
-			// Filter out student who where as it is in selected list
-			// 1. isSelected = true and isPaid = true and no isNew flag
-			// 2. isSelected = true and isPaid = false and no isNew flag
-			// 3. isSelected = false and isPaid = true and no isNew flag
-
-			if (
-				!student.isNew &&
-				((student.isSelected && student.isPaid) ||
-					(student.isSelected && !student.isPaid) ||
-					(!student.isSelected && student.isPaid))
-			)
-				existingStudents.push(student);
-			// Check isNew flag exists
-			if (student.isNew) newStudents.push(student);
-			// check if a student is removed
-			if (student.isSelected === false && !student.isPaid)
-				removedStudents.push(student);
-		}
-		if (isRowAdded) {
-			const feeTypeSet = new Set(feeDetails.map(f => f.feeTypeId));
-			const newRows = req.body.feeDetails
-				.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
-				.map(f => f.feeTypeId);
-
-			// studentList without isNew flag and isSelected flag should be true
 			await runChildProcess(
 				newRows,
 				existingStudents,
 				id,
-				schoolId,
-				academicYearId,
+				rest.schoolId,
+				rest.academicYearId,
+				rest.categoryId,
 				true
 			);
 		}
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
-			{ _id: id, schoolId },
+			{ _id: id },
 			{
 				$set: {
 					feeStructureName,
-					schoolId,
-					description,
-					categoryId,
-					totalAmount,
-					academicYearId,
-					feeDetails,
 					classes,
+					feeDetails,
+					...rest,
 				},
 			}
 		);
 
-		// Remove Installments for removed students (soft delete) add deletedBy
-		if (updatedDocs && removedStudents.length > 0) {
-			await FeeInstallment.deleteMany(
-				{
-					studentId: { $in: removedStudents.map(s => s._id) },
-				},
-				{ deletedBy: req.user._id }
-			);
+		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
+			await Promise.all([
+				Students.updateMany(
+					{
+						_id: { $in: studentsToUpdate },
+					},
+					{
+						$addToSet: {
+							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+						},
+					}
+				),
+				Students.updateMany(
+					{
+						_id: { $in: studentsToRemove.map(s => s._id) },
+					},
+					{
+						$pull: {
+							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+						},
+					}
+				),
+				FeeInstallment.deleteMany(
+					{
+						studentId: { $in: studentsToRemove.map(s => s._id) },
+					},
+					{ deletedBy: req.user._id }
+				),
+				runChildProcess(
+					feeDetails,
+					studentsToUpdate,
+					id,
+					rest.schoolId,
+					rest.academicYearId,
+					rest.categoryId,
+					true
+				),
+			]);
 		}
-		// Create Installments for new students
-		if (updatedDocs && newStudents.length > 0) {
-			await runChildProcess(
-				updatedDocs.feeDetails,
-				newStudents,
-				id,
-				schoolId,
-				academicYearId,
-				true
-			);
-		}
+
 		res
 			.status(200)
 			.json(
@@ -368,7 +408,6 @@ exports.deleteFeeStructure = async (req, res, next) => {
 	try {
 		await FeeStructure.findOneAndDelete({
 			_id: id,
-			schoolId,
 		});
 		await Sections.updateMany(
 			{
@@ -439,14 +478,14 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 });
 //  unmapped?schoolId=schoolId&categoryId=categoryId
 exports.getUnmappedClassList = async (req, res, next) => {
-	const { schoolId, categoryId } = req.query;
-	let mappedClassIds = [];
-	const payload = {
-		schoolId: mongoose.Types.ObjectId(schoolId),
-	};
-	if (categoryId) {
-		payload.categoryId = mongoose.Types.ObjectId(categoryId);
-	}
+	const { schoolId, categoryId, discountId } = req.query;
+	// const mappedClassIds = [];
+	// const payload = {
+	// 	schoolId: mongoose.Types.ObjectId(schoolId),
+	// };
+	// if (categoryId) {
+	// 	payload.categoryId = mongoose.Types.ObjectId(categoryId);
+	// }
 	try {
 		let sectionList = await Sections.aggregate([
 			{
@@ -496,18 +535,38 @@ exports.getUnmappedClassList = async (req, res, next) => {
 			sectionId: section.sectionId.toString(),
 			class_id: section.class_id,
 		}));
-		if (categoryId) {
-			const mappedClassList = await FeeStructure.aggregate([
+		// if (categoryId) {
+		// 	const mappedClassList = await FeeStructure.aggregate([
+		// 		{
+		// 			$match: payload,
+		// 		},
+		// 		{ $unwind: '$classes' },
+		// 		{ $group: { _id: '$classes.sectionId' } },
+		// 	]);
+		// 	if (mappedClassList.length > 0) {
+		// 		mappedClassIds = mappedClassList.map(c => c._id.toString());
+		// 		sectionList = sectionList.filter(
+		// 			c => !mappedClassIds.includes(c.sectionId)
+		// 		);
+		// 	}
+		// }
+		if (discountId) {
+			const mappedSections = await SectionDiscount.aggregate([
 				{
-					$match: payload,
+					$match: {
+						discountId: mongoose.Types.ObjectId(discountId),
+					},
 				},
-				{ $unwind: '$classes' },
-				{ $group: { _id: '$classes.sectionId' } },
+				{
+					$group: {
+						_id: '$sectionId',
+					},
+				},
 			]);
-			if (mappedClassList.length > 0) {
-				mappedClassIds = mappedClassList.map(c => c._id.toString());
+			if (mappedSections.length > 0) {
+				const mappedSectionIds = mappedSections.map(s => s._id.toString());
 				sectionList = sectionList.filter(
-					c => !mappedClassIds.includes(c.sectionId)
+					section => !mappedSectionIds.includes(section.sectionId)
 				);
 			}
 		}
@@ -521,6 +580,26 @@ exports.getUnmappedClassList = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
+
+exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
+	const { sectionId, categoryId } = req.params;
+	const foundStructure = await FeeStructure.find(
+		{
+			classes: { $elemMatch: { sectionId } },
+			categoryId,
+			schoolId: req.user.school_id,
+		},
+		'feeStructureName'
+	).lean();
+
+	if (!foundStructure.length) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(foundStructure, 1, 'Fetched Successfully'));
+});
 
 exports.assignFeeStructure = async (req, res, next) => {
 	const { studentList, sectionId } = req.body;
@@ -544,7 +623,8 @@ exports.assignFeeStructure = async (req, res, next) => {
 		// 	studentList,
 		// 	feeStructureId,
 		// 	schoolId,
-		// 	academicYearId
+		// 	academicYearId,
+		// categoryId,
 		// );
 		res.status(200).json(SuccessResponse(null, 1, 'Assigned Successfully'));
 	} catch (err) {
@@ -556,19 +636,18 @@ exports.assignFeeStructure = async (req, res, next) => {
 // TODO: Fetch the feeDetails with the students data from feeInstallments
 exports.getFeeCategory = async (req, res, next) => {
 	try {
-		const { categoryId, sectionId } = req.params;
+		const { id } = req.params;
 		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
 		const feeStructure = await FeeStructure.findOne(
 			{
-				schoolId,
-				categoryId,
-				classes: { $elemMatch: { sectionId } },
+				_id: id,
 			},
-			'_id feeDetails totalAmount'
+			'_id feeDetails totalAmount categoryId'
 		).lean();
 		if (!feeStructure) {
 			return next(new ErrorResponse('Fee Structure Not Found', 404));
 		}
+		const { categoryId } = feeStructure;
 		const FeeTypes = (await FeeType.find({ schoolId, categoryId })) || [];
 		const feeDetails = feeStructure.feeDetails.map(fee => {
 			const feeType = FeeTypes.find(
@@ -594,6 +673,9 @@ exports.getFeeCategory = async (req, res, next) => {
 			{
 				$group: {
 					_id: '$studentId',
+					sectionId: {
+						$first: '$sectionId',
+					},
 				},
 			},
 			{
@@ -621,6 +703,30 @@ exports.getFeeCategory = async (req, res, next) => {
 				},
 			},
 			{
+				$lookup: {
+					from: 'sections',
+					let: {
+						sectionId: '$sectionId',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$sectionId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								className: 1,
+							},
+						},
+					],
+					as: 'section',
+				},
+			},
+			{
 				$project: {
 					_id: 0,
 					studentName: {
@@ -628,6 +734,9 @@ exports.getFeeCategory = async (req, res, next) => {
 					},
 					studentId: {
 						$first: '$_id._id',
+					},
+					sectionName: {
+						$first: '$section.className',
 					},
 				},
 			},

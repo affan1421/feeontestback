@@ -10,6 +10,14 @@ router.get(
 	feeInstallmentController.SectionWiseTransaction
 );
 
+// Get Income Dashboard Data
+router.get('/incomeDashboard', feeInstallmentController.IncomeDashboard);
+
 router.get('/studentsList', feeInstallmentController.StudentsList);
+router.get(
+	'/studentstructure',
+	feeInstallmentController.getStudentFeeStructure
+);
+router.post('/makePayment', feeInstallmentController.MakePayment);
 
 module.exports = router;

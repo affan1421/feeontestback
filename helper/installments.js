@@ -9,6 +9,7 @@ const studentList = flatted.parse(args[1]);
 const feeStructure = args[2];
 const schoolId = args[3];
 const academicYear = args[4];
+const categoryId = args[5];
 
 async function insertFeeInstallments() {
 	// Connect to the database
@@ -50,6 +51,7 @@ async function insertFeeInstallments() {
 				feeTypeId: fee.feeTypeId,
 				date: fee.scheduledDate,
 				status: fee.status,
+				categoryId,
 				scheduleTypeId: fee.scheduleTypeId,
 				academicYearId: fee.academicYearId,
 				scheduledDate: fee.scheduledDate,

@@ -3,6 +3,8 @@ const NODE_ENV = 'development';
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: `.${NODE_ENV}.env` });
+require('./jobs/installmentDue');
+
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
@@ -47,11 +49,16 @@ mongoose
 
 		app.use('/api/v1/config', require('./router/academicYear'));
 		app.use('/api/v1/feetype', require('./router/feeType'));
+		app.use('/api/v1/expenseType', require('./router/expenseType'));
+		app.use('/api/v1/expense', require('./router/expense'));
+		app.use('/api/v1/donor', require('./router/donor'));
 		app.use('/api/v1/feeschedule', require('./router/feeSchedule'));
 		app.use('/api/v1/feecategory', require('./router/feeCategory'));
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));
 		app.use('/api/v1/feeinstallment', require('./router/feeInstallment'));
 		app.use('/api/v1/discount', require('./router/discountCategory'));
+		app.use('/api/v1/applicationfee', require('./router/applicationFee'));
+		app.use('/api/v1/feereceipt', require('./router/feeReceipt'));
 
 		app.use((err, req, res, next) => {
 			res.status(err.statusCode || 500).json({

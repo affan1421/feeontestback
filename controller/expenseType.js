@@ -6,7 +6,7 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { name, schoolId, userId, description, budget, remainignBudget } =
+	const { name, schoolId, userId, description, budget, remainingBudget } =
 		req.body;
 	if (!userId || !schoolId || !budget) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -25,7 +25,7 @@ exports.create = async (req, res, next) => {
 			userId,
 			description,
 			budget,
-			remainignBudget,
+			remainingBudget,
 		});
 	} catch (error) {
 		console.log('error', error);
@@ -46,7 +46,7 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
 	if (userId) {
-		payload.categoryId = mongoose.Types.ObjectId(userId);
+		payload.userId = mongoose.Types.ObjectId(userId);
 	}
 	if (name) {
 		payload.name = name;
@@ -72,11 +72,11 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { school_id: schoolId } = req.user;
+	// const { school_id: schoolId } = req.user;
 
 	const expensetype = await ExpenseType.findOne({
 		_id: id,
-		schoolId,
+		// schoolId,
 	});
 	if (expensetype === null) {
 		return next(new ErrorResponse('Expense Type Not Found', 404));
@@ -87,18 +87,10 @@ exports.read = catchAsync(async (req, res, next) => {
 // UPDATE
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { name, schoolId, userId, description, budget, remainignBudget } =
-		req.body;
+
 	const expensetype = await ExpenseType.findOneAndUpdate(
 		{ _id: id, schoolId: req.body.schoolId },
-		{
-			name,
-			schoolId,
-			userId,
-			description,
-			budget,
-			remainignBudget,
-		}
+		req.body
 	);
 	if (expensetype === null) {
 		return next(new ErrorResponse('Expense Type Not Found', 404));

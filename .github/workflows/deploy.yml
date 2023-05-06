@@ -20,36 +20,59 @@ jobs:
           channel: actions_notification
           status: STARTING
           color: 0000FF
-
-  Code_Analysis:
+  Approval:
     runs-on: ubuntu-latest
-    needs: Slack_Notification
     steps:
-      - name: Checkout the files
-        uses: actions/checkout@v3
-      - name: Sonar-Scanner
-        uses: sonarsource/sonarqube-scan-action@master
+      - name: Approval
+        uses: trstringer/manual-approval@v1
+        timeout-minutes: 1
         with:
-          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-        env:
-          SONAR_TOKEN: sqa_d4f9ee751dbaa6a3b4d9eb2a1ec55fdb20edc9a1
-          SONAR_HOST_URL: https://sonar.growon.app/
+          minimum-approvals: 1
+          secret: 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
+          approvers: yusuf-delvi,hafiz-ikram,nawaz-cumin
 
-  Quality_Gate_Check:
-    runs-on: ubuntu-latest
-    needs: Code_Analysis
-    steps:
-      - name: Checkout the files
-        uses: actions/checkout@v3
-      - name: SonarQube Qality Gate check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        env:
-          SONAR_TOKEN: squ_cd83dc2062d4d5b719510b64ccd4fea05bc229de
-          SONAR_HOST_URL: https://sonar.growon.app/
+  # Code_Analysis:
+  #   runs-on: ubuntu-latest
+  #   needs: Slack_Notification
+  #   steps:
+  #     - name: Checkout the files
+  #       uses: actions/checkout@v3
+
+  #     - name: SETUP NODE.JS ENVIRONMENT
+  #       uses: actions/setup-node@v3.3.0
+
+  #     - name: NPM INSTALL & NPM BUILD
+  #       run: |
+  #         cd /home/runner/work/feeOn-backend/feeOn-backend
+  #         npm install --verbose --legacy-peer-deps
+  #         npm run test --verbose
+
+  #     - name: Sonar-Scanner
+  #       uses: sonarsource/sonarqube-scan-action@master
+  #       with:
+  #         fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+  #       env:
+  #         SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
+  #         SONAR_HOST_URL: https://sonar.growon.app/
+
+  # Quality_Gate_Check:
+  #   runs-on: ubuntu-latest
+  #   needs: Code_Analysis
+  #   steps:
+  #     - name: Checkout the files
+  #       uses: actions/checkout@v3
+
+  #     - name: SonarQube Qality Gate check
+  #       uses: sonarsource/sonarqube-quality-gate-action@master
+  #       with:
+  #         scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
+  #       env:
+  #         SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
+  #         SONAR_HOST_URL: https://sonar.growon.app/
 
   Slack_Notifications:
     runs-on: ubuntu-latest
-    needs: Quality_Gate_Check
+    needs: Approval
     steps:
       - name: Notify slack success
         if: success()
@@ -74,7 +97,7 @@ jobs:
         with:
           local: /home/runner/work/feeOn-backend/feeOn-backend/
           remote: /home/ubuntu/feeOn-backend/
-          host: 65.1.196.45
+          host: 13.232.10.180
           username: ubuntu
           password: erp1234
 

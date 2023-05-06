@@ -7,7 +7,7 @@ const { Schema, model } = mongoose;
 
 const FeeInstallmentSchema = new Schema(
 	{
-		feeTypeId: { type: Schema.Types.ObjectId, ref: 'FeeType', required: true }, // populate
+		feeTypeId: { type: Schema.Types.ObjectId, ref: 'Feetype', required: true }, // populate
 		scheduleTypeId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeSchedule',
@@ -52,6 +52,7 @@ const FeeInstallmentSchema = new Schema(
 		paidDate: { type: Date, required: false },
 		totalAmount: { type: Number, required: true },
 		discounts: {
+			// 80
 			type: [
 				{
 					_id: 0,
@@ -62,10 +63,10 @@ const FeeInstallmentSchema = new Schema(
 					},
 					isPercentage: { type: Boolean, required: true },
 					value: { type: Number, required: true },
-					discountAmount: { type: Number, required: true },
+					discountAmount: { type: Number, required: false, default: 0 }, // 80
 					status: {
 						type: String,
-						enum: ['Approved', 'Pending', 'Rejected'],
+						enum: ['Pending', 'Approved', 'Rejected'],
 						default: 'Pending',
 					},
 				},
@@ -73,17 +74,35 @@ const FeeInstallmentSchema = new Schema(
 			required: false,
 			default: [],
 		},
-		discountAmount: { type: Number, required: false, default: 0 },
-		netAmount: { type: Number, required: true },
+		totalDiscountAmount: { type: Number, required: false, default: 0 },
+		paidAmount: { type: Number, required: false, default: 0 },
+		netAmount: { type: Number, required: true }, // totalAmount - totalDiscountAmount
 		status: {
 			type: String,
-			enum: ['Paid', 'Upcoming', 'Due'],
+			enum: ['Paid', 'Late', 'Upcoming', 'Due'],
 			default: 'Upcoming',
+		},
+		categoryId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeCategory',
+			required: true,
 		},
 		// feeReceiptId: { type: Schema.Types.ObjectId, ref: 'FeeReceipt' },
 	},
 	{ timestamps: true }
 );
+
+// make index
+FeeInstallmentSchema.index({ schoolId: 1, status: 1 });
+FeeInstallmentSchema.index({
+	studentId: 1,
+	rowId: 1,
+	date: 1,
+});
+FeeInstallmentSchema.index({
+	'discounts.discountId': 1,
+	'discounts.status': 1,
+});
 
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,

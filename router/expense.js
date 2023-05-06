@@ -2,14 +2,18 @@ const express = require('express');
 
 const router = express.Router();
 const {
-	getTypes,
+	getExpenses,
 	create,
 	read,
 	update,
 	expenseDelete,
-} = require('../controller/expesnse');
+	totalExpenses,
+	totalExpenseFilter,
+} = require('../controller/expense');
 
-router.get('/', getTypes).post('/', create);
+router.post('/getAll', getExpenses).post('/', create);
+router.post('/totalExpense', totalExpenses);
+router.post('/totalExpenseFilter', totalExpenseFilter);
 
 router.get('/:id', read).put('/:id', update).delete('/:id', expenseDelete);
 

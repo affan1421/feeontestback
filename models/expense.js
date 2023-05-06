@@ -1,10 +1,16 @@
-const { Schema, model } = require('mongoose');
+const mongoose = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
+const autoIncrement = require('mongoose-auto-increment');
 
-const expenseSchema = new Schema(
+autoIncrement.initialize(mongoose);
+
+const expenseSchema = new mongoose.Schema(
 	{
 		reason: {
 			type: String,
+		},
+		voucherNumber: {
+			type: Number,
 		},
 		amount: {
 			type: Number,
@@ -17,23 +23,26 @@ const expenseSchema = new Schema(
 		paymentMethod: {
 			type: String,
 			required: true,
-			enum: ['UPI', 'Net Banking', 'Cheque', 'NEFT', 'Cash'],
+			enum: ['UPI', 'NetBanking', 'Cheque', 'NEFT', 'Cash'],
 		},
 		schoolId: {
-			type: Schema.Types.ObjectId,
+			type: mongoose.Schema.Types.ObjectId,
 			ref: 'School',
 			required: true,
 		},
 		expenseType: {
-			type: Schema.Types.ObjectId,
+			type: mongoose.Schema.Types.ObjectId,
 			ref: 'ExpenseType',
 			required: true,
 		},
-		// userId: {
-		// 	type: Schema.Types.ObjectId,
-		// 	ref: 'User', // change model name if wrong
-		// 	required: true,
-		// },
+		createdBy: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'User', // change model name if wrong
+			required: true,
+		},
+		approvedBy: {
+			type: String,
+		},
 	},
 	{
 		timestamps: true,
@@ -45,5 +54,10 @@ expenseSchema.plugin(mongoose_delete, {
 	deletedBy: true,
 	overrideMethods: true,
 });
+expenseSchema.plugin(autoIncrement.plugin, {
+	model: 'Expense',
+	field: 'voucherNumber',
+	startAt: 100000,
+});
 
-module.exports = model('Expense', expenseSchema);
+module.exports = mongoose.model('Expense', expenseSchema);

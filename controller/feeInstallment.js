@@ -1,31 +1,46 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
+
 const FeeInstallment = require('../models/feeInstallment');
+const FeeStructure = require('../models/feeStructure');
+const FeeReciept = require('../models/feeReceipt.js');
+const AcademicYear = require('../models/academicYear');
+
+const Student = mongoose.connection.db.collection('students');
+
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
-	const {
-		pageNum = 1,
-		limit = 10,
-		schoolId = null,
-		status = 'Paid',
-	} = req.query;
+	const { pageNum = 1, limit = 10, schoolId = null } = req.query;
 
 	if (limit > 50) {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
 	}
 
+	if (!schoolId) {
+		return next(new ErrorResponse('Schoolid is required', 400));
+	}
+
 	const matchQuery = {};
 
 	if (schoolId) {
-		matchQuery.schoolId = schoolId;
-	}
-	if (status) {
-		matchQuery.status = status;
+		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
 	}
 
-	const foundTransactions = await FeeInstallment.aggregate([
+	const foundAcademicYear = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	})
+		.select('_id')
+		.lean();
+
+	if (foundAcademicYear) {
+		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
+	}
+
+	const foundTransactions = await FeeReciept.aggregate([
 		{
 			$match: matchQuery,
 		},
@@ -37,13 +52,13 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		},
 		{
 			$sort: {
-				paidDate: -1,
+				createdAt: -1,
 			},
 		},
 		{
 			$lookup: {
 				from: 'students',
-				let: { studentId: '$studentId' },
+				let: { studentId: '$student.studentId' },
 				as: 'studentId',
 				pipeline: [
 					{
@@ -69,11 +84,10 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 				studentId: {
 					$first: '$studentId',
 				},
-				date: 1,
-				paidDate: 1,
+				paidAmount: 1,
+				dueAmount: 1,
 				totalAmount: 1,
-				netAmount: 1,
-				status: 1,
+				date: '$createdAt',
 			},
 		},
 	]);
@@ -125,47 +139,12 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 						},
 					},
 					{
-						$lookup: {
-							let: {
-								classId: '$class_id',
-							},
-							from: 'classes',
-							as: 'class',
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$classId'],
-										},
-									},
-								},
-								{
-									$project: {
-										_id: 1,
-										name: 1,
-									},
-								},
-							],
-						},
-					},
-					{
 						$project: {
-							_id: 1,
-							name: 1,
-							class: {
-								$first: '$class',
-							},
-						},
-					},
-					{
-						$project: {
-							name: {
-								$concat: ['$class.name', ' ', '$name'],
-							},
+							name: '$className',
 							sectionId: '$_id',
 							sectionName: '$name',
-							classId: '$class._id',
-							className: '$class.name',
+							classId: '$class_id',
+							className: 1,
 						},
 					},
 				],
@@ -195,7 +174,13 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 });
 
 exports.StudentsList = catchAsync(async (req, res, next) => {
-	const { pageNum = 1, limit = 10, schoolId = null, search = null } = req.query;
+	const {
+		pageNum = 1,
+		limit = 10,
+		schoolId = null,
+		classId = null,
+		search = null,
+	} = req.query;
 
 	if (limit > 50) {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
@@ -203,14 +188,49 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 
 	const matchQuery = {};
 
+	// let path = 'username';
+
+	// if (Number.isNaN(+search)) {
+	// 	path = 'name';
+	// }
+
+	// const queryObj = {
+	// 	index: 'studentBasicInfo',
+	// 	compound: {
+	// 		must: [
+	// 			{
+	// 				autocomplete: {
+	// 					query: search,
+	// 					path,
+	// 				},
+	// 			},
+	// 		],
+	// 	},
+	// 	count: {
+	// 		type: 'total',
+	// 	},
+	// };
+	// if (schoolId) {
+	// 	queryObj.compound.filter = {
+	// 		equals: {
+	// 			path: 'school_id',
+	// 			value: mongoose.Types.ObjectId(schoolId),
+	// 		},
+	// 	};
+	// }
+
 	if (schoolId) {
-		matchQuery.schoolId = schoolId;
+		matchQuery.school_id = mongoose.Types.ObjectId(schoolId);
+	}
+	if (classId) {
+		matchQuery.class = mongoose.Types.ObjectId(classId);
 	}
 	if (search) {
 		matchQuery.$text = { $search: search };
 	}
 
-	const foundStudents = await FeeInstallment.aggregate([
+	const totalStudents = await Student.countDocuments(matchQuery);
+	const foundStudents = await Student.aggregate([
 		{
 			$match: matchQuery,
 		},
@@ -226,7 +246,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 				let: {
 					sectionId: '$section',
 				},
-				as: 'sec',
+				as: 'className',
 				pipeline: [
 					{
 						$match: {
@@ -236,47 +256,8 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 						},
 					},
 					{
-						$lookup: {
-							let: {
-								classId: '$class_id',
-							},
-							from: 'classes',
-							as: 'class',
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$classId'],
-										},
-									},
-								},
-								{
-									$project: {
-										_id: 1,
-										name: 1,
-									},
-								},
-							],
-						},
-					},
-					{
 						$project: {
-							_id: 1,
-							name: 1,
-							class: {
-								$first: '$class',
-							},
-						},
-					},
-					{
-						$project: {
-							name: {
-								$concat: ['$class.name', ' ', '$name'],
-							},
-							sectionId: '$_id',
-							sectionName: '$name',
-							classId: '$class._id',
-							className: '$class.name',
+							className: 1,
 						},
 					},
 				],
@@ -299,9 +280,9 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					},
 					{
 						$group: {
-							_id: '$status',
-							totalAmount: {
-								$sum: '$totalAmount',
+							_id: null,
+							paidAmount: {
+								$sum: '$paidAmount',
 							},
 							netAmount: {
 								$sum: '$netAmount',
@@ -315,15 +296,490 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 1,
 				name: 1,
-				classSec: {
-					$first: '$sec',
+				className: {
+					$first: '$className.className',
 				},
-				feeinstallments: 1,
+				pendingAmount: {
+					$subtract: [
+						{ $first: '$feeinstallments.netAmount' },
+						{ $first: '$feeinstallments.paidAmount' },
+					],
+				},
 			},
 		},
-	]);
+	]).toArray();
+
+	return res.status(200).json(SuccessResponse(foundStudents, totalStudents));
+});
+
+exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
+	const { categoryId = null, studentId = null } = req.query;
+
+	if (!categoryId || !studentId) {
+		return next(new ErrorResponse('Categoryid & studentid is required', 400));
+	}
+
+	const foundStudent = await Student.aggregate([
+		{
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{
+										$concat: ['$$studname', ' (Parent)'],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$project: {
+				studentName: '$name',
+				parentName: {
+					$first: '$parent.name',
+				},
+				class: {
+					$first: '$section.className',
+				},
+			},
+		},
+	]).toArray();
+
+	if (foundStudent.length < 1) {
+		return next(new ErrorResponse('Student not found', 404));
+	}
+
+	const foundFeeInstallments = await FeeInstallment.find({
+		categoryId,
+		studentId,
+	})
+		.populate('feeTypeId', 'feeType')
+		.select({
+			feeTypeId: 1,
+			rowId: 1,
+			date: 1,
+			paidDate: 1,
+			paidAmount: 1,
+			totalAmount: 1,
+			totalDiscountAmount: 1,
+			netAmount: 1,
+			status: 1,
+		})
+		.lean();
 
 	return res
 		.status(200)
-		.json(SuccessResponse(foundStudents, foundStudents.length));
+		.json(
+			SuccessResponse(
+				{ ...foundStudent[0], feeDetails: foundFeeInstallments },
+				foundFeeInstallments.length
+			)
+		);
+});
+
+exports.MakePayment = catchAsync(async (req, res, next) => {
+	const {
+		feeDetails,
+		studentId,
+		collectedFee,
+		totalFeeAmount,
+		dueAmount,
+		paymentMethod,
+		bankName,
+		chequeDate,
+		chequeNumber,
+		transactionDate,
+		transactionId,
+		upiId,
+		payerName,
+		ddNumber,
+		ddDate,
+		issueDate,
+		feeCategoryName,
+		feeCategoryId,
+	} = req.body;
+
+	const foundStudent = await Student.aggregate([
+		{
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'schools',
+				let: {
+					schoolId: '$school_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$schoolId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: '$schoolName',
+							address: {
+								$concat: [
+									'$address',
+									' ',
+									{
+										$toString: '$pincode',
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'school',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+					username: '$username',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{
+										$concat: ['$$studname', ' (Parent)'],
+									},
+								],
+							},
+							username: {
+								$ifNull: [
+									'$username',
+									{
+										$concat: ['$$username', ''],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$lookup: {
+				from: 'academicyears',
+				let: {
+					schoolId: '$school_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$schoolId', '$$schoolId'],
+									},
+									{
+										$eq: ['$isActive', true],
+									},
+								],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'academicYear',
+			},
+		},
+		{
+			$project: {
+				studentId: '$_id',
+				username: 1,
+				studentName: '$name',
+				classId: '$class',
+				className: {
+					$first: '$section.className',
+				},
+				schoolId: '$school_id',
+				schoolName: {
+					$first: '$school.name',
+				},
+				schoolAddress: {
+					$first: '$school.address',
+				},
+				parentName: {
+					$first: '$parent.name',
+				},
+				parentId: '$parent_id',
+				parentMobile: {
+					$first: '$parent.username',
+				},
+				academicYear: {
+					$first: '$academicYear.name',
+				},
+				academicYearId: {
+					$first: '$academicYear._id',
+				},
+			},
+		},
+	]).toArray();
+
+	const {
+		studentName = '',
+		username = '',
+		className = '',
+		classId = '',
+		parentName,
+		parentMobile,
+		parentId,
+		academicYear = '',
+		academicYearId = '',
+		schoolName = '',
+		schoolAddress = '',
+		schoolId = '',
+	} = foundStudent[0];
+
+	const currentDate = moment();
+	const date = currentDate.format('DDMMYY');
+	const shortCategory = feeCategoryName.slice(0, 2);
+
+	let newCount = '00001';
+	const lastReceipt = await FeeReciept.findOne({
+		'school.schoolId': schoolId,
+	})
+		.sort({ createdAt: -1 })
+		.lean();
+
+	if (lastReceipt) {
+		if (lastReceipt.recieptId) {
+			newCount = lastReceipt.recieptId
+				.slice(-5)
+				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
+		}
+	}
+	const recieptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
+
+	const items = [];
+	let currentPaidAmount = 0;
+
+	for (const item of feeDetails) {
+		currentPaidAmount += item.paidAmount;
+
+		const foundInstallment = await FeeInstallment.findOne({
+			_id: mongoose.Types.ObjectId(item._id),
+		}).lean();
+
+		const isPaid =
+			foundInstallment.netAmount -
+				(item.paidAmount + foundInstallment.paidAmount) ==
+			0;
+
+		const updateData = {
+			paidDate: new Date(),
+			paidAmount: item.paidAmount + foundInstallment.paidAmount,
+		};
+
+		if (isPaid) {
+			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
+		}
+
+		items.push({
+			installmentId: item._id,
+			feeTypeId: item.feeTypeId._id,
+			netAmount: item.netAmount,
+			paidAmount: item.paidAmount,
+		});
+
+		await FeeInstallment.updateOne(
+			{ _id: item._id },
+			{
+				$set: updateData,
+			}
+		);
+	}
+
+	const createdReciept = await FeeReciept.create({
+		student: {
+			name: studentName,
+			studentId,
+			class: {
+				name: className,
+				classId,
+			},
+		},
+		recieptId,
+		category: {
+			name: feeCategoryName,
+			feeCategoryId,
+		},
+		parent: {
+			name: parentName ?? `${studentName} (Parent)`,
+			mobile: parentMobile ?? username,
+			parentId,
+		},
+		academicYear: {
+			name: academicYear,
+			academicYearId,
+		},
+		school: {
+			name: schoolName,
+			address: schoolAddress,
+			schoolId,
+		},
+		paidAmount: currentPaidAmount,
+		totalAmount: totalFeeAmount,
+		dueAmount: dueAmount - currentPaidAmount,
+		payment: {
+			method: paymentMethod,
+			bankName,
+			chequeDate,
+			chequeNumber,
+			transactionDate,
+			transactionId,
+			upiId,
+			payerName,
+			ddNumber,
+			ddDate,
+		},
+		issueDate,
+		items,
+	});
+
+	return res.status(201).json(
+		SuccessResponse(
+			{
+				...JSON.parse(JSON.stringify(createdReciept)),
+				items: feeDetails,
+			},
+			1
+		)
+	);
+});
+
+exports.IncomeDashboard = catchAsync(async (req, res, next) => {
+	// Get the todays paid installments amount compared to previous date based on filters (daily, weekly, monthly or custom range)
+	// Get total receivable, total Collected, total Pending.
+	/*
+	{
+		totalReceivable: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		},
+			totalCollected: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		},
+			totalPending: {
+			amount: #######,
+			maxClass: {
+				name: 'Class Name',
+				amount: #######,
+			},
+			minClass: {
+				name: 'Class Name',
+				amount: #######,
+			}
+		}
+	}
+	*/
 });
