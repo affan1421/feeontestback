@@ -660,16 +660,19 @@ const approveStudentDiscount = async (req, res, next) => {
 	const { discountId } = req.params;
 	const { studentId, status, approvalAmount, sectionName } = req.body;
 	let updatedAmount = 0;
+	let amountToSub = 0;
 	try {
+		// update.$inc.totalStudents = -1;
+		// sectionUpdate.$inc.totalStudents = -1;
 		const update = {
-			$inc: {
-				totalPending: -1,
-			},
+			totalPending: -1,
+			totalApproved: status === 'Approved' ? 1 : 0,
+			totalStudents: status === 'Rejected' ? 1 : 0,
 		};
 		const sectionUpdate = {
-			$inc: {
-				totalPending: -1,
-			},
+			totalPending: -1,
+			totalApproved: status === 'Approved' ? 1 : 0,
+			totalStudents: status === 'Rejected' ? 1 : 0,
 		};
 		const feeInstallments = await FeeInstallment.find({
 			studentId: mongoose.Types.ObjectId(studentId),
@@ -694,9 +697,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			const { discountAmount } = discount;
 			if (status === 'Approved' && discountAmount <= netAmount - paidAmount) {
 				updatedAmount += discountAmount;
-				update.$inc.totalApproved = 1;
-				sectionUpdate.$inc.totalApproved = 1;
-				update.$inc.budgetRemaining = -updatedAmount;
+
 				await FeeInstallment.findOneAndUpdate(
 					{
 						_id,
@@ -718,9 +719,7 @@ const approveStudentDiscount = async (req, res, next) => {
 					}
 				);
 			} else {
-				update.$inc.budgetAlloted = -approvalAmount;
-				update.$inc.totalStudents = -1;
-				sectionUpdate.$inc.totalStudents = -1;
+				amountToSub += discountAmount; // to be subtracted from the budget alloted
 				// remove that match from the discounts array
 				await FeeInstallment.findOneAndUpdate(
 					{
@@ -743,7 +742,13 @@ const approveStudentDiscount = async (req, res, next) => {
 			{
 				_id: discountId,
 			},
-			update
+			{
+				$inc: {
+					...update,
+					budgetRemaining: -updatedAmount,
+					budgetAlloted: -amountToSub,
+				},
+			}
 		);
 
 		// update the totalApproved and totalPending in sectionDiscount
@@ -753,7 +758,11 @@ const approveStudentDiscount = async (req, res, next) => {
 				discountId: mongoose.Types.ObjectId(discountId),
 				sectionName,
 			},
-			sectionUpdate,
+			{
+				$inc: {
+					...sectionUpdate,
+				},
+			},
 			{
 				new: true,
 				multi: true,
