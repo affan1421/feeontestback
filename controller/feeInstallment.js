@@ -174,7 +174,13 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 });
 
 exports.StudentsList = catchAsync(async (req, res, next) => {
-	const { pageNum = 1, limit = 10, schoolId = null, search = null } = req.query;
+	const {
+		pageNum = 1,
+		limit = 10,
+		schoolId = null,
+		classId = null,
+		search = null,
+	} = req.query;
 
 	if (limit > 50) {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
@@ -182,8 +188,42 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 
 	const matchQuery = {};
 
+	// let path = 'username';
+
+	// if (Number.isNaN(+search)) {
+	// 	path = 'name';
+	// }
+
+	// const queryObj = {
+	// 	index: 'studentBasicInfo',
+	// 	compound: {
+	// 		must: [
+	// 			{
+	// 				autocomplete: {
+	// 					query: search,
+	// 					path,
+	// 				},
+	// 			},
+	// 		],
+	// 	},
+	// 	count: {
+	// 		type: 'total',
+	// 	},
+	// };
+	// if (schoolId) {
+	// 	queryObj.compound.filter = {
+	// 		equals: {
+	// 			path: 'school_id',
+	// 			value: mongoose.Types.ObjectId(schoolId),
+	// 		},
+	// 	};
+	// }
+
 	if (schoolId) {
 		matchQuery.school_id = mongoose.Types.ObjectId(schoolId);
+	}
+	if (classId) {
+		matchQuery.class = mongoose.Types.ObjectId(classId);
 	}
 	if (search) {
 		matchQuery.$text = { $search: search };
