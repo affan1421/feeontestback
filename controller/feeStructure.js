@@ -673,6 +673,9 @@ exports.getFeeCategory = async (req, res, next) => {
 			{
 				$group: {
 					_id: '$studentId',
+					sectionId: {
+						$first: '$sectionId',
+					},
 				},
 			},
 			{
@@ -700,6 +703,30 @@ exports.getFeeCategory = async (req, res, next) => {
 				},
 			},
 			{
+				$lookup: {
+					from: 'sections',
+					let: {
+						sectionId: '$sectionId',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$sectionId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								className: 1,
+							},
+						},
+					],
+					as: 'section',
+				},
+			},
+			{
 				$project: {
 					_id: 0,
 					studentName: {
@@ -707,6 +734,9 @@ exports.getFeeCategory = async (req, res, next) => {
 					},
 					studentId: {
 						$first: '$_id._id',
+					},
+					sectionName: {
+						$first: '$section.className',
 					},
 				},
 			},
