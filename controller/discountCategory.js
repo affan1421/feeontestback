@@ -667,12 +667,12 @@ const approveStudentDiscount = async (req, res, next) => {
 		const update = {
 			totalPending: -1,
 			totalApproved: status === 'Approved' ? 1 : 0,
-			totalStudents: status === 'Rejected' ? 1 : 0,
+			totalStudents: status === 'Rejected' ? -1 : 0,
 		};
 		const sectionUpdate = {
 			totalPending: -1,
 			totalApproved: status === 'Approved' ? 1 : 0,
-			totalStudents: status === 'Rejected' ? 1 : 0,
+			totalStudents: status === 'Rejected' ? -1 : 0,
 		};
 		const feeInstallments = await FeeInstallment.find({
 			studentId: mongoose.Types.ObjectId(studentId),
