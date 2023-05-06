@@ -246,8 +246,8 @@ exports.read = catchAsync(async (req, res, next) => {
 			foundInstallment.some(installment => installment.status === 'Paid');
 
 		if (!hasInstallment || hasMatchingFeeStructure) {
+			curr.isSelected = hasMatchingFeeStructure;
 			if (hasMatchingFeeStructure) {
-				curr.isSelected = true;
 				curr.isPaid = hasPaidInstallment;
 			}
 			acc.push(curr);
@@ -274,27 +274,42 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { studentList, feeStructureName, classes, ...rest } = req.body;
-		const newStudents = [];
-		const existingStudents = studentList.filter(
-			student =>
-				!student.isNew &&
-				((student.isSelected && student.isPaid) ||
-					(student.isSelected && !student.isPaid) ||
-					(!student.isSelected && student.isPaid))
-		);
-		const studentsToUpdate = studentList
-			.filter(student => student.isNew)
-			.map(student => student._id);
-		const studentsToRemove = studentList.filter(
-			student => student.isSelected === false && !student.isPaid
-		);
+		let { studentList, feeStructureName, classes, feeDetails, ...rest } =
+			req.body;
+		const foundStructure = await FeeStructure.findOne({
+			_id: id,
+		});
+		const { existingStudents, studentsToUpdate, studentsToRemove } =
+			studentList.reduce(
+				(acc, student) => {
+					const { isNew, isRemoved } = student;
+					if (!isNew && !isRemoved) {
+						acc.existingStudents.push(student);
+					} else if (isNew) {
+						acc.studentsToUpdate.push(student);
+					} else if (isRemoved) {
+						acc.studentsToRemove.push(student);
+					}
+					return acc;
+				},
+				{
+					existingStudents: [],
+					studentsToUpdate: [],
+					studentsToRemove: [],
+				}
+			);
 
 		if (rest.isRowAdded) {
-			const feeTypeSet = new Set(rest.feeDetails.map(f => f.feeTypeId));
-			const newRows = rest.feeDetails
-				.filter(f => !feeTypeSet.has(f.feeTypeId) && f.feeTypeId)
-				.map(f => f.feeTypeId);
+			feeDetails = feeDetails.map(fee =>
+				fee.isNewFieldinEdit ? { ...fee, _id: mongoose.Types.ObjectId() } : fee
+			);
+			const existingTypes = foundStructure.feeDetails.map(fee =>
+				fee.feeTypeId.toString()
+			);
+			// extract new rows from the fedetails
+			const newRows = feeDetails.filter(
+				fee => !existingTypes.includes(fee.feeTypeId)
+			);
 
 			await runChildProcess(
 				newRows,
@@ -313,6 +328,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				$set: {
 					feeStructureName,
 					classes,
+					feeDetails,
 					...rest,
 				},
 			}
@@ -347,8 +363,8 @@ exports.updatedFeeStructure = async (req, res, next) => {
 					{ deletedBy: req.user._id }
 				),
 				runChildProcess(
-					updatedDocs.feeDetails,
-					newStudents,
+					feeDetails,
+					studentsToUpdate,
 					id,
 					rest.schoolId,
 					rest.academicYearId,
