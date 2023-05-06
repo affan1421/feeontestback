@@ -243,7 +243,10 @@ exports.read = catchAsync(async (req, res, next) => {
 			foundInstallment[0].feeStructureId.toString() === id.toString();
 		const hasPaidInstallment =
 			hasInstallment &&
-			foundInstallment.some(installment => installment.status === 'Paid');
+			foundInstallment.some(
+				installment =>
+					installment.status === 'Paid' || installment.status === 'Late'
+			);
 
 		if (!hasInstallment || hasMatchingFeeStructure) {
 			curr.isSelected = hasMatchingFeeStructure;
