@@ -52,7 +52,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		},
 		{
 			$sort: {
-				paidDate: -1,
+				createdAt: -1,
 			},
 		},
 		{
