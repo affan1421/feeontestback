@@ -285,8 +285,8 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		const { existingStudents, studentsToUpdate, studentsToRemove } =
 			studentList.reduce(
 				(acc, student) => {
-					const { isNew, isRemoved } = student;
-					if (!isNew && !isRemoved) {
+					const { isNew, isRemoved, isSelected } = student;
+					if (!isNew && !isRemoved && isSelected) {
 						acc.existingStudents.push(student);
 					} else if (isNew) {
 						acc.studentsToUpdate.push(student);
