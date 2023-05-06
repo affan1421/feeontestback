@@ -116,6 +116,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		{
 			$group: {
 				_id: '$studentId',
+				sectionId: {
+					$first: '$sectionId',
+				},
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
 				},
@@ -130,6 +133,28 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 						},
 					},
 				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: { sectionId: '$sectionId' },
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
 			},
 		},
 		{
@@ -173,6 +198,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				},
 				discountStatus: {
 					$arrayElemAt: ['$discounts.status', 0],
+				},
+				sectionName: {
+					$first: '$section.className',
 				},
 			},
 		},
