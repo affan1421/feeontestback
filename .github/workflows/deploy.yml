@@ -1,11 +1,11 @@
-name: Prod -Backend
+name: PreProd -Backend
 on:
   push:
     branches:
-      - main
+      - preprod
   pull_request:
     branches:
-      - main
+      - preprod
 jobs:
   Slack_Notification:
     runs-on: ubuntu-latest
