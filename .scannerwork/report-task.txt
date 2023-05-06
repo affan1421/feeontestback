@@ -1,4 +1,4 @@
-projectKey=feeOn-Backend-Prod
+projectKey=feeOn-Backend
 serverUrl=https://sonar.growon.app/
 serverVersion=9.7.1.62043
 dashboardUrl=https://sonar.growon.app/dashboard?id=feeOn-Backend-Prod
