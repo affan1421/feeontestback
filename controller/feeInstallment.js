@@ -1,7 +1,9 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
 
+const XLSX = require('xlsx');
 const FeeInstallment = require('../models/feeInstallment');
+
 const FeeStructure = require('../models/feeStructure');
 const FeeReciept = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
@@ -783,3 +785,51 @@ exports.IncomeDashboard = catchAsync(async (req, res, next) => {
 	}
 	*/
 });
+
+exports.AddPreviousFee = async (req, res, next) => {
+	// accept file from request
+	try {
+		const { schoolId } = req.params;
+		const { file } = req.files;
+		const workbook = XLSX.read(file.data, { type: 'buffer' });
+		const sheetName = workbook.SheetNames[0];
+		const worksheet = workbook.Sheets[sheetName];
+
+		const rows = XLSX.utils.sheet_to_json(worksheet);
+
+		const newArray = rows.filter(r => r['BALANCE FEES'] > 0);
+
+		const foundStructure = await FeeStructure.find({
+			schoolId,
+		});
+		for (const fs of foundStructure) {
+			const { rowId } = fs.feeDetails[0];
+			for (const stud of newArray) {
+				const dueFees = stud['BALANCE FEES'];
+				const foundInstallment = await FeeInstallment.findOne({
+					rowId,
+					studentId: stud['STUDENT ID'],
+				});
+				if (foundInstallment) {
+					await FeeInstallment.updateOne(
+						{
+							rowId,
+							studentId: stud['STUDENT ID'],
+						},
+						{
+							$set: {
+								totalAmount: dueFees,
+								netAmount: dueFees,
+							},
+						}
+					);
+				}
+			}
+		}
+		res
+			.status(200)
+			.json(SuccessResponse(null, newArray.length, 'Updated Successfully'));
+	} catch (error) {
+		console.log(error.stack);
+	}
+};

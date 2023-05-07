@@ -13,6 +13,11 @@ router.get(
 // Get Income Dashboard Data
 router.get('/incomeDashboard', feeInstallmentController.IncomeDashboard);
 
+router.post(
+	'/addPreviousFee/:schoolId',
+	feeInstallmentController.AddPreviousFee
+);
+
 router.get('/studentsList', feeInstallmentController.StudentsList);
 router.get(
 	'/studentstructure',
