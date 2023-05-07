@@ -1,11 +1,11 @@
-name: Prod -Backend
+name: staging -Backend
 on:
   push:
     branches:
-      - main
+      - dev
   pull_request:
     branches:
-      - main
+      - dev
 jobs:
   Slack_Notification:
     runs-on: ubuntu-latest
@@ -97,7 +97,7 @@ jobs:
         with:
           local: /home/runner/work/feeOn-backend/feeOn-backend/
           remote: /home/ubuntu/feeOn-backend/
-          host: 65.1.196.45
+          host: 65.2.123.21
           username: ubuntu
           password: erp1234
 
