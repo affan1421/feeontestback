@@ -803,18 +803,18 @@ exports.AddPreviousFee = async (req, res, next) => {
 			schoolId,
 		});
 		for (const fs of foundStructure) {
-			const { rowId } = fs.feeDetails[0];
+			const { _id } = fs.feeDetails[0];
 			for (const stud of newArray) {
 				const dueFees = stud['BALANCE FEES'];
 				const foundInstallment = await FeeInstallment.findOne({
-					rowId,
-					studentId: stud['STUDENT ID'],
+					rowId: mongoose.Types.ObjectId(_id),
+					studentId: mongoose.Types.ObjectId(stud.STUDENTID),
 				});
 				if (foundInstallment) {
 					await FeeInstallment.updateOne(
 						{
-							rowId,
-							studentId: stud['STUDENT ID'],
+							rowId: mongoose.Types.ObjectId(_id),
+							studentId: mongoose.Types.ObjectId(stud.STUDENTID),
 						},
 						{
 							$set: {
