@@ -15,7 +15,12 @@ const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
-	const { pageNum = 1, limit = 10, schoolId = null } = req.query;
+	const {
+		pageNum = 1,
+		limit = 10,
+		schoolId = null,
+		receiptType = null,
+	} = req.query;
 
 	if (limit > 50) {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
@@ -29,6 +34,10 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 
 	if (schoolId) {
 		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+
+	if (receiptType) {
+		matchQuery.receiptType = receiptType;
 	}
 
 	const foundAcademicYear = await AcademicYear.findOne({
@@ -446,6 +455,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		feeCategoryName,
 		feeCategoryId,
+		receiptType,
 	} = req.body;
 
 	const foundStudent = await Student.aggregate([
@@ -695,6 +705,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				classId,
 			},
 		},
+		receiptType,
 		recieptId,
 		category: {
 			name: feeCategoryName,
