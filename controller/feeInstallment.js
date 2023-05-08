@@ -196,6 +196,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		limit = 10,
 		schoolId = null,
 		classId = null,
+		sectionId = null,
 		search = null,
 	} = req.query;
 
@@ -241,6 +242,9 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	}
 	if (classId) {
 		matchQuery.class = mongoose.Types.ObjectId(classId);
+	}
+	if (sectionId) {
+		matchQuery.section = mongoose.Types.ObjectId(sectionId);
 	}
 	if (search) {
 		matchQuery.$text = { $search: search };
