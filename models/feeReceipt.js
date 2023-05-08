@@ -24,6 +24,17 @@ const feeReceiptSchema = new Schema(
 					required: [true, 'classId is required'],
 				},
 			},
+			section: {
+				name: {
+					type: String,
+					required: [true, 'Section is required'],
+				},
+				sectionId: {
+					type: Schema.Types.ObjectId,
+					ref: 'Section',
+					required: [true, 'sectionId is required'],
+				},
+			},
 		},
 		category: {
 			feeCategoryId: {

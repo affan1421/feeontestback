@@ -19,6 +19,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		pageNum = 1,
 		limit = 10,
 		schoolId = null,
+		sectionId = null,
 		receiptType = null,
 	} = req.query;
 
@@ -34,6 +35,11 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 
 	if (schoolId) {
 		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+
+	if (sectionId) {
+		matchQuery['student.section.sectionId'] =
+			mongoose.Types.ObjectId(sectionId);
 	}
 
 	if (receiptType) {
@@ -498,6 +504,29 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		},
 		{
 			$lookup: {
+				from: 'classes',
+				let: {
+					classId: '$class',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$classId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'class',
+			},
+		},
+		{
+			$lookup: {
 				from: 'sections',
 				let: {
 					sectionId: '$section',
@@ -512,7 +541,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 					},
 					{
 						$project: {
-							className: 1,
+							name: 1,
 						},
 					},
 				],
@@ -594,9 +623,17 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				studentId: '$_id',
 				username: 1,
 				studentName: '$name',
-				classId: '$class',
+				classId: {
+					$first: '$class._id',
+				},
 				className: {
-					$first: '$section.className',
+					$first: '$class.name',
+				},
+				sectionId: {
+					$first: '$section._id',
+				},
+				sectionName: {
+					$first: '$section.name',
 				},
 				schoolId: '$school_id',
 				schoolName: {
@@ -625,8 +662,10 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	const {
 		studentName = '',
 		username = '',
-		className = '',
 		classId = '',
+		className = '',
+		sectionId = '',
+		sectionName = '',
 		parentName,
 		parentMobile,
 		parentId,
@@ -703,6 +742,10 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			class: {
 				name: className,
 				classId,
+			},
+			section: {
+				name: sectionName,
+				sectionId,
 			},
 		},
 		receiptType,
