@@ -40,6 +40,11 @@ const feeReceiptSchema = new Schema(
 			type: String,
 			required: [true, 'Reciept id is required'],
 		},
+		receiptType: {
+			type: String,
+			required: [true, 'Receipt type is required'],
+			enum: ['Academic', 'Application', 'Miscellaneous'],
+		},
 		parent: {
 			name: {
 				type: String,

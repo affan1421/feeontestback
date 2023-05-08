@@ -826,6 +826,17 @@ exports.AddPreviousFee = async (req, res, next) => {
 				}
 			}
 		}
+		await FeeInstallment.updateMany(
+			{
+				totalAmount: 0,
+				schoolId: mongoose.Types.ObjectId(schoolId),
+			},
+			{
+				$set: {
+					status: 'Paid',
+				},
+			}
+		);
 		res
 			.status(200)
 			.json(SuccessResponse(null, newArray.length, 'Updated Successfully'));
