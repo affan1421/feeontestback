@@ -6,8 +6,9 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { feeType, accountType, schoolId, description, categoryId } = req.body;
-	if (!feeType || !accountType || !schoolId || !categoryId) {
+	const { feeType, accountType, schoolId, description, categoryId, amount } =
+		req.body;
+	if (!feeType || !accountType || !schoolId) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
@@ -16,15 +17,24 @@ exports.create = async (req, res, next) => {
 		return next(new ErrorResponse('Fee Type Already Exist', 400));
 	}
 
+	const payload = {
+		feeType,
+		accountType,
+		schoolId,
+		description,
+	};
+
+	if (categoryId != null) {
+		payload.categoryId = categoryId;
+	}
+	if (amount != null) {
+		payload.amount = amount;
+		payload.isMisc = true;
+	}
+
 	let newFeeType;
 	try {
-		newFeeType = await Feetype.create({
-			feeType,
-			accountType,
-			schoolId,
-			categoryId,
-			description,
-		});
+		newFeeType = await Feetype.create(payload);
 	} catch (error) {
 		console.log('error', error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -36,7 +46,14 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let { schoolId, accountType, categoryId, page = 0, limit = 5 } = req.query;
+	let {
+		schoolId,
+		accountType,
+		categoryId,
+		page = 0,
+		limit = 5,
+		isMisc,
+	} = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
@@ -49,6 +66,10 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	if (accountType) {
 		payload.accountType = accountType;
 	}
+	if (isMisc) {
+		payload.isMisc = true;
+	}
+	console.log('payload', payload);
 	const feeTypes = await Feetype.aggregate([
 		{
 			$facet: {

@@ -40,11 +40,11 @@ const feeReceiptSchema = new Schema(
 			feeCategoryId: {
 				type: Schema.Types.ObjectId,
 				ref: 'FeeCategory',
-				required: [true, 'Fee category is required'],
+				required: [false, 'Fee category is required'],
 			},
 			name: {
 				type: String,
-				required: [true, 'Fee category name is required'],
+				required: [false, 'Fee category name is required'],
 			},
 		},
 		recieptId: {
