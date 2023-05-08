@@ -8,7 +8,7 @@ const SuccessResponse = require('../utils/successResponse');
 exports.create = async (req, res, next) => {
 	const { feeType, accountType, schoolId, description, categoryId, amount } =
 		req.body;
-	if (!feeType || !accountType || !schoolId || !categoryId) {
+	if (!feeType || !accountType || !schoolId) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
@@ -29,6 +29,7 @@ exports.create = async (req, res, next) => {
 	}
 	if (amount != null) {
 		payload.amount = amount;
+		payload.isMisc = true;
 	}
 
 	let newFeeType;
@@ -45,7 +46,14 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let { schoolId, accountType, categoryId, page = 0, limit = 5 } = req.query;
+	let {
+		schoolId,
+		accountType,
+		categoryId,
+		page = 0,
+		limit = 5,
+		isMisc,
+	} = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
@@ -58,6 +66,10 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	if (accountType) {
 		payload.accountType = accountType;
 	}
+	if (isMisc) {
+		payload.isMisc = true;
+	}
+	console.log('payload', payload);
 	const feeTypes = await Feetype.aggregate([
 		{
 			$facet: {

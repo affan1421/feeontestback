@@ -69,6 +69,10 @@ const feetypeSchema = new Schema(
 			ref: 'School',
 			required: [true, 'Please enter school id'],
 		},
+		isMisc: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	{ timestamps: true }
 );
