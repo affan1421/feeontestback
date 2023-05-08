@@ -204,7 +204,10 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
 	}
 
-	const matchQuery = {};
+	const matchQuery = {
+		deleted: false,
+		profileStatus: 'APPROVED',
+	};
 
 	// let path = 'username';
 
@@ -344,6 +347,8 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -472,6 +477,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
