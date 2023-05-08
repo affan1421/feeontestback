@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
 const FeeReceipt = require('../models/feeReceipt');
+const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 
 const Student = mongoose.connection.db.collection('students');
@@ -263,13 +264,13 @@ const createReceipt = async (req, res, next) => {
 		.lean();
 
 	if (lastReceipt) {
-		if (lastReceipt.recieptId) {
-			newCount = lastReceipt.recieptId
+		if (lastReceipt.receiptId) {
+			newCount = lastReceipt.receiptId
 				.slice(-5)
 				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
 		}
 	}
-	const recieptId = `MI${date}${newCount}`; // MI21092100001
+	const receiptId = `MI${date}${newCount}`; // MI21092100001
 
 	const items = [
 		{
@@ -289,7 +290,7 @@ const createReceipt = async (req, res, next) => {
 			},
 		},
 		receiptType,
-		recieptId,
+		receiptId,
 		parent: {
 			name: parentName ?? `${studentName} (Parent)`,
 			mobile: parentMobile ?? username,
@@ -334,7 +335,23 @@ const createReceipt = async (req, res, next) => {
 	);
 };
 
+const getFeeReceiptById = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const feeReceipt = await FeeReceipt.findById(id);
+	const feeId = feeReceipt.items[0].feeTypeId;
+	const feetype = await FeeType.findOne({ _id: feeId }, { feeType: 1 });
+
+	feeReceipt.items[0].feeTypeId = feetype;
+
+	if (!feeReceipt) {
+		return next(new ErrorResponse('Fee Receipt Not Found', 404));
+	}
+
+	res.status(200).json(SuccessResponse(feeReceipt, 1, 'Fetched Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
+	getFeeReceiptById,
 	createReceipt,
 };

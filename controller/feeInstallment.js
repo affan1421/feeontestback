@@ -5,7 +5,7 @@ const XLSX = require('xlsx');
 const FeeInstallment = require('../models/feeInstallment');
 
 const FeeStructure = require('../models/feeStructure');
-const FeeReciept = require('../models/feeReceipt.js');
+const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
 
 const Student = mongoose.connection.db.collection('students');
@@ -57,7 +57,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
 	}
 
-	const foundTransactions = await FeeReciept.aggregate([
+	const foundTransactions = await FeeReceipt.aggregate([
 		{
 			$match: matchQuery,
 		},
@@ -685,20 +685,20 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	const shortCategory = feeCategoryName.slice(0, 2);
 
 	let newCount = '00001';
-	const lastReceipt = await FeeReciept.findOne({
+	const lastReceipt = await FeeReceipt.findOne({
 		'school.schoolId': schoolId,
 	})
 		.sort({ createdAt: -1 })
 		.lean();
 
 	if (lastReceipt) {
-		if (lastReceipt.recieptId) {
-			newCount = lastReceipt.recieptId
+		if (lastReceipt.receiptId) {
+			newCount = lastReceipt.receiptId
 				.slice(-5)
 				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
 		}
 	}
-	const recieptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
+	const receiptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
 
 	const items = [];
 	let currentPaidAmount = 0;
@@ -739,7 +739,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	const createdReciept = await FeeReciept.create({
+	const createdReceipt = await FeeReceipt.create({
 		student: {
 			name: studentName,
 			studentId,
@@ -753,7 +753,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			},
 		},
 		receiptType,
-		recieptId,
+		receiptId,
 		category: {
 			name: feeCategoryName,
 			feeCategoryId,
@@ -794,7 +794,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	return res.status(201).json(
 		SuccessResponse(
 			{
-				...JSON.parse(JSON.stringify(createdReciept)),
+				...JSON.parse(JSON.stringify(createdReceipt)),
 				items: feeDetails,
 			},
 			1

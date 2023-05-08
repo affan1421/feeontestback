@@ -11,7 +11,7 @@ const feeReceiptSchema = new Schema(
 			studentId: {
 				type: Schema.Types.ObjectId,
 				ref: 'Student',
-				required: [true, 'studentid is required'],
+				required: [false, 'studentid is required'],
 			},
 			class: {
 				name: {
@@ -27,12 +27,12 @@ const feeReceiptSchema = new Schema(
 			section: {
 				name: {
 					type: String,
-					required: [true, 'Section is required'],
+					required: [false, 'Section is required'],
 				},
 				sectionId: {
 					type: Schema.Types.ObjectId,
 					ref: 'Section',
-					required: [true, 'sectionId is required'],
+					required: [false, 'sectionId is required'],
 				},
 			},
 		},
@@ -47,9 +47,9 @@ const feeReceiptSchema = new Schema(
 				required: [false, 'Fee category name is required'],
 			},
 		},
-		recieptId: {
+		receiptId: {
 			type: String,
-			required: [true, 'Reciept id is required'],
+			required: [true, 'Receipt id is required'],
 		},
 		receiptType: {
 			type: String,
@@ -68,7 +68,7 @@ const feeReceiptSchema = new Schema(
 			parentId: {
 				type: Schema.Types.ObjectId,
 				ref: 'Parent',
-				required: [true, 'parentid is required'],
+				required: [false, 'parentid is required'],
 			},
 		},
 		academicYear: {
@@ -172,4 +172,4 @@ feeReceiptSchema.plugin(mongoose_delete, {
 	overrideMethods: 'all',
 });
 
-module.exports = model('FeeReciept', feeReceiptSchema);
+module.exports = model('FeeReceipt', feeReceiptSchema);

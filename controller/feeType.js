@@ -69,7 +69,6 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	if (isMisc) {
 		payload.isMisc = true;
 	}
-	console.log('payload', payload);
 	const feeTypes = await Feetype.aggregate([
 		{
 			$facet: {
