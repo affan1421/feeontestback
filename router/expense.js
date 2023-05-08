@@ -9,11 +9,13 @@ const {
 	expenseDelete,
 	totalExpenses,
 	totalExpenseFilter,
+	expensesList,
 } = require('../controller/expense');
 
 router.post('/getAll', getExpenses).post('/', create);
 router.post('/totalExpense', totalExpenses);
 router.post('/totalExpenseFilter', totalExpenseFilter);
+router.post('/expenseList', expensesList);
 
 router.get('/:id', read).put('/:id', update).delete('/:id', expenseDelete);
 
