@@ -25,6 +25,11 @@ const expenseSchema = new mongoose.Schema(
 			required: true,
 			enum: ['UPI', 'NetBanking', 'Cheque', 'NEFT', 'Cash'],
 		},
+		transactionDetails: {
+			transactionId: String,
+			ChequNo: Number,
+			screenShot: String,
+		},
 		schoolId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'School',
