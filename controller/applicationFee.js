@@ -132,15 +132,22 @@ const createApplicationFee = async (req, res, next) => {
 
 		let receipt = await FeeReceipt.create(receiptPayload);
 		receipt = JSON.parse(JSON.stringify(receipt));
-		res
-			.status(201)
-			.json(
-				SuccessResponse(
-					{ ...applicationFee, receipt: { ...receipt } },
-					1,
-					'Created Successfully'
-				)
-			);
+		receipt.items[0].feeTypeId = {
+			_id: feeTypeId,
+			feeType: 'Application Fee',
+		};
+		res.status(201).json(
+			SuccessResponse(
+				{
+					...applicationFee,
+					receipt: {
+						...receipt,
+					},
+				},
+				1,
+				'Created Successfully'
+			)
+		);
 	} catch (error) {
 		console.log(error);
 		return next(new ErrorResponse('Something went wrong', 500));
