@@ -24,7 +24,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	} = req.query;
 
 	if (limit > 50) {
-		return next(new ErrorResponse('Page limit should not excede 50', 400));
+		return next(new ErrorResponse('Page limit should not exceed 50', 400));
 	}
 
 	if (!schoolId) {
@@ -813,19 +813,23 @@ exports.IncomeDashboard = catchAsync(async (req, res, next) => {
 	// Get the todays paid installments amount compared to previous date based on filters (daily, weekly, monthly or custom range)
 	// Get total receivable, total Collected, total Pending.
 	/*
-	{
+	{	
+		totalIncome: {
+			amount: #######,
+			incAvg: #######,
+		},
 		totalReceivable: {
 			amount: #######,
 			maxClass: {
 				name: 'Class Name',
 				amount: #######,
-			},
+			}, 
 			minClass: {
 				name: 'Class Name',
 				amount: #######,
 			}
 		},
-			totalCollected: {
+		totalCollected: {
 			amount: #######,
 			maxClass: {
 				name: 'Class Name',
@@ -836,7 +840,7 @@ exports.IncomeDashboard = catchAsync(async (req, res, next) => {
 				amount: #######,
 			}
 		},
-			totalPending: {
+		totalPending: {
 			amount: #######,
 			maxClass: {
 				name: 'Class Name',
@@ -846,9 +850,31 @@ exports.IncomeDashboard = catchAsync(async (req, res, next) => {
 				name: 'Class Name',
 				amount: #######,
 			}
-		}
+		},
+		miscellaneous: [{
+			name: 'Miscellaneous Name',
+			amount: #######,
+		}]
 	}
 	*/
+	const { schoolId, dateRange = 'daily' } = req.query;
+
+	const matchQuery = {
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	};
+	if (dateRange === 'daily') {
+		matchQuery.date = new Date();
+	} else if (dateRange === 'weekly') {
+		matchQuery.date = {
+			$gte: moment().startOf('week').toDate(),
+			$lte: moment().endOf('week').toDate(),
+		};
+	} else if (dateRange === 'monthly') {
+		matchQuery.date = {
+			$gte: moment().startOf('month').toDate(),
+			$lte: moment().endOf('month').toDate(),
+		};
+	}
 });
 
 exports.AddPreviousFee = async (req, res, next) => {

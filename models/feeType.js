@@ -60,10 +60,6 @@ const feetypeSchema = new Schema(
 			ref: 'AcademicYear',
 			required: [false, 'Please enter academic year id'],
 		},
-		amount: {
-			type: Number,
-			required: [false, 'Please enter amount'],
-		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
 			ref: 'School',

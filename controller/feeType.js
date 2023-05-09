@@ -6,8 +6,14 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { feeType, accountType, schoolId, description, categoryId, amount } =
-		req.body;
+	const {
+		feeType,
+		accountType,
+		schoolId,
+		description,
+		categoryId,
+		isMisc = false,
+	} = req.body;
 	if (!feeType || !accountType || !schoolId) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
@@ -22,14 +28,11 @@ exports.create = async (req, res, next) => {
 		accountType,
 		schoolId,
 		description,
+		isMisc,
 	};
 
 	if (categoryId != null) {
 		payload.categoryId = categoryId;
-	}
-	if (amount != null) {
-		payload.amount = amount;
-		payload.isMisc = true;
 	}
 
 	let newFeeType;
