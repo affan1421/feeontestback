@@ -11,7 +11,14 @@ const AcademicYear = require('../models/academicYear');
 
 // Filter BY 'student.class.classId' and 'payment.method
 const getFeeReceipt = catchAsync(async (req, res, next) => {
-	let { schoolId, classId, paymentMode, page = 0, limit = 5 } = req.query;
+	let {
+		schoolId,
+		classId,
+		paymentMode,
+		receiptType,
+		page = 0,
+		limit = 5,
+	} = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
@@ -31,6 +38,9 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 	}
 	if (paymentMode) {
 		payload['payment.method'] = paymentMode;
+	}
+	if (receiptType) {
+		payload.receiptType = receiptType;
 	}
 	const feeReceipts = await FeeReceipt.aggregate([
 		{
