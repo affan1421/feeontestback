@@ -40,6 +40,35 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 					{ $sort: { createdAt: -1 } },
 					{ $skip: page * limit },
 					{ $limit: limit },
+					{
+						$unwind: {
+							path: '$items',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							let: {
+								feeTypeId: '$items.feeTypeId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$feeTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										feeType: 1,
+									},
+								},
+							],
+							as: 'items.feeTypeId',
+						},
+					},
 				],
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
