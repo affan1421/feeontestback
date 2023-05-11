@@ -49,16 +49,7 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let {
-		schoolId,
-		accountType,
-		categoryId,
-		page = 0,
-		limit = 5,
-		isMisc,
-	} = req.query;
-	page = +page;
-	limit = +limit;
+	let { schoolId, accountType, categoryId, page, limit, isMisc } = req.query;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
@@ -72,10 +63,17 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	if (isMisc) {
 		payload.isMisc = true;
 	}
+	// Optional Pagination
+	const dataFacet = [{ $match: payload }];
+	if (page && limit) {
+		page = +page;
+		limit = +limit;
+		dataFacet.push({ $skip: page * limit }, { $limit: limit });
+	}
 	const feeTypes = await Feetype.aggregate([
 		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
+				data: dataFacet,
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},

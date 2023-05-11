@@ -74,6 +74,16 @@ const createReceipt = async (req, res, next) => {
 		feeTypeId,
 	} = req.body;
 
+	if (
+		!studentId ||
+		!totalFeeAmount ||
+		!paymentMethod ||
+		!issueDate ||
+		!feeTypeId
+	) {
+		return next(new ErrorResponse('All Fields Are Mandatory', 422));
+	}
+
 	const foundStudent = await Student.aggregate([
 		{
 			$match: {
@@ -324,13 +334,14 @@ const createReceipt = async (req, res, next) => {
 		items,
 	});
 
-	return res.status(201).json(
+	res.status(201).json(
 		SuccessResponse(
 			{
 				...JSON.parse(JSON.stringify(createdReceipt)),
 				items,
 			},
-			1
+			1,
+			'Created Successfully'
 		)
 	);
 };

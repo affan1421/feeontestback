@@ -85,6 +85,7 @@ exports.getExpenses = catchAsync(async (req, res, next) => {
 	if (req.body.filters && req.body.filters.length) {
 		await Promise.all(
 			req.body.filters.map(async filter => {
+				// eslint-disable-next-line default-case
 				switch (filter.filterOperator) {
 					case 'greater_than':
 						filterMatch[filter.filterName] = {
@@ -280,10 +281,10 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 	match = {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
 	};
-	paymentMethod ? (match.paymentMethod = paymentMethod) : (t = 0);
+	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 	startDate && endDate
 		? (match.expenseDate = { $gte: startDate, $lte: endDate })
-		: (t = 0);
+		: null;
 	const expenseData = await ExpenseModel.aggregate([
 		{
 			$match: match,
