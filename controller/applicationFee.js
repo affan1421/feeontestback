@@ -19,9 +19,10 @@ const createApplicationFee = async (req, res, next) => {
 			className,
 			parentName,
 			phoneNumber,
+			course = '',
 			amount,
 			schoolId,
-			paymentMode = 'Cash',
+			paymentMode = 'CASH',
 		} = req.body;
 
 		if (
@@ -80,6 +81,7 @@ const createApplicationFee = async (req, res, next) => {
 			className,
 			parentName,
 			phoneNumber,
+			course,
 			amount,
 			schoolId,
 			academicYearId: academicYear._id,

@@ -13,7 +13,10 @@ const applicationFeeSchema = new Schema(
 		},
 		parentName: String,
 		phoneNumber: Number,
-		course: String,
+		course: {
+			type: String,
+			default: '',
+		},
 		amount: {
 			type: Number,
 			required: [true, 'Amount Is Required'],
