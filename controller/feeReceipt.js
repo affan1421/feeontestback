@@ -70,17 +70,11 @@ const createReceipt = async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
-		issueDate,
+		issueDate = new Date(),
 		feeTypeId,
 	} = req.body;
 
-	if (
-		!studentId ||
-		!totalFeeAmount ||
-		!paymentMethod ||
-		!issueDate ||
-		!feeTypeId
-	) {
+	if (!studentId || !totalFeeAmount || !paymentMethod || !feeTypeId) {
 		return next(new ErrorResponse('All Fields Are Mandatory', 422));
 	}
 
