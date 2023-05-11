@@ -36,10 +36,20 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 		{
 			$facet: {
 				data: [
-					{ $match: payload },
-					{ $sort: { createdAt: -1 } },
-					{ $skip: page * limit },
-					{ $limit: limit },
+					{
+						$match: payload,
+					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+					{
+						$skip: page * limit,
+					},
+					{
+						$limit: limit,
+					},
 					{
 						$unwind: {
 							path: '$items',
@@ -62,11 +72,35 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 								},
 								{
 									$project: {
+										_id: 1,
 										feeType: 1,
 									},
 								},
 							],
 							as: 'items.feeTypeId',
+						},
+					},
+					{
+						$group: {
+							_id: '$_id',
+							items: {
+								$push: {
+									feeTypeId: {
+										$first: '$items.feeTypeId',
+									},
+									installmentId: '$items.installmentId',
+									netAmount: '$items.netAmount',
+									paidAmount: '$items.paidAmount',
+								},
+							},
+							root: { $first: '$$ROOT' },
+						},
+					},
+					{
+						$replaceRoot: {
+							newRoot: {
+								$mergeObjects: ['$root', { items: '$items' }],
+							},
 						},
 					},
 				],
