@@ -113,6 +113,11 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 							},
 						},
 					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
 				],
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
