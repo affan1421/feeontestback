@@ -475,7 +475,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		feeCategoryId,
 		receiptType,
 	} = req.body;
-
+	const bulkWriteOps = [];
 	const foundStudent = await Student.aggregate([
 		{
 			$match: {
@@ -720,17 +720,25 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			_id: mongoose.Types.ObjectId(item._id),
 		}).lean();
 
-		const isPaid =
+		const tempDueAmount =
 			foundInstallment.netAmount -
-				(item.paidAmount + foundInstallment.paidAmount) ==
-			0;
+			(item.paidAmount + foundInstallment.paidAmount);
+
+		if (tempDueAmount < 0) {
+			return next(
+				new ErrorResponse(
+					`Overpayment for ${item.feeTypeId.feeType} detected.`,
+					400
+				)
+			);
+		}
 
 		const updateData = {
 			paidDate: new Date(),
 			paidAmount: item.paidAmount + foundInstallment.paidAmount,
 		};
 
-		if (isPaid) {
+		if (tempDueAmount === 0) {
 			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
 		}
 
@@ -740,14 +748,18 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			netAmount: item.netAmount,
 			paidAmount: item.paidAmount,
 		});
-
-		await FeeInstallment.updateOne(
-			{ _id: item._id },
-			{
-				$set: updateData,
-			}
-		);
+		// make bulkwrite query
+		bulkWriteOps.push({
+			updateOne: {
+				filter: { _id: item._id },
+				update: {
+					$set: updateData,
+				},
+			},
+		});
 	}
+
+	await FeeInstallment.bulkWrite(bulkWriteOps);
 
 	const createdReceipt = await FeeReceipt.create({
 		student: {
