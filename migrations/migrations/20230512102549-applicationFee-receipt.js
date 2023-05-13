@@ -5,10 +5,7 @@ module.exports = {
 	async up(db, client) {
 		// TODO write your migration here.
 		// find all schools
-		const schools = await db
-			.collection('schools')
-			.find({ _id: mongoose.Types.ObjectId('6288adebe5eff0eb57fce8ad') })
-			.toArray();
+		const schools = await db.collection('schools').find({}).toArray();
 		const operations = await Promise.all(
 			schools.map(async school => {
 				const applicationFee = await db

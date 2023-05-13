@@ -3,10 +3,10 @@
 const config = {
 	mongodb: {
 		// TODO Change (or review) the url to your MongoDB:
-		url: 'mongodb+srv://admin:1234@cluster0.k9p7m.mongodb.net/lms',
+		url: '',
 
 		// TODO Change this to your database name:
-		// databaseName: "YOURDATABASENAME",
+		databaseName: 'YOURDATABASENAME',
 
 		options: {
 			useNewUrlParser: true, // removes a deprecation warning when connecting
