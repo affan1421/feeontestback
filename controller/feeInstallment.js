@@ -700,14 +700,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	})
 		.sort({ createdAt: -1 })
 		.lean();
-
-	if (lastReceipt) {
-		if (lastReceipt.receiptId) {
-			newCount = lastReceipt.receiptId
-				.slice(-5)
-				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
-		}
+	if (lastReceipt && lastReceipt.receiptId) {
+		newCount = lastReceipt.receiptId
+			.slice(-5)
+			.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
 	}
+
 	const receiptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
 
 	const items = [];
