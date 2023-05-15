@@ -902,6 +902,27 @@ exports.IncomeDashboard = async (req, res, next) => {
 								},
 							},
 						},
+						{
+							$project: {
+								totalAmount: 1,
+								maxClass: {
+									amount: 1,
+									sectionId: {
+										sectionName: '$maxClass.sectionId.name',
+										className: '$maxClass.sectionId.name',
+										_id: '$maxClass.sectionId.classId',
+									},
+								},
+								minClass: {
+									amount: 1,
+									sectionId: {
+										sectionName: '$minClass.sectionId.name',
+										className: '$minClass.sectionId.name',
+										_id: '$minClass.sectionId.classId',
+									},
+								},
+							},
+						},
 					],
 					miscCollected: [
 						{
