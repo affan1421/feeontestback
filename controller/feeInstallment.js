@@ -470,7 +470,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
-		issueDate,
+		issueDate = new Date(),
 		feeCategoryName,
 		feeCategoryId,
 		receiptType,
@@ -1070,7 +1070,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 			sectionList
 		);
 		incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
-			totalCollected,
+			totalCollected[0],
 			sectionList
 		);
 		incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
