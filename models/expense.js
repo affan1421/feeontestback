@@ -23,11 +23,19 @@ const expenseSchema = new mongoose.Schema(
 		paymentMethod: {
 			type: String,
 			required: true,
-			enum: ['UPI', 'NetBanking', 'Cheque', 'NEFT', 'Cash'],
+			enum: [
+				'CASH',
+				'CHEQUE',
+				'ONLINE_TRANSFER',
+				'UPI',
+				'DD',
+				'DEBIT_CARD',
+				'CREDIT_CARD',
+			],
 		},
 		transactionDetails: {
 			transactionId: String,
-			ChequNo: Number,
+			ChequeNo: Number,
 			screenShot: String,
 		},
 		schoolId: {

@@ -829,7 +829,10 @@ exports.IncomeDashboard = async (req, res, next) => {
 		let totalMiscAmount = 0;
 
 		if (dateRange === 'daily') {
-			dateObj = new Date();
+			dateObj = {
+				$gte: moment().startOf('day').toDate(),
+				$lte: moment().endOf('day').toDate(),
+			};
 		} else if (dateRange === 'weekly') {
 			dateObj = {
 				$gte: moment().startOf('week').toDate(),
@@ -852,26 +855,79 @@ exports.IncomeDashboard = async (req, res, next) => {
 		}, {});
 		const miscAggregate = [
 			{
-				$match: {
-					'school.schoolId': mongoose.Types.ObjectId(schoolId),
-					receiptType: {
-						$in: ['APPLICATION', 'MISCELLANEOUS'],
-					},
-					issueDate: dateObj,
-				},
-			},
-			{
-				$unwind: {
-					path: '$items',
-					preserveNullAndEmptyArrays: true,
-				},
-			},
-			{
-				$group: {
-					_id: '$items.feeTypeId',
-					totalAmount: {
-						$sum: '$paidAmount',
-					},
+				$facet: {
+					totalCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								receiptType: 'ACADEMIC',
+								issueDate: dateObj,
+							},
+						},
+						{
+							$addFields: {
+								section: '$student.class',
+							},
+						},
+						{
+							$group: {
+								_id: '$section',
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+						{
+							$sort: {
+								totalAmount: -1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$totalAmount',
+								},
+								maxClass: {
+									$max: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+								minClass: {
+									$min: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+							},
+						},
+					],
+					miscCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								receiptType: {
+									$in: ['APPLICATION', 'MISCELLANEOUS'],
+								},
+								issueDate: dateObj,
+							},
+						},
+						{
+							$unwind: {
+								path: '$items',
+								preserveNullAndEmptyArrays: true,
+							},
+						},
+						{
+							$group: {
+								_id: '$items.feeTypeId',
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+					],
 				},
 			},
 		];
@@ -895,50 +951,6 @@ exports.IncomeDashboard = async (req, res, next) => {
 							$group: {
 								_id: null,
 								totalAmount: { $sum: '$totalAmount' },
-								maxClass: {
-									$max: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-								minClass: {
-									$min: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-							},
-						},
-					],
-					totalCollected: [
-						{
-							$match: {
-								schoolId: mongoose.Types.ObjectId(schoolId),
-								status: {
-									$in: ['Paid', 'Late'],
-								},
-								date: dateObj,
-							},
-						},
-						{
-							$group: {
-								_id: '$sectionId',
-								totalAmount: {
-									$sum: '$netAmount',
-								},
-							},
-						},
-						{
-							$sort: {
-								totalAmount: -1,
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								totalAmount: {
-									$sum: '$totalAmount',
-								},
 								maxClass: {
 									$max: {
 										amount: '$totalAmount',
@@ -1005,21 +1017,19 @@ exports.IncomeDashboard = async (req, res, next) => {
 					totalReceivable: {
 						$first: '$totalReceivable',
 					},
-					totalCollected: {
-						$first: '$totalCollected',
-					},
 					totalPending: {
 						$first: '$totalPending',
 					},
 				},
 			},
 		];
-		const miscIncomeData = await FeeReceipt.aggregate(miscAggregate);
-		const incomeDataArray = await FeeInstallment.aggregate(incomeAggregate);
-		if (!incomeDataArray.length) {
+		const totalIncomeData = await FeeReceipt.aggregate(miscAggregate);
+		const feesReport = await FeeInstallment.aggregate(incomeAggregate);
+		if (!feesReport.length) {
 			return next(new ErrorResponse('No Data Found', 404));
 		}
-		const incomeData = incomeDataArray[0];
+		const incomeData = feesReport[0];
+		const { totalCollected, miscCollected } = totalIncomeData[0];
 		incomeData.miscellaneous = [];
 		const setDefaultValues = data => {
 			const defaultData = {
@@ -1060,7 +1070,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 			sectionList
 		);
 		incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
-			incomeData.totalCollected,
+			totalCollected,
 			sectionList
 		);
 		incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
@@ -1068,7 +1078,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 			sectionList
 		);
 
-		if (miscIncomeData.length) {
+		if (miscCollected.length) {
 			const foundMiscTypes = await FeeType.find(
 				{
 					schoolId: mongoose.Types.ObjectId(schoolId),
@@ -1082,7 +1092,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 				acc[curr._id] = curr.feeType;
 				return acc;
 			}, {});
-			incomeData.miscellaneous = miscIncomeData.map(misc => {
+			incomeData.miscellaneous = miscCollected.map(misc => {
 				const miscType = miscTypes[misc._id];
 				totalMiscAmount += misc.totalAmount;
 				return {
