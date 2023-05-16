@@ -133,6 +133,148 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
+	let {
+		schoolId,
+		sectionId,
+		paymentMode,
+		receiptType,
+		page = 0,
+		limit = 5,
+	} = req.query;
+	page = +page;
+	limit = +limit;
+	const payload = {};
+	// find the active academic year
+
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+	payload['academicYear.academicYearId'] =
+		mongoose.Types.ObjectId(academicYearId);
+	if (schoolId) {
+		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+	if (sectionId) {
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
+	}
+	if (paymentMode) {
+		payload['payment.method'] = paymentMode;
+	}
+	if (receiptType) {
+		payload.receiptType = receiptType;
+	}
+	const feeReceipts = await FeeReceipt.aggregate([
+		{
+			$facet: {
+				data: [
+					{
+						$match: payload,
+					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+					{
+						$skip: page * limit,
+					},
+					{
+						$limit: limit,
+					},
+					{
+						$project: {
+							name: '$student.name',
+							className: {
+								$concat: [
+									'$student.class.name',
+									' - ',
+									'$student.section.name',
+								],
+							},
+							amount: '$paidAmount',
+							items: 1,
+							receiptId: 1,
+							issueDate: 1,
+							paymentMode: '$payment.method',
+						},
+					},
+					{
+						$unwind: {
+							path: '$items',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							let: {
+								feeTypeId: '$items.feeTypeId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$feeTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										feeType: 1,
+									},
+								},
+							],
+							as: 'items.feeTypeId',
+						},
+					},
+					{
+						$group: {
+							_id: '$_id',
+							items: {
+								$addToSet: {
+									$first: '$items.feeTypeId.feeType',
+								},
+							},
+							root: {
+								$first: '$$ROOT',
+							},
+						},
+					},
+					{
+						$replaceRoot: {
+							newRoot: {
+								$mergeObjects: [
+									'$root',
+									{
+										items: '$items',
+									},
+								],
+							},
+						},
+					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+				],
+				count: [{ $match: payload }, { $count: 'count' }],
+			},
+		},
+	]);
+	const { data, count } = feeReceipts[0];
+
+	if (count.length === 0) {
+		return next(new ErrorResponse('No Fee Receipts Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
 const createReceipt = async (req, res, next) => {
 	const {
 		receiptType,
@@ -448,4 +590,5 @@ module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
 	createReceipt,
+	getFeeReceiptSummary,
 };
