@@ -10,19 +10,20 @@ const expenseSchema = new mongoose.Schema(
 			type: String,
 		},
 		voucherNumber: {
-			type: Number,
+			type: String,
+			required: [true, 'Voucher Number is required'],
 		},
 		amount: {
 			type: Number,
-			required: true,
+			required: [true, 'Amount is required'],
 		},
 		expenseDate: {
 			type: Date,
-			required: true,
+			required: [true, 'Expense Date is required'],
 		},
 		paymentMethod: {
 			type: String,
-			required: true,
+			required: [true, 'Payment Method is required'],
 			enum: [
 				'CASH',
 				'CHEQUE',
@@ -41,17 +42,17 @@ const expenseSchema = new mongoose.Schema(
 		schoolId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'School',
-			required: true,
+			required: [true, 'School is required'],
 		},
 		expenseType: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'ExpenseType',
-			required: true,
+			required: [true, 'Expense Type is required'],
 		},
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'User', // change model name if wrong
-			required: true,
+			required: [true, 'Created By is required'],
 		},
 		approvedBy: {
 			type: String,
@@ -66,11 +67,6 @@ expenseSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	deletedBy: true,
 	overrideMethods: true,
-});
-expenseSchema.plugin(autoIncrement.plugin, {
-	model: 'Expense',
-	field: 'voucherNumber',
-	startAt: 100000,
 });
 
 module.exports = mongoose.model('Expense', expenseSchema);

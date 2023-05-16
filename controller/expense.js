@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 const ExpenseModel = require('../models/expense');
 const ExpenseType = require('../models/expenseType');
 const ErrorResponse = require('../utils/errorResponse');
@@ -7,11 +8,13 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
+	const date = moment().format('DDMMYY');
 	const {
 		reason,
 		amount,
 		paymentMethod,
 		expenseType,
+		expenseTypeName,
 		schoolId,
 		createdBy,
 		transactionDetails,
@@ -20,11 +23,29 @@ exports.create = async (req, res, next) => {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
+	const lastVoucherNumber = await ExpenseModel.findOne({
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	})
+		.sort({ createdAt: -1 })
+		.lean();
+
+	let newCount = '00001';
+
+	if (lastVoucherNumber && lastVoucherNumber.voucherNumber) {
+		newCount = lastVoucherNumber.voucherNumber
+			.slice(-5)
+			.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
+	}
+	const voucherNumber = `${expenseTypeName
+		.slice(0, 2)
+		.toUpperCase()}${date}${newCount}`;
+
 	let newExpense;
 	try {
 		newExpense = await ExpenseModel.create({
 			reason,
 			schoolId,
+			voucherNumber,
 			amount,
 			transactionDetails,
 			expenseDate: new Date(),
