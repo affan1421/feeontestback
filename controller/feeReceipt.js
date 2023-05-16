@@ -359,6 +359,7 @@ const createReceipt = async (req, res, next) => {
 					{
 						$project: {
 							className: 1,
+							name: 1,
 						},
 					},
 				],
@@ -444,6 +445,9 @@ const createReceipt = async (req, res, next) => {
 				className: {
 					$first: '$section.className',
 				},
+				section: {
+					$first: '$section',
+				},
 				schoolId: '$school_id',
 				schoolName: {
 					$first: '$school.name',
@@ -473,6 +477,7 @@ const createReceipt = async (req, res, next) => {
 		username = '',
 		className = '',
 		classId = '',
+		section = '',
 		parentName,
 		parentMobile,
 		parentId,
@@ -482,6 +487,8 @@ const createReceipt = async (req, res, next) => {
 		schoolAddress = '',
 		schoolId = '',
 	} = foundStudent[0];
+
+	const className1 = className ? className.split('-')[0].trim() : '';
 
 	const currentDate = moment();
 	const date = currentDate.format('DDMMYY');
@@ -515,8 +522,12 @@ const createReceipt = async (req, res, next) => {
 			name: studentName,
 			studentId,
 			class: {
-				name: className,
+				name: className1,
 				classId,
+			},
+			section: {
+				name: section.name,
+				sectionId: section._id,
 			},
 		},
 		receiptType,
