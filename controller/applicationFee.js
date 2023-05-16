@@ -16,6 +16,7 @@ const createApplicationFee = async (req, res, next) => {
 		const {
 			studentName,
 			classId,
+			sectionId,
 			className,
 			parentName,
 			phoneNumber,
@@ -27,6 +28,7 @@ const createApplicationFee = async (req, res, next) => {
 
 		if (
 			!studentName ||
+			!sectionId ||
 			!classId ||
 			!className ||
 			!parentName ||
@@ -36,6 +38,9 @@ const createApplicationFee = async (req, res, next) => {
 		) {
 			return next(new ErrorResponse('Please Provide All Field', 422));
 		}
+
+		const classOnly = className.split(' - ')[0];
+		const sectionName = className.split(' - ')[1];
 
 		const [school, academicYear, foundForm, lastReceipt] = await Promise.all([
 			School.findOne(
@@ -98,7 +103,11 @@ const createApplicationFee = async (req, res, next) => {
 				name: studentName,
 				class: {
 					classId,
-					name: className,
+					name: classOnly,
+				},
+				section: {
+					sectionId,
+					name: sectionName,
 				},
 			},
 			parent: {
