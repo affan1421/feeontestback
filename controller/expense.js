@@ -12,6 +12,7 @@ exports.create = async (req, res, next) => {
 	const {
 		reason,
 		amount,
+		approvedBy,
 		paymentMethod,
 		expenseType,
 		expenseTypeName,
@@ -51,13 +52,13 @@ exports.create = async (req, res, next) => {
 			expenseDate: new Date(),
 			paymentMethod,
 			expenseType,
+			approvedBy,
 			createdBy,
 		});
 		newExpense = JSON.parse(JSON.stringify(newExpense));
 		const remainingBudget = await ExpenseType.findOneAndUpdate(
 			{
-				_id: mongoose.Types.ObjectId(expenseType),
-				schoolId: mongoose.Types.ObjectId(schoolId),
+				_id: expenseType,
 			},
 			{
 				$inc: { remainingBudget: -parseInt(amount) },
@@ -66,7 +67,8 @@ exports.create = async (req, res, next) => {
 			{
 				new: true,
 			}
-		).lean();
+		);
+
 		newExpense.remainingBudget = remainingBudget.remainingBudget;
 	} catch (error) {
 		console.log('error', error);
