@@ -141,6 +141,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		receiptType,
 		page = 0,
 		limit = 5,
+		search,
 	} = req.query;
 	page = +page;
 	limit = +limit;
@@ -164,6 +165,9 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	}
 	if (receiptType) {
 		payload.receiptType = receiptType;
+	}
+	if (search) {
+		payload.$text = { $search: search };
 	}
 	const feeReceipts = await FeeReceipt.aggregate([
 		{

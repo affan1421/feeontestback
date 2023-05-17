@@ -167,6 +167,9 @@ feeReceiptSchema.index({
 	'school.schoolId': 1,
 });
 
+// index the student.name field as search text
+feeReceiptSchema.index({ 'student.name': 'text' });
+
 feeReceiptSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	deletedBy: true,

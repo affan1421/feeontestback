@@ -476,3 +476,98 @@ exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
 		.status(200)
 		.json(SuccessResponse(expenseData[0], 1, 'Deleted Successfully'));
 });
+
+exports.getDashboardData = catchAsync(async (req, res, next) => {
+	const { schoolId, dateRange = 'daily' } = req.query;
+
+	let dateObj = null;
+
+	if (dateRange === 'daily') {
+		dateObj = {
+			$gte: moment().startOf('day').toDate(),
+			$lte: moment().endOf('day').toDate(),
+		};
+	} else if (dateRange === 'weekly') {
+		dateObj = {
+			$gte: moment().startOf('week').toDate(),
+			$lte: moment().endOf('week').toDate(),
+		};
+	} else if (dateRange === 'monthly') {
+		dateObj = {
+			$gte: moment().startOf('month').toDate(),
+			$lte: moment().endOf('month').toDate(),
+		};
+	}
+
+	const expenseData = await ExpenseModel.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(schoolId),
+			},
+		},
+		{
+			$group: {
+				_id: '$expenseType',
+				totalExpAmount: {
+					$sum: '$amount',
+				},
+				schoolId: {
+					$first: '$schoolId',
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'expensetypes',
+				let: {
+					expTypeId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$expTypeId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: '_id',
+			},
+		},
+		{
+			$group: {
+				_id: '$schoolId',
+				totalAmount: {
+					$sum: '$totalExpAmount',
+				},
+				maxExpType: {
+					$max: {
+						totalExpAmount: '$totalExpAmount',
+						expenseType: {
+							$first: '$_id',
+						},
+					},
+				},
+				minExpType: {
+					$min: {
+						totalExpAmount: '$totalExpAmount',
+						expenseType: {
+							$first: '$_id',
+						},
+					},
+				},
+			},
+		},
+	]);
+	if (!expenseData.length) {
+		return next(new ErrorResponse('Expense Not Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(expenseData[0], 1, 'Fetched Successfully'));
+});

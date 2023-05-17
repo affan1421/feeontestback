@@ -826,22 +826,34 @@ exports.IncomeDashboard = async (req, res, next) => {
 	try {
 		const { schoolId, dateRange = 'daily' } = req.query;
 		let dateObj = null;
-		let totalMiscAmount = 0;
+		let prevDateObj = null;
 
 		if (dateRange === 'daily') {
 			dateObj = {
 				$gte: moment().startOf('day').toDate(),
 				$lte: moment().endOf('day').toDate(),
 			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'days').startOf('day').toDate(),
+				$lte: moment().subtract(1, 'days').endOf('day').toDate(),
+			};
 		} else if (dateRange === 'weekly') {
 			dateObj = {
 				$gte: moment().startOf('week').toDate(),
 				$lte: moment().endOf('week').toDate(),
 			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
+				$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
+			};
 		} else if (dateRange === 'monthly') {
 			dateObj = {
 				$gte: moment().startOf('month').toDate(),
 				$lte: moment().endOf('month').toDate(),
+			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'months').startOf('month').toDate(),
+				$lte: moment().subtract(1, 'months').endOf('month').toDate(),
 			};
 		}
 		let sectionList = await Sections.find({
@@ -853,6 +865,69 @@ exports.IncomeDashboard = async (req, res, next) => {
 			acc[curr._id] = curr;
 			return acc;
 		}, {});
+
+		const totalIncomeAggregation = [
+			{
+				$match: {
+					'school.schoolId': mongoose.Types.ObjectId(schoolId),
+					issueDate: dateObj,
+				},
+			},
+		];
+		if (dateRange === 'daily') {
+			totalIncomeAggregation.push({
+				$group: {
+					_id: null,
+					totalAmount: {
+						$sum: '$paidAmount',
+					},
+					// push only the issueDate and paidAmount
+					incomeList: {
+						$push: {
+							issueDate: '$issueDate',
+							paidAmount: '$paidAmount',
+						},
+					},
+				},
+			});
+		} else {
+			totalIncomeAggregation.push(
+				{
+					$group: {
+						_id: {
+							$dateToString: {
+								format: '%Y-%m-%d',
+								date: '$issueDate',
+							},
+						},
+						totalAmount: {
+							$sum: '$paidAmount',
+						},
+					},
+				},
+				{
+					$sort: {
+						_id: 1,
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						totalAmount: {
+							$sum: '$totalAmount',
+						},
+						incomeList: {
+							$push: {
+								issueDate: '$_id',
+								paidAmount: '$totalAmount',
+							},
+						},
+					},
+				}
+			);
+		}
+
+		//
 		const miscAggregate = [
 			{
 				$facet: {
@@ -866,12 +941,16 @@ exports.IncomeDashboard = async (req, res, next) => {
 						},
 						{
 							$addFields: {
-								section: '$student.class',
+								section: '$student.section',
+								class: '$student.class',
 							},
 						},
 						{
 							$group: {
 								_id: '$section',
+								class: {
+									$first: '$class',
+								},
 								totalAmount: {
 									$sum: '$paidAmount',
 								},
@@ -891,13 +970,15 @@ exports.IncomeDashboard = async (req, res, next) => {
 								maxClass: {
 									$max: {
 										amount: '$totalAmount',
-										sectionId: '$_id',
+										section: '$_id',
+										class: '$class',
 									},
 								},
 								minClass: {
 									$min: {
 										amount: '$totalAmount',
-										sectionId: '$_id',
+										section: '$_id',
+										class: '$class',
 									},
 								},
 							},
@@ -908,17 +989,17 @@ exports.IncomeDashboard = async (req, res, next) => {
 								maxClass: {
 									amount: 1,
 									sectionId: {
-										sectionName: '$maxClass.sectionId.name',
-										className: '$maxClass.sectionId.name',
-										_id: '$maxClass.sectionId.classId',
+										sectionName: '$maxClass.section.name',
+										className: '$maxClass.class.name',
+										_id: '$maxClass.section.sectionId',
 									},
 								},
 								minClass: {
 									amount: 1,
 									sectionId: {
-										sectionName: '$minClass.sectionId.name',
-										className: '$minClass.sectionId.name',
-										_id: '$minClass.sectionId.classId',
+										sectionName: '$minClass.section.name',
+										className: '$minClass.class.name',
+										_id: '$minClass.section.sectionId',
 									},
 								},
 							},
@@ -943,6 +1024,33 @@ exports.IncomeDashboard = async (req, res, next) => {
 						{
 							$group: {
 								_id: '$items.feeTypeId',
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+					],
+					// totalIncomeCollected[0].totalAmount
+					totalIncomeCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								issueDate: dateObj,
+							},
+						},
+						...totalIncomeAggregation,
+					],
+					// prevIncomeCollected[0].totalAmount
+					prevIncomeCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								issueDate: prevDateObj,
+							},
+						},
+						{
+							$group: {
+								_id: null,
 								totalAmount: {
 									$sum: '$paidAmount',
 								},
@@ -1050,7 +1158,12 @@ exports.IncomeDashboard = async (req, res, next) => {
 			return next(new ErrorResponse('No Data Found', 404));
 		}
 		const incomeData = feesReport[0];
-		const { totalCollected, miscCollected } = totalIncomeData[0];
+		const {
+			totalCollected,
+			miscCollected,
+			totalIncomeCollected,
+			prevIncomeCollected,
+		} = totalIncomeData[0];
 		incomeData.miscellaneous = [];
 		const setDefaultValues = data => {
 			const defaultData = {
@@ -1115,7 +1228,6 @@ exports.IncomeDashboard = async (req, res, next) => {
 			}, {});
 			incomeData.miscellaneous = miscCollected.map(misc => {
 				const miscType = miscTypes[misc._id];
-				totalMiscAmount += misc.totalAmount;
 				return {
 					amount: misc.totalAmount,
 					feeTypeId: {
@@ -1125,8 +1237,16 @@ exports.IncomeDashboard = async (req, res, next) => {
 				};
 			});
 		}
+		const prevAmount = prevIncomeCollected[0]?.totalAmount || 0;
 		incomeData.totalIncome = {
-			amount: incomeData.totalCollected.totalAmount + totalMiscAmount,
+			amount: totalIncomeCollected[0].totalAmount,
+			incomeList: totalIncomeCollected[0].incomeList,
+			// find the average percentage of income
+			percentageChange:
+				prevAmount > 0
+					? ((totalIncomeCollected[0].totalAmount - prevAmount) / prevAmount) *
+					  100
+					: 0,
 		};
 		res
 			.status(200)
