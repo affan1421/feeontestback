@@ -23,7 +23,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		limit = 10,
 		schoolId = null,
 		sectionId = null,
-		receiptType = null,
+		receiptType = 'ACADEMIC',
 	} = req.query;
 
 	if (limit > 50) {
