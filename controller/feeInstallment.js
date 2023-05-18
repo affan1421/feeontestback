@@ -18,8 +18,8 @@ const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
-	const {
-		pageNum = 1,
+	let {
+		pageNum = 0,
 		limit = 10,
 		schoolId = null,
 		sectionId = null,
@@ -59,22 +59,25 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	if (foundAcademicYear) {
 		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
 	}
+	pageNum = +pageNum;
+	limit = +limit;
 
 	const foundTransactions = await FeeReceipt.aggregate([
 		{
 			$match: matchQuery,
 		},
 		{
-			$skip: limit * pageNum - limit,
-		},
-		{
-			$limit: parseInt(limit),
-		},
-		{
 			$sort: {
-				createdAt: -1,
+				issueDate: -1,
 			},
 		},
+		{
+			$skip: pageNum * limit,
+		},
+		{
+			$limit: limit,
+		},
+
 		{
 			$lookup: {
 				from: 'students',
@@ -107,7 +110,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 				paidAmount: 1,
 				dueAmount: 1,
 				totalAmount: 1,
-				date: '$createdAt',
+				date: '$issueDate',
 			},
 		},
 	]);
