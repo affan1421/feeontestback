@@ -362,7 +362,13 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(finalData, 1, 'data fetched Successfully'));
+		.json(
+			SuccessResponse(
+				finalData,
+				expenseData.length,
+				'data fetched Successfully'
+			)
+		);
 });
 
 function getDailyDates(date) {
@@ -481,93 +487,213 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 	const { schoolId, dateRange = 'daily' } = req.query;
 
 	let dateObj = null;
-
+	let prevDateObj = null;
+	const totalExpenseAggregation = [
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(schoolId),
+				expenseDate: dateObj,
+			},
+		},
+	];
+	const tempAggregation = [
+		{
+			$group: {
+				_id: {
+					$dateToString: {
+						format: '%Y-%m-%d',
+						date: '$expenseDate',
+					},
+				},
+				totalExpAmount: {
+					$sum: '$amount',
+				},
+			},
+		},
+		{
+			$sort: {
+				_id: 1,
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				totalExpAmount: {
+					$sum: '$totalExpAmount',
+				},
+				expenseList: {
+					$push: {
+						expenseDate: '$_id',
+						amount: '$totalExpAmount',
+					},
+				},
+			},
+		},
+	];
 	if (dateRange === 'daily') {
 		dateObj = {
 			$gte: moment().startOf('day').toDate(),
 			$lte: moment().endOf('day').toDate(),
 		};
+		prevDateObj = {
+			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
+			$lte: moment().subtract(1, 'days').endOf('day').toDate(),
+		};
+		totalExpenseAggregation.push({
+			$group: {
+				_id: null,
+				totalExpAmount: {
+					$sum: '$amount',
+				},
+				// push only the issueDate and paidAmount
+				expenseList: {
+					$push: {
+						expenseDate: '$expenseDate',
+						amount: '$amount',
+					},
+				},
+			},
+		});
 	} else if (dateRange === 'weekly') {
 		dateObj = {
 			$gte: moment().startOf('week').toDate(),
 			$lte: moment().endOf('week').toDate(),
 		};
+		prevDateObj = {
+			$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
+			$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
+		};
+		totalExpenseAggregation.push(...tempAggregation);
 	} else if (dateRange === 'monthly') {
 		dateObj = {
 			$gte: moment().startOf('month').toDate(),
 			$lte: moment().endOf('month').toDate(),
 		};
+		prevDateObj = {
+			$gte: moment().subtract(1, 'months').startOf('month').toDate(),
+			$lte: moment().subtract(1, 'months').endOf('month').toDate(),
+		};
+		totalExpenseAggregation.push(...tempAggregation);
 	}
 
 	const expenseData = await ExpenseModel.aggregate([
 		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(schoolId),
-			},
-		},
-		{
-			$group: {
-				_id: '$expenseType',
-				totalExpAmount: {
-					$sum: '$amount',
-				},
-				schoolId: {
-					$first: '$schoolId',
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'expensetypes',
-				let: {
-					expTypeId: '$_id',
-				},
-				pipeline: [
+			$facet: {
+				totalExpense: [
 					{
 						$match: {
-							$expr: {
-								$eq: ['$_id', '$$expTypeId'],
+							schoolId: mongoose.Types.ObjectId(schoolId),
+						},
+					},
+					{
+						$group: {
+							_id: '$expenseType',
+							totalExpAmount: {
+								$sum: '$amount',
+							},
+							schoolId: {
+								$first: '$schoolId',
 							},
 						},
 					},
 					{
-						$project: {
-							name: 1,
+						$lookup: {
+							from: 'expensetypes',
+							let: {
+								expTypeId: '$_id',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$expTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										name: 1,
+									},
+								},
+							],
+							as: '_id',
+						},
+					},
+					{
+						$group: {
+							_id: '$schoolId',
+							totalAmount: {
+								$sum: '$totalExpAmount',
+							},
+							maxExpType: {
+								$max: {
+									totalExpAmount: '$totalExpAmount',
+									expenseType: {
+										$first: '$_id',
+									},
+								},
+							},
+							minExpType: {
+								$min: {
+									totalExpAmount: '$totalExpAmount',
+									expenseType: {
+										$first: '$_id',
+									},
+								},
+							},
 						},
 					},
 				],
-				as: '_id',
-			},
-		},
-		{
-			$group: {
-				_id: '$schoolId',
-				totalAmount: {
-					$sum: '$totalExpAmount',
-				},
-				maxExpType: {
-					$max: {
-						totalExpAmount: '$totalExpAmount',
-						expenseType: {
-							$first: '$_id',
+				totalExpensePrev: [
+					{
+						$match: {
+							schoolId: mongoose.Types.ObjectId(schoolId),
+							expenseDate: prevDateObj,
 						},
 					},
-				},
-				minExpType: {
-					$min: {
-						totalExpAmount: '$totalExpAmount',
-						expenseType: {
-							$first: '$_id',
+					{
+						$group: {
+							_id: null,
+							totalExpAmount: {
+								$sum: '$amount',
+							},
 						},
 					},
-				},
+				],
+				totalExpenseCurrent: totalExpenseAggregation,
 			},
 		},
 	]);
+	const totalExpenseData = expenseData[0].totalExpense[0]
+		? expenseData[0].totalExpense[0]
+		: {
+				totalAmount: 0,
+				maxExpType: {
+					totalExpAmount: 0,
+					expenseType: null,
+				},
+				minExpType: {
+					totalExpAmount: 0,
+					expenseType: null,
+				},
+		  };
+	const totalExpensePrev =
+		expenseData[0].totalExpensePrev[0]?.totalExpAmount || 0;
+	const totalExpenseCurrent =
+		expenseData[0].totalExpenseCurrent[0]?.totalExpAmount || 0;
+	const finalData = {
+		totalExpense: totalExpenseData,
+		totalExpenseCurrent: expenseData[0].totalExpenseCurrent[0] ?? {
+			totalExpAmount: 0,
+			expenseList: [],
+		},
+		percentage:
+			totalExpensePrev > 0
+				? ((totalExpenseCurrent - totalExpensePrev) / totalExpensePrev) * 100
+				: 0,
+	};
 	if (!expenseData.length) {
 		return next(new ErrorResponse('Expense Not Found', 404));
 	}
-	res
-		.status(200)
-		.json(SuccessResponse(expenseData[0], 1, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(finalData, 1, 'Fetched Successfully'));
 });

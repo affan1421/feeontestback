@@ -1031,15 +1031,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 						},
 					],
 					// totalIncomeCollected[0].totalAmount
-					totalIncomeCollected: [
-						{
-							$match: {
-								'school.schoolId': mongoose.Types.ObjectId(schoolId),
-								issueDate: dateObj,
-							},
-						},
-						...totalIncomeAggregation,
-					],
+					totalIncomeCollected: totalIncomeAggregation,
 					// prevIncomeCollected[0].totalAmount
 					prevIncomeCollected: [
 						{
@@ -1243,7 +1235,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 			amount: currentPaidAmount,
 			incomeList: totalIncomeCollected[0]?.incomeList || [],
 			// find the average percentage of income
-			percentageChange:
+			percentage:
 				prevAmount > 0
 					? ((currentPaidAmount - prevAmount) / prevAmount) * 100
 					: 0,
