@@ -1238,14 +1238,14 @@ exports.IncomeDashboard = async (req, res, next) => {
 			});
 		}
 		const prevAmount = prevIncomeCollected[0]?.totalAmount || 0;
+		const currentPaidAmount = totalIncomeCollected[0]?.totalAmount || 0;
 		incomeData.totalIncome = {
-			amount: totalIncomeCollected[0].totalAmount,
-			incomeList: totalIncomeCollected[0].incomeList,
+			amount: currentPaidAmount,
+			incomeList: totalIncomeCollected[0]?.incomeList || [],
 			// find the average percentage of income
 			percentageChange:
 				prevAmount > 0
-					? ((totalIncomeCollected[0].totalAmount - prevAmount) / prevAmount) *
-					  100
+					? ((currentPaidAmount - prevAmount) / prevAmount) * 100
 					: 0,
 		};
 		res

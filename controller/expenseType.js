@@ -88,9 +88,25 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 
+	const { budget, remainingBudget } = req.body;
+
+	const { budget: oldBudget, remainingBudget: oldRemainingBudget } =
+		await ExpenseType.findOne({ _id: id });
+
+	const spent = oldBudget - oldRemainingBudget;
+	const diff = budget - oldBudget;
+
+	if (budget < spent) {
+		return next(
+			new ErrorResponse('Cannot Update Budget, Enter Greater Amount', 400)
+		);
+	}
+	req.body.remainingBudget += diff;
 	const expensetype = await ExpenseType.findOneAndUpdate(
-		{ _id: id, schoolId: req.body.schoolId },
-		req.body
+		{ _id: id },
+		{
+			...req.body,
+		}
 	);
 	if (expensetype === null) {
 		return next(new ErrorResponse('Expense Type Not Found', 404));
