@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 const mongoose = require('mongoose');
 const moment = require('moment');
 const ExpenseModel = require('../models/expense');
@@ -296,7 +297,14 @@ exports.totalExpenses = catchAsync(async (req, res, next) => {
 });
 
 exports.expensesList = catchAsync(async (req, res, next) => {
-	const { schoolId, paymentMethod, startDate, endDate } = req.body;
+	const {
+		schoolId,
+		paymentMethod,
+		sort,
+		page = 0,
+		limit = 10,
+		searchTerm,
+	} = req.body;
 	let match = {};
 	if (!schoolId) {
 		return next(new ErrorResponse('SchoolId is required', 422));
@@ -305,12 +313,32 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
-	startDate && endDate
-		? (match.expenseDate = { $gte: startDate, $lte: endDate })
-		: null;
-	const expenseData = await ExpenseModel.aggregate([
+
+	// check if the search term is having number
+	// eslint-disable-next-line no-restricted-globals
+	if (searchTerm && !isNaN(searchTerm)) {
+		match.amount = +searchTerm;
+	} else if (searchTerm) {
+		match.$or = [
+			{ voucherNumber: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ approvedBy: { $regex: `${searchTerm}`, $options: 'i' } },
+		];
+	}
+
+	const aggregation = [
 		{
 			$match: match,
+		},
+		{
+			$sort: {
+				expenseDate: -1,
+			},
+		},
+		{
+			$skip: page * limit,
+		},
+		{
+			$limit: limit,
 		},
 		{
 			$lookup: {
@@ -344,31 +372,35 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+	];
+	if (sort) {
+		aggregation[1].$sort = {
+			amount: sort,
+		};
+	}
+	const expenseData = await ExpenseModel.aggregate([
 		{
-			$sort: {
-				amount: 1,
+			$facet: {
+				data: aggregation,
+				count: [
+					{
+						$match: match,
+					},
+					{
+						$count: 'count',
+					},
+				],
 			},
 		},
 	]);
-	const lowestExpense = expenseData[0].amount;
-	const highestExpense = expenseData[expenseData.length - 1].amount;
-	const finalData = {
-		lowestExpense,
-		highestExpense,
-		expensesList: expenseData,
-	};
-	if (!expenseData.length) {
+
+	const { data, count } = expenseData[0];
+	if (count.length === 0) {
 		return next(new ErrorResponse('Expense Not Found', 404));
 	}
 	res
 		.status(200)
-		.json(
-			SuccessResponse(
-				finalData,
-				expenseData.length,
-				'data fetched Successfully'
-			)
-		);
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
 function getDailyDates(date) {
