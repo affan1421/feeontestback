@@ -608,6 +608,8 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		totalExpenseAggregation.push(...tempAggregation);
 	}
 
+	totalExpenseAggregation[0].$match.expenseDate = dateObj;
+
 	const expenseData = await ExpenseModel.aggregate([
 		{
 			$facet: {
