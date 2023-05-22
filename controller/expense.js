@@ -9,7 +9,6 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const date = moment().format('DDMMYY');
 	const {
 		reason,
 		amount,
@@ -17,10 +16,14 @@ exports.create = async (req, res, next) => {
 		paymentMethod,
 		expenseType,
 		expenseTypeName,
+		expenseDate,
 		schoolId,
 		createdBy,
 		transactionDetails,
 	} = req.body;
+
+	const date = moment(expenseDate).format('DDMMYY');
+
 	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
@@ -50,7 +53,7 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			expenseDate: new Date(),
+			expenseDate,
 			paymentMethod,
 			expenseType,
 			approvedBy,
@@ -72,7 +75,6 @@ exports.create = async (req, res, next) => {
 
 		newExpense.remainingBudget = remainingBudget.remainingBudget;
 	} catch (error) {
-		console.log('error', error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 	return res
