@@ -53,7 +53,7 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			expenseDate,
+			expenseDate: new Date(expenseDate),
 			paymentMethod,
 			expenseType,
 			approvedBy,
@@ -566,8 +566,8 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 	];
 	if (dateRange === 'daily') {
 		dateObj = {
-			$gte: new Date(moment().startOf('day').toDate()),
-			$lte: new Date(moment().endOf('day').toDate()),
+			$gte: new Date(moment(new Date()).startOf('day').toISOString()),
+			$lte: new Date(moment(new Date()).endOf('day').toISOString()),
 		};
 		prevDateObj = {
 			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
@@ -612,7 +612,7 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 
 	totalExpenseAggregation[0].$match.expenseDate = dateObj;
 
-	console.log(totalExpenseAggregation[0].$match.expenseDate);
+	console.log(totalExpenseAggregation[0].$match);
 	const expenseData = await ExpenseModel.aggregate([
 		{
 			$facet: {
