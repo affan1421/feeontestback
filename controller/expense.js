@@ -565,9 +565,13 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		},
 	];
 	if (dateRange === 'daily') {
+		const today = new Date();
+		const startOfDate = today.setHours(0, 0, 0, 0);
+		const endOfDate = today.setHours(23, 59, 59, 999);
+
 		dateObj = {
-			$gte: new Date(moment(new Date()).startOf('day').toISOString()),
-			$lte: new Date(moment(new Date()).endOf('day').toISOString()),
+			$gte: new Date(startOfDate),
+			$lte: new Date(endOfDate),
 		};
 		prevDateObj = {
 			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
