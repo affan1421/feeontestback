@@ -566,8 +566,8 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 	];
 	if (dateRange === 'daily') {
 		dateObj = {
-			$gte: moment().startOf('day').toDate(),
-			$lte: moment().endOf('day').toDate(),
+			$gte: new Date(moment().startOf('day').toDate()),
+			$lte: new Date(moment().endOf('day').toDate()),
 		};
 		prevDateObj = {
 			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
@@ -612,6 +612,7 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 
 	totalExpenseAggregation[0].$match.expenseDate = dateObj;
 
+	console.log(totalExpenseAggregation[0].$match.expenseDate);
 	const expenseData = await ExpenseModel.aggregate([
 		{
 			$facet: {
