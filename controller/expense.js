@@ -45,6 +45,10 @@ exports.create = async (req, res, next) => {
 		.slice(0, 2)
 		.toUpperCase()}${date}${newCount}`;
 
+	const currentDate = new Date();
+	const expenseDateDate = new Date(expenseDate);
+	const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
+
 	let newExpense;
 	try {
 		newExpense = await ExpenseModel.create({
@@ -53,7 +57,7 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			expenseDate: new Date(expenseDate),
+			expenseDate: updatedExpenseDate,
 			paymentMethod,
 			expenseType,
 			approvedBy,
