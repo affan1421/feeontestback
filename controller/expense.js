@@ -39,7 +39,7 @@ exports.create = async (req, res, next) => {
 	}
 
 	if (amount > foundExpenseType.remainingBudget) {
-		return next(new ErrorResponse('amount exceeded budget amount', 400));
+		return next(new ErrorResponse('Amount Exceeds Budget Amount', 400));
 	}
 
 	const lastVoucherNumber = await ExpenseModel.findOne({
