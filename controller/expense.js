@@ -28,6 +28,20 @@ exports.create = async (req, res, next) => {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
+	const foundExpenseType = await ExpenseType.findOne({
+		_id: mongoose.Types.ObjectId(expenseType),
+	})
+		.select('remainingBudget')
+		.lean();
+
+	if (!foundExpenseType) {
+		return next(new ErrorResponse('Expense type not found', 400));
+	}
+
+	if (amount > foundExpenseType.remainingBudget) {
+		return next(new ErrorResponse('amount exceeded budget amount', 400));
+	}
+
 	const lastVoucherNumber = await ExpenseModel.findOne({
 		schoolId: mongoose.Types.ObjectId(schoolId),
 	})
