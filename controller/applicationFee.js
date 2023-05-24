@@ -2,30 +2,33 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 const ApplicationFee = require('../models/applicationFee');
 const AcademicYear = require('../models/academicYear');
+const FeeReceipt = require('../models/feeReceipt');
 const SuccessResponse = require('../utils/successResponse');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
+const FeeType = require('../models/feeType');
 
 const School = mongoose.connection.db.collection('schools');
 
 // Create a new application fee record
 const createApplicationFee = async (req, res, next) => {
-	const formattedDate = moment().format('DDMMYY');
-	const issueDate = new Date();
 	try {
 		const {
 			studentName,
 			classId,
+			sectionId,
 			className,
 			parentName,
 			phoneNumber,
 			course = '',
 			amount,
 			schoolId,
-			paymentMode = 'Cash',
+			paymentMode = 'CASH',
 		} = req.body;
+
 		if (
 			!studentName ||
+			!sectionId ||
 			!classId ||
 			!className ||
 			!parentName ||
@@ -36,27 +39,46 @@ const createApplicationFee = async (req, res, next) => {
 			return next(new ErrorResponse('Please Provide All Field', 422));
 		}
 
-		const { schoolName, address } = await School.findOne({
-			_id: mongoose.Types.ObjectId(schoolId),
-		});
-		const { _id: academicYearId, name: academicYearName } =
-			await AcademicYear.findOne({
-				isActive: true,
-				schoolId,
-			});
+		const classOnly = className.split(' - ')[0];
+		const sectionName = className.split(' - ')[1];
 
-		// Generate receipt number, sort it in descending order and increment by 1
-		let newCount = '0001';
-		const lastReceipt = await ApplicationFee.findOne({
-			'school.schoolId': schoolId,
-		})
-			.sort({ createdAt: -1 })
-			.lean();
-		if (lastReceipt && lastReceipt.receiptId) {
-			newCount = lastReceipt.receiptId
-				.slice(-4)
-				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
+		const [school, academicYear, foundForm, lastReceipt] = await Promise.all([
+			School.findOne(
+				{ _id: mongoose.Types.ObjectId(schoolId) },
+				{ schoolName: 1, address: 1 }
+			),
+			AcademicYear.findOne({ isActive: true, schoolId }, { name: 1 }),
+			ApplicationFee.findOne({ schoolId, academicYearId: { $exists: true } }),
+			FeeReceipt.findOne({ 'school.schoolId': schoolId })
+				.sort({ createdAt: -1 })
+				.lean(),
+		]);
+
+		let feeTypeId = null;
+
+		if (!foundForm) {
+			const feeType = await FeeType.create({
+				_id: mongoose.Types.ObjectId(),
+				feeType: 'Application Fee',
+				accountType: 'Revenue',
+				schoolId,
+				description: 'Application Fee',
+				isMisc: true,
+			});
+			feeTypeId = feeType._id;
+		} else {
+			feeTypeId = foundForm.feeTypeId;
 		}
+		const { _id: academicYearId, name: academicYearName } = academicYear;
+		const { schoolName, address } = school;
+
+		const receipt_id = mongoose.Types.ObjectId();
+		const formattedDate = moment().format('DDMMYY');
+		const newCount = lastReceipt
+			? (parseInt(lastReceipt.receiptId.slice(-5)) + 1)
+					.toString()
+					.padStart(5, '0')
+			: '00001';
 		const receiptId = `AP${formattedDate}${newCount}`;
 		const payload = {
 			studentName,
@@ -66,50 +88,77 @@ const createApplicationFee = async (req, res, next) => {
 			phoneNumber,
 			course,
 			amount,
-			receipt: {
-				student: {
-					name: studentName,
-					class: {
-						classId,
-						name: className,
-					},
-				},
-				parent: {
-					name: parentName,
-					mobile: phoneNumber,
-				},
-				school: {
-					name: schoolName,
-					address,
-					schoolId,
-				},
-				academicYear: {
-					name: academicYearName,
-					academicYearId,
-				},
-				receiptId,
-				issueDate,
-				payment: {
-					method: paymentMode,
-				},
-				items: [
-					{
-						feeTypeId: {
-							feeType: 'Application Fee',
-						},
-						netAmount: amount,
-						paidAmount: amount,
-					},
-				],
-			},
+			schoolId,
+			academicYearId: academicYear._id,
+			feeTypeId,
+			receiptId: receipt_id,
 		};
-		const applicationFee = new ApplicationFee(payload);
 
-		await applicationFee.save();
+		let applicationFee = await ApplicationFee.create(payload);
+		applicationFee = JSON.parse(JSON.stringify(applicationFee));
 
-		res
-			.status(201)
-			.json(SuccessResponse(applicationFee, 1, 'Created Successfully'));
+		const receiptPayload = {
+			_id: receipt_id,
+			student: {
+				name: studentName,
+				class: {
+					classId,
+					name: classOnly,
+				},
+				section: {
+					sectionId,
+					name: sectionName,
+				},
+			},
+			parent: {
+				name: parentName,
+				mobile: phoneNumber,
+			},
+			school: {
+				name: schoolName,
+				address,
+				schoolId,
+			},
+			receiptType: 'APPLICATION',
+			academicYear: {
+				name: academicYearName,
+				academicYearId,
+			},
+			totalAmount: amount,
+			paidAmount: amount,
+			dueAmount: 0,
+			receiptId,
+			issueDate: new Date(),
+			payment: {
+				method: paymentMode,
+			},
+			items: [
+				{
+					feeTypeId,
+					netAmount: amount,
+					paidAmount: amount,
+				},
+			],
+		};
+
+		let receipt = await FeeReceipt.create(receiptPayload);
+		receipt = JSON.parse(JSON.stringify(receipt));
+		receipt.items[0].feeTypeId = {
+			_id: feeTypeId,
+			feeType: 'Application Fee',
+		};
+		res.status(201).json(
+			SuccessResponse(
+				{
+					...applicationFee,
+					receipt: {
+						...receipt,
+					},
+				},
+				1,
+				'Created Successfully'
+			)
+		);
 	} catch (error) {
 		console.log(error);
 		return next(new ErrorResponse('Something went wrong', 500));
@@ -123,7 +172,7 @@ const getAllApplicationFees = catchAsync(async (req, res, next) => {
 	limit = +limit;
 	const payload = {};
 	if (schoolId) {
-		payload['receipt.school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
 	if (classId) {
 		payload.classId = mongoose.Types.ObjectId(classId);
@@ -133,8 +182,7 @@ const getAllApplicationFees = catchAsync(async (req, res, next) => {
 		isActive: true,
 		schoolId,
 	});
-	payload['receipt.academicYear.academicYearId'] =
-		mongoose.Types.ObjectId(academicYearId);
+	payload.academicYearId = mongoose.Types.ObjectId(academicYearId);
 	const applicationFee = await ApplicationFee.aggregate([
 		{
 			$facet: {

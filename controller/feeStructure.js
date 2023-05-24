@@ -336,12 +336,17 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				},
 			}
 		);
-
+		const studMappedList = studentsToUpdate.map(s =>
+			mongoose.Types.ObjectId(s._id)
+		);
+		const unMapStudList = studentsToRemove.map(s =>
+			mongoose.Types.ObjectId(s._id)
+		);
 		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
 			await Promise.all([
 				Students.updateMany(
 					{
-						_id: { $in: studentsToUpdate },
+						_id: { $in: studMappedList },
 					},
 					{
 						$addToSet: {
@@ -351,7 +356,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				),
 				Students.updateMany(
 					{
-						_id: { $in: studentsToRemove.map(s => s._id) },
+						_id: { $in: unMapStudList },
 					},
 					{
 						$pull: {
@@ -361,7 +366,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				),
 				FeeInstallment.deleteMany(
 					{
-						studentId: { $in: studentsToRemove.map(s => s._id) },
+						studentId: { $in: unMapStudList },
 					},
 					{ deletedBy: req.user._id }
 				),

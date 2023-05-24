@@ -11,7 +11,7 @@ const feeReceiptSchema = new Schema(
 			studentId: {
 				type: Schema.Types.ObjectId,
 				ref: 'Student',
-				required: [true, 'studentid is required'],
+				required: [false, 'studentid is required'],
 			},
 			class: {
 				name: {
@@ -24,21 +24,38 @@ const feeReceiptSchema = new Schema(
 					required: [true, 'classId is required'],
 				},
 			},
+			section: {
+				name: {
+					type: String,
+					required: [false, 'Section is required'],
+				},
+				sectionId: {
+					type: Schema.Types.ObjectId,
+					ref: 'Section',
+					required: [false, 'sectionId is required'],
+				},
+			},
 		},
 		category: {
 			feeCategoryId: {
 				type: Schema.Types.ObjectId,
 				ref: 'FeeCategory',
-				required: [true, 'Fee category is required'],
+				required: [false, 'Fee category is required'],
 			},
 			name: {
 				type: String,
-				required: [true, 'Fee category name is required'],
+				required: [false, 'Fee category name is required'],
 			},
 		},
-		recieptId: {
+		receiptId: {
 			type: String,
-			required: [true, 'Reciept id is required'],
+			required: [true, 'Receipt id is required'],
+		},
+		receiptType: {
+			type: String,
+			required: [true, 'Receipt type is required'],
+			default: 'ACADEMIC',
+			enum: ['ACADEMIC', 'APPLICATION', 'MISCELLANEOUS'],
 		},
 		parent: {
 			name: {
@@ -52,7 +69,7 @@ const feeReceiptSchema = new Schema(
 			parentId: {
 				type: Schema.Types.ObjectId,
 				ref: 'Parent',
-				required: [true, 'parentid is required'],
+				required: [false, 'parentid is required'],
 			},
 		},
 		academicYear: {
@@ -150,10 +167,13 @@ feeReceiptSchema.index({
 	'school.schoolId': 1,
 });
 
+// index the student.name field as search text
+feeReceiptSchema.index({ 'student.name': 'text' });
+
 feeReceiptSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	deletedBy: true,
 	overrideMethods: 'all',
 });
 
-module.exports = model('FeeReciept', feeReceiptSchema);
+module.exports = model('FeeReceipt', feeReceiptSchema);

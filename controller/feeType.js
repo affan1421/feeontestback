@@ -6,8 +6,15 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const { feeType, accountType, schoolId, description, categoryId } = req.body;
-	if (!feeType || !accountType || !schoolId || !categoryId) {
+	const {
+		feeType,
+		accountType,
+		schoolId,
+		description,
+		categoryId,
+		isMisc = false,
+	} = req.body;
+	if (!feeType || !accountType || !schoolId) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
@@ -16,15 +23,21 @@ exports.create = async (req, res, next) => {
 		return next(new ErrorResponse('Fee Type Already Exist', 400));
 	}
 
+	const payload = {
+		feeType,
+		accountType,
+		schoolId,
+		description,
+		isMisc,
+	};
+
+	if (categoryId != null) {
+		payload.categoryId = categoryId;
+	}
+
 	let newFeeType;
 	try {
-		newFeeType = await Feetype.create({
-			feeType,
-			accountType,
-			schoolId,
-			categoryId,
-			description,
-		});
+		newFeeType = await Feetype.create(payload);
 	} catch (error) {
 		console.log('error', error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -36,9 +49,7 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.getTypes = catchAsync(async (req, res, next) => {
-	let { schoolId, accountType, categoryId, page = 0, limit = 5 } = req.query;
-	page = +page;
-	limit = +limit;
+	let { schoolId, accountType, categoryId, page, limit, isMisc } = req.query;
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
@@ -49,10 +60,20 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 	if (accountType) {
 		payload.accountType = accountType;
 	}
+	if (isMisc) {
+		payload.isMisc = true;
+	}
+	// Optional Pagination
+	const dataFacet = [{ $match: payload }];
+	if (page && limit) {
+		page = +page;
+		limit = +limit;
+		dataFacet.push({ $skip: page * limit }, { $limit: limit });
+	}
 	const feeTypes = await Feetype.aggregate([
 		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
+				data: dataFacet,
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},

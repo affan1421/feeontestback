@@ -1,10 +1,15 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
 
+const XLSX = require('xlsx');
 const FeeInstallment = require('../models/feeInstallment');
+
+const FeeType = require('../models/feeType');
 const FeeStructure = require('../models/feeStructure');
-const FeeReciept = require('../models/feeReceipt.js');
+const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
+
+const Sections = mongoose.connection.db.collection('sections');
 
 const Student = mongoose.connection.db.collection('students');
 
@@ -13,10 +18,16 @@ const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
-	const { pageNum = 1, limit = 10, schoolId = null } = req.query;
+	let {
+		page = 0,
+		limit = 10,
+		schoolId = null,
+		sectionId = null,
+		receiptType = 'ACADEMIC',
+	} = req.query;
 
 	if (limit > 50) {
-		return next(new ErrorResponse('Page limit should not excede 50', 400));
+		return next(new ErrorResponse('Page limit should not exceed 50', 400));
 	}
 
 	if (!schoolId) {
@@ -29,6 +40,15 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
 	}
 
+	if (sectionId) {
+		matchQuery['student.section.sectionId'] =
+			mongoose.Types.ObjectId(sectionId);
+	}
+
+	if (receiptType) {
+		matchQuery.receiptType = receiptType;
+	}
+
 	const foundAcademicYear = await AcademicYear.findOne({
 		isActive: true,
 		schoolId,
@@ -39,22 +59,25 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	if (foundAcademicYear) {
 		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
 	}
+	page = +page;
+	limit = +limit;
 
-	const foundTransactions = await FeeReciept.aggregate([
+	const foundTransactions = await FeeReceipt.aggregate([
 		{
 			$match: matchQuery,
 		},
 		{
-			$skip: limit * pageNum - limit,
-		},
-		{
-			$limit: parseInt(limit),
-		},
-		{
 			$sort: {
-				createdAt: -1,
+				issueDate: -1,
 			},
 		},
+		{
+			$skip: page * limit,
+		},
+		{
+			$limit: limit,
+		},
+
 		{
 			$lookup: {
 				from: 'students',
@@ -87,7 +110,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 				paidAmount: 1,
 				dueAmount: 1,
 				totalAmount: 1,
-				date: '$createdAt',
+				date: '$issueDate',
 			},
 		},
 	]);
@@ -175,10 +198,11 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 
 exports.StudentsList = catchAsync(async (req, res, next) => {
 	const {
-		pageNum = 1,
+		page = 0,
 		limit = 10,
 		schoolId = null,
 		classId = null,
+		sectionId = null,
 		search = null,
 	} = req.query;
 
@@ -186,7 +210,10 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Page limit should not excede 50', 400));
 	}
 
-	const matchQuery = {};
+	const matchQuery = {
+		deleted: false,
+		profileStatus: 'APPROVED',
+	};
 
 	// let path = 'username';
 
@@ -225,6 +252,9 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	if (classId) {
 		matchQuery.class = mongoose.Types.ObjectId(classId);
 	}
+	if (sectionId) {
+		matchQuery.section = mongoose.Types.ObjectId(sectionId);
+	}
 	if (search) {
 		matchQuery.$text = { $search: search };
 	}
@@ -235,7 +265,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			$match: matchQuery,
 		},
 		{
-			$skip: limit * pageNum - limit,
+			$skip: limit * page,
 		},
 		{
 			$limit: parseInt(limit),
@@ -323,6 +353,8 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -441,15 +473,18 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
-		issueDate,
+		issueDate = new Date(),
 		feeCategoryName,
 		feeCategoryId,
+		receiptType,
 	} = req.body;
-
+	const bulkWriteOps = [];
 	const foundStudent = await Student.aggregate([
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -486,6 +521,29 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		},
 		{
 			$lookup: {
+				from: 'classes',
+				let: {
+					classId: '$class',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$classId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'class',
+			},
+		},
+		{
+			$lookup: {
 				from: 'sections',
 				let: {
 					sectionId: '$section',
@@ -500,7 +558,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 					},
 					{
 						$project: {
-							className: 1,
+							name: 1,
 						},
 					},
 				],
@@ -582,9 +640,17 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				studentId: '$_id',
 				username: 1,
 				studentName: '$name',
-				classId: '$class',
+				classId: {
+					$first: '$class._id',
+				},
 				className: {
-					$first: '$section.className',
+					$first: '$class.name',
+				},
+				sectionId: {
+					$first: '$section._id',
+				},
+				sectionName: {
+					$first: '$section.name',
 				},
 				schoolId: '$school_id',
 				schoolName: {
@@ -613,8 +679,10 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	const {
 		studentName = '',
 		username = '',
-		className = '',
 		classId = '',
+		className = '',
+		sectionId = '',
+		sectionName = '',
 		parentName,
 		parentMobile,
 		parentId,
@@ -630,20 +698,18 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	const shortCategory = feeCategoryName.slice(0, 2);
 
 	let newCount = '00001';
-	const lastReceipt = await FeeReciept.findOne({
+	const lastReceipt = await FeeReceipt.findOne({
 		'school.schoolId': schoolId,
 	})
 		.sort({ createdAt: -1 })
 		.lean();
-
-	if (lastReceipt) {
-		if (lastReceipt.recieptId) {
-			newCount = lastReceipt.recieptId
-				.slice(-5)
-				.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
-		}
+	if (lastReceipt && lastReceipt.receiptId) {
+		newCount = lastReceipt.receiptId
+			.slice(-5)
+			.replace(/\d+/, n => String(Number(n) + 1).padStart(n.length, '0'));
 	}
-	const recieptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
+
+	const receiptId = `${shortCategory.toUpperCase()}${date}${newCount}`;
 
 	const items = [];
 	let currentPaidAmount = 0;
@@ -655,17 +721,25 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			_id: mongoose.Types.ObjectId(item._id),
 		}).lean();
 
-		const isPaid =
+		const tempDueAmount =
 			foundInstallment.netAmount -
-				(item.paidAmount + foundInstallment.paidAmount) ==
-			0;
+			(item.paidAmount + foundInstallment.paidAmount);
+
+		if (tempDueAmount < 0) {
+			return next(
+				new ErrorResponse(
+					`Overpayment for ${item.feeTypeId.feeType} detected.`,
+					400
+				)
+			);
+		}
 
 		const updateData = {
 			paidDate: new Date(),
 			paidAmount: item.paidAmount + foundInstallment.paidAmount,
 		};
 
-		if (isPaid) {
+		if (tempDueAmount === 0) {
 			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
 		}
 
@@ -675,16 +749,20 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			netAmount: item.netAmount,
 			paidAmount: item.paidAmount,
 		});
-
-		await FeeInstallment.updateOne(
-			{ _id: item._id },
-			{
-				$set: updateData,
-			}
-		);
+		// make bulkwrite query
+		bulkWriteOps.push({
+			updateOne: {
+				filter: { _id: item._id },
+				update: {
+					$set: updateData,
+				},
+			},
+		});
 	}
 
-	const createdReciept = await FeeReciept.create({
+	await FeeInstallment.bulkWrite(bulkWriteOps);
+
+	const createdReceipt = await FeeReceipt.create({
 		student: {
 			name: studentName,
 			studentId,
@@ -692,8 +770,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				name: className,
 				classId,
 			},
+			section: {
+				name: sectionName,
+				sectionId,
+			},
 		},
-		recieptId,
+		receiptType,
+		receiptId,
 		category: {
 			name: feeCategoryName,
 			feeCategoryId,
@@ -734,7 +817,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	return res.status(201).json(
 		SuccessResponse(
 			{
-				...JSON.parse(JSON.stringify(createdReciept)),
+				...JSON.parse(JSON.stringify(createdReceipt)),
 				items: feeDetails,
 			},
 			1
@@ -742,44 +825,488 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	);
 });
 
-exports.IncomeDashboard = catchAsync(async (req, res, next) => {
-	// Get the todays paid installments amount compared to previous date based on filters (daily, weekly, monthly or custom range)
-	// Get total receivable, total Collected, total Pending.
-	/*
-	{
-		totalReceivable: {
-			amount: #######,
-			maxClass: {
-				name: 'Class Name',
-				amount: #######,
+exports.IncomeDashboard = async (req, res, next) => {
+	try {
+		const { schoolId, dateRange = 'daily' } = req.query;
+		let dateObj = null;
+		let prevDateObj = null;
+
+		if (dateRange === 'daily') {
+			dateObj = {
+				$gte: moment().startOf('day').toDate(),
+				$lte: moment().endOf('day').toDate(),
+			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'days').startOf('day').toDate(),
+				$lte: moment().subtract(1, 'days').endOf('day').toDate(),
+			};
+		} else if (dateRange === 'weekly') {
+			dateObj = {
+				$gte: moment().startOf('week').toDate(),
+				$lte: moment().endOf('week').toDate(),
+			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
+				$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
+			};
+		} else if (dateRange === 'monthly') {
+			dateObj = {
+				$gte: moment().startOf('month').toDate(),
+				$lte: moment().endOf('month').toDate(),
+			};
+			prevDateObj = {
+				$gte: moment().subtract(1, 'months').startOf('month').toDate(),
+				$lte: moment().subtract(1, 'months').endOf('month').toDate(),
+			};
+		}
+		let sectionList = await Sections.find({
+			school: mongoose.Types.ObjectId(schoolId),
+		})
+			.project({ name: 1, className: 1 })
+			.toArray();
+		sectionList = sectionList.reduce((acc, curr) => {
+			acc[curr._id] = curr;
+			return acc;
+		}, {});
+
+		const totalIncomeAggregation = [
+			{
+				$match: {
+					'school.schoolId': mongoose.Types.ObjectId(schoolId),
+					issueDate: dateObj,
+				},
 			},
-			minClass: {
-				name: 'Class Name',
-				amount: #######,
-			}
-		},
-			totalCollected: {
-			amount: #######,
-			maxClass: {
-				name: 'Class Name',
-				amount: #######,
+		];
+		if (dateRange === 'daily') {
+			totalIncomeAggregation.push({
+				$group: {
+					_id: null,
+					totalAmount: {
+						$sum: '$paidAmount',
+					},
+					// push only the issueDate and paidAmount
+					incomeList: {
+						$push: {
+							issueDate: '$issueDate',
+							paidAmount: '$paidAmount',
+						},
+					},
+				},
+			});
+		} else {
+			totalIncomeAggregation.push(
+				{
+					$group: {
+						_id: {
+							$dateToString: {
+								format: '%Y-%m-%d',
+								date: '$issueDate',
+							},
+						},
+						totalAmount: {
+							$sum: '$paidAmount',
+						},
+					},
+				},
+				{
+					$sort: {
+						_id: 1,
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						totalAmount: {
+							$sum: '$totalAmount',
+						},
+						incomeList: {
+							$push: {
+								issueDate: '$_id',
+								paidAmount: '$totalAmount',
+							},
+						},
+					},
+				}
+			);
+		}
+
+		//
+		const miscAggregate = [
+			{
+				$facet: {
+					totalCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								receiptType: 'ACADEMIC',
+								issueDate: dateObj,
+							},
+						},
+						{
+							$addFields: {
+								section: '$student.section',
+								class: '$student.class',
+							},
+						},
+						{
+							$group: {
+								_id: '$section',
+								class: {
+									$first: '$class',
+								},
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+						{
+							$sort: {
+								totalAmount: -1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$totalAmount',
+								},
+								maxClass: {
+									$max: {
+										amount: '$totalAmount',
+										section: '$_id',
+										class: '$class',
+									},
+								},
+								minClass: {
+									$min: {
+										amount: '$totalAmount',
+										section: '$_id',
+										class: '$class',
+									},
+								},
+							},
+						},
+						{
+							$project: {
+								totalAmount: 1,
+								maxClass: {
+									amount: 1,
+									sectionId: {
+										sectionName: '$maxClass.section.name',
+										className: '$maxClass.class.name',
+										_id: '$maxClass.section.sectionId',
+									},
+								},
+								minClass: {
+									amount: 1,
+									sectionId: {
+										sectionName: '$minClass.section.name',
+										className: '$minClass.class.name',
+										_id: '$minClass.section.sectionId',
+									},
+								},
+							},
+						},
+					],
+					miscCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								receiptType: {
+									$in: ['APPLICATION', 'MISCELLANEOUS'],
+								},
+								issueDate: dateObj,
+							},
+						},
+						{
+							$unwind: {
+								path: '$items',
+								preserveNullAndEmptyArrays: true,
+							},
+						},
+						{
+							$group: {
+								_id: '$items.feeTypeId',
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+					],
+					// totalIncomeCollected[0].totalAmount
+					totalIncomeCollected: totalIncomeAggregation,
+					// prevIncomeCollected[0].totalAmount
+					prevIncomeCollected: [
+						{
+							$match: {
+								'school.schoolId': mongoose.Types.ObjectId(schoolId),
+								issueDate: prevDateObj,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+					],
+				},
 			},
-			minClass: {
-				name: 'Class Name',
-				amount: #######,
-			}
-		},
-			totalPending: {
-			amount: #######,
-			maxClass: {
-				name: 'Class Name',
-				amount: #######,
+		];
+		const incomeAggregate = [
+			{
+				$facet: {
+					totalReceivable: [
+						{
+							$match: {
+								schoolId: mongoose.Types.ObjectId(schoolId),
+							},
+						},
+						{
+							$group: {
+								_id: '$sectionId',
+								totalAmount: { $sum: '$netAmount' },
+							},
+						},
+						{ $sort: { totalAmount: -1 } },
+						{
+							$group: {
+								_id: null,
+								totalAmount: { $sum: '$totalAmount' },
+								maxClass: {
+									$max: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+								minClass: {
+									$min: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+							},
+						},
+					],
+					totalPending: [
+						{
+							$match: {
+								schoolId: mongoose.Types.ObjectId(schoolId),
+								status: {
+									$in: ['Due', 'Upcoming'],
+								},
+								date: dateObj,
+							},
+						},
+						{
+							$group: {
+								_id: '$sectionId',
+								totalAmount: {
+									$sum: '$netAmount',
+								},
+							},
+						},
+						{
+							$sort: {
+								totalAmount: -1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$totalAmount',
+								},
+								maxClass: {
+									$max: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+								minClass: {
+									$min: {
+										amount: '$totalAmount',
+										sectionId: '$_id',
+									},
+								},
+							},
+						},
+					],
+				},
 			},
-			minClass: {
-				name: 'Class Name',
-				amount: #######,
+			{
+				$project: {
+					totalReceivable: {
+						$first: '$totalReceivable',
+					},
+					totalPending: {
+						$first: '$totalPending',
+					},
+				},
+			},
+		];
+		const totalIncomeData = await FeeReceipt.aggregate(miscAggregate);
+		const feesReport = await FeeInstallment.aggregate(incomeAggregate);
+		if (!feesReport.length) {
+			return next(new ErrorResponse('No Data Found', 404));
+		}
+		const incomeData = feesReport[0];
+		const {
+			totalCollected,
+			miscCollected,
+			totalIncomeCollected,
+			prevIncomeCollected,
+		} = totalIncomeData[0];
+		incomeData.miscellaneous = [];
+		const setDefaultValues = data => {
+			const defaultData = {
+				totalAmount: 0,
+				maxClass: { amount: 0, sectionId: null },
+				minClass: { amount: 0, sectionId: null },
+			};
+			return { ...defaultData, ...data };
+		};
+
+		const updateSectionInfo = (sectionObj, info) => {
+			const section = sectionObj[info.sectionId];
+			return section
+				? {
+						amount: info.amount,
+						sectionId: {
+							_id: section._id,
+							sectionName: section.name,
+							className: section.className,
+						},
+				  }
+				: null;
+		};
+
+		const setDefaultValuesAndUpdateSectionInfo = (data, sectionObj) => {
+			const defaultData = setDefaultValues(data);
+			const maxClass = updateSectionInfo(sectionObj, defaultData.maxClass);
+			const minClass = updateSectionInfo(sectionObj, defaultData.minClass);
+			return {
+				totalAmount: defaultData.totalAmount,
+				maxClass: maxClass || defaultData.maxClass,
+				minClass: minClass || defaultData.minClass,
+			};
+		};
+
+		incomeData.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
+			incomeData.totalReceivable,
+			sectionList
+		);
+		incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
+			totalCollected[0],
+			sectionList
+		);
+		incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
+			incomeData.totalPending,
+			sectionList
+		);
+
+		if (miscCollected.length) {
+			const foundMiscTypes = await FeeType.find(
+				{
+					schoolId: mongoose.Types.ObjectId(schoolId),
+					isMisc: true,
+				},
+				{
+					feeType: 1,
+				}
+			).lean();
+			const miscTypes = foundMiscTypes.reduce((acc, curr) => {
+				acc[curr._id] = curr.feeType;
+				return acc;
+			}, {});
+			incomeData.miscellaneous = miscCollected.map(misc => {
+				const miscType = miscTypes[misc._id];
+				return {
+					amount: misc.totalAmount,
+					feeTypeId: {
+						_id: misc._id,
+						feeType: miscType,
+					},
+				};
+			});
+		}
+		const prevAmount = prevIncomeCollected[0]?.totalAmount || 0;
+		const currentPaidAmount = totalIncomeCollected[0]?.totalAmount || 0;
+		incomeData.totalIncome = {
+			amount: currentPaidAmount,
+			incomeList: totalIncomeCollected[0]?.incomeList || [],
+			// find the average percentage of income
+			percentage:
+				prevAmount > 0
+					? ((currentPaidAmount - prevAmount) / prevAmount) * 100
+					: 0,
+		};
+		res
+			.status(200)
+			.json(SuccessResponse(incomeData, 1, 'Fetched SuccessFully'));
+	} catch (error) {
+		console.log(error.stack);
+		return next(new ErrorResponse('Something went wrong', 500));
+	}
+};
+
+exports.AddPreviousFee = async (req, res, next) => {
+	// accept file from request
+	try {
+		const { schoolId } = req.params;
+		const { file } = req.files;
+		const workbook = XLSX.read(file.data, { type: 'buffer' });
+		const sheetName = workbook.SheetNames[0];
+		const worksheet = workbook.Sheets[sheetName];
+
+		const rows = XLSX.utils.sheet_to_json(worksheet);
+
+		const newArray = rows.filter(r => r['BALANCE FEES'] > 0);
+
+		const foundStructure = await FeeStructure.find({
+			schoolId,
+		});
+		for (const fs of foundStructure) {
+			const { _id } = fs.feeDetails[0];
+			for (const stud of newArray) {
+				const dueFees = stud['BALANCE FEES'];
+				const foundInstallment = await FeeInstallment.findOne({
+					rowId: mongoose.Types.ObjectId(_id),
+					studentId: mongoose.Types.ObjectId(stud.STUDENTID),
+				});
+				if (foundInstallment) {
+					await FeeInstallment.updateOne(
+						{
+							rowId: mongoose.Types.ObjectId(_id),
+							studentId: mongoose.Types.ObjectId(stud.STUDENTID),
+						},
+						{
+							$set: {
+								totalAmount: dueFees,
+								netAmount: dueFees,
+							},
+						}
+					);
+				}
 			}
 		}
+		await FeeInstallment.updateMany(
+			{
+				totalAmount: 0,
+				schoolId: mongoose.Types.ObjectId(schoolId),
+			},
+			{
+				$set: {
+					status: 'Paid',
+				},
+			}
+		);
+		res
+			.status(200)
+			.json(SuccessResponse(null, newArray.length, 'Updated Successfully'));
+	} catch (error) {
+		console.log(error.stack);
 	}
-	*/
-});
+};

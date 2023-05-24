@@ -13,95 +13,33 @@ const applicationFeeSchema = new Schema(
 		},
 		parentName: String,
 		phoneNumber: Number,
-		course: String,
+		course: {
+			type: String,
+			default: '',
+		},
 		amount: {
 			type: Number,
 			required: [true, 'Amount Is Required'],
 		},
-		receipt: {
-			student: {
-				name: {
-					type: String,
-					required: [true, 'student name is required'],
-				},
-				class: {
-					name: {
-						type: String,
-						required: [true, 'class name is required'],
-					},
-					classId: {
-						type: Schema.Types.ObjectId,
-						ref: 'Class',
-						required: [true, 'classId is required'],
-					},
-				},
-			},
-			parent: {
-				name: {
-					type: String,
-					required: [true, 'parent name is required'],
-				},
-				mobile: {
-					type: Number,
-					required: [true, 'Parent mobile is required'],
-				},
-			},
-
-			academicYear: {
-				name: {
-					type: String,
-					required: [true, 'academic year is required'],
-				},
-				academicYearId: {
-					type: Schema.Types.ObjectId,
-					ref: 'AcademicYear',
-					required: [true, 'academicYearId is required'],
-				},
-			},
-			school: {
-				name: {
-					type: String,
-					required: [true, 'school name is required'],
-				},
-				address: {
-					type: String,
-					required: [true, 'school address is required'],
-				},
-				schoolId: {
-					type: Schema.Types.ObjectId,
-					ref: 'School',
-					required: [true, 'schoolId is required'],
-				},
-			},
-			// receipt details
-			receiptId: {
-				type: String,
-				required: [true, 'Reciept id is required'],
-			},
-			accountType: {
-				type: String,
-				enum: ['Income', 'Expense', 'Revenue'],
-				default: 'Revenue',
-			},
-			issueDate: Date,
-			payment: {
-				method: {
-					type: String,
-					enum: ['Cash', 'UPI'],
-				},
-			},
-			items: [
-				{
-					feeTypeId: {
-						feeType: {
-							type: String,
-							required: true,
-						},
-					},
-					netAmount: Number,
-					paidAmount: Number,
-				},
-			],
+		receiptId: {
+			type: Schema.Types.ObjectId,
+			required: [true, 'Receipt id is required'],
+			ref: 'FeeReceipt',
+		},
+		schoolId: {
+			type: Schema.Types.ObjectId,
+			ref: 'School',
+			required: [true, 'schoolId is required'],
+		},
+		academicYearId: {
+			type: Schema.Types.ObjectId,
+			ref: 'AcademicYear',
+			required: [true, 'academicYearId is required'],
+		},
+		feeTypeId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeType',
+			required: [true, 'feeTypeId is required'],
 		},
 	},
 	{ timestamps: true }
@@ -109,13 +47,13 @@ const applicationFeeSchema = new Schema(
 
 // index schoolId and academicYearId
 applicationFeeSchema.index({
-	'receipt.school.schoolId': 1,
-	'receipt.academicYear.academicYearId': 1,
+	schoolId: 1,
+	academicYearId: 1,
 });
 
 applicationFeeSchema.index({
-	'receipt.school.schoolId': 1,
-	'receipt.academicYear.academicYearId': 1,
+	schoolId: 1,
+	academicYearId: 1,
 	classId: 1,
 });
 

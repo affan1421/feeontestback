@@ -122,6 +122,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
 				},
+				totalFees: {
+					$sum: '$netAmount',
+				},
 				discounts: {
 					$push: {
 						$filter: {
@@ -187,6 +190,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				studentName: '$student.name',
 				studentId: '$student._id',
 				totalDiscountAmount: 1,
+				totalFees: 1,
 				discountApplied: {
 					$sum: {
 						$map: {
@@ -932,30 +936,72 @@ const addStudentToDiscount = async (req, res, next) => {
 const getSectionDiscount = catchAsync(async (req, res, next) => {
 	const { id, feeStructureId } = req.params;
 	const filter = {
-		discountId: id,
-		feeStructureId,
+		discountId: mongoose.Types.ObjectId(id),
+		feeStructureId: mongoose.Types.ObjectId(feeStructureId),
 	};
 	const projections = {
 		_id: 0,
-		feeType: '$feeTypeId',
+		feeType: {
+			$arrayElemAt: ['$feeType', 0],
+		},
 		totalAmount: 1,
 		isPercentage: 1,
 		value: 1,
 		breakdown: 1,
 	};
 	// find in sectionDiscount
-	const sectionDiscount = await SectionDiscount.find(
-		filter,
-		projections
-	).lean();
+	const sectionDiscount = await SectionDiscount.aggregate([
+		{
+			$match: filter,
+		},
+		{
+			$group: {
+				_id: '$feeTypeId',
+				feeType: {
+					$first: '$feeTypeId',
+				},
+				totalAmount: {
+					$first: '$totalAmount',
+				},
+				isPercentage: {
+					$first: '$isPercentage',
+				},
+				value: {
+					$first: '$value',
+				},
+				breakdown: {
+					$first: '$breakdown',
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'feetypes',
+				let: { feeTypeId: '$feeType' },
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$feeTypeId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							feeType: 1,
+						},
+					},
+				],
+				as: 'feeType',
+			},
+		},
+		{
+			$project: projections,
+		},
+	]);
 	if (!sectionDiscount) {
 		return next(new ErrorResponse('No Discount Found', 404));
-	}
-	for (const discount of sectionDiscount) {
-		discount.feeType = await FeeType.findOne(
-			{ _id: discount.feeType },
-			'feeType'
-		).lean();
 	}
 	res.json(
 		SuccessResponse(
