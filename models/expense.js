@@ -63,6 +63,15 @@ const expenseSchema = new mongoose.Schema(
 	}
 );
 
+// index voucherNumber
+expenseSchema.index({ voucherNumber: 'text' });
+
+// index approvedBy
+expenseSchema.index({ approvedBy: 'text' });
+
+// index amount number
+expenseSchema.index({ amount: 1 });
+
 expenseSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	deletedBy: true,

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-expressions */
 const mongoose = require('mongoose');
 const moment = require('moment');
 const ExpenseModel = require('../models/expense');
@@ -8,7 +9,6 @@ const SuccessResponse = require('../utils/successResponse');
 
 // CREATE
 exports.create = async (req, res, next) => {
-	const date = moment().format('DDMMYY');
 	const {
 		reason,
 		amount,
@@ -16,12 +16,30 @@ exports.create = async (req, res, next) => {
 		paymentMethod,
 		expenseType,
 		expenseTypeName,
+		expenseDate,
 		schoolId,
 		createdBy,
 		transactionDetails,
 	} = req.body;
+
+	const date = moment(expenseDate).format('DDMMYY');
+
 	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
+	}
+
+	const foundExpenseType = await ExpenseType.findOne({
+		_id: mongoose.Types.ObjectId(expenseType),
+	})
+		.select('remainingBudget')
+		.lean();
+
+	if (!foundExpenseType) {
+		return next(new ErrorResponse('Expense type not found', 400));
+	}
+
+	if (amount > foundExpenseType.remainingBudget) {
+		return next(new ErrorResponse('Amount Exceeds Budget Amount', 400));
 	}
 
 	const lastVoucherNumber = await ExpenseModel.findOne({
@@ -41,6 +59,10 @@ exports.create = async (req, res, next) => {
 		.slice(0, 2)
 		.toUpperCase()}${date}${newCount}`;
 
+	const currentDate = new Date();
+	const expenseDateDate = new Date(expenseDate);
+	const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
+
 	let newExpense;
 	try {
 		newExpense = await ExpenseModel.create({
@@ -49,7 +71,7 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			expenseDate: new Date(),
+			expenseDate: updatedExpenseDate,
 			paymentMethod,
 			expenseType,
 			approvedBy,
@@ -71,7 +93,6 @@ exports.create = async (req, res, next) => {
 
 		newExpense.remainingBudget = remainingBudget.remainingBudget;
 	} catch (error) {
-		console.log('error', error);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 	return res
@@ -296,7 +317,14 @@ exports.totalExpenses = catchAsync(async (req, res, next) => {
 });
 
 exports.expensesList = catchAsync(async (req, res, next) => {
-	const { schoolId, paymentMethod, startDate, endDate } = req.body;
+	const {
+		schoolId,
+		paymentMethod,
+		sort,
+		page = 0,
+		limit = 10,
+		searchTerm,
+	} = req.body;
 	let match = {};
 	if (!schoolId) {
 		return next(new ErrorResponse('SchoolId is required', 422));
@@ -305,12 +333,32 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
-	startDate && endDate
-		? (match.expenseDate = { $gte: startDate, $lte: endDate })
-		: null;
-	const expenseData = await ExpenseModel.aggregate([
+
+	// check if the search term is having number
+	// eslint-disable-next-line no-restricted-globals
+	if (searchTerm && !isNaN(searchTerm)) {
+		match.amount = +searchTerm;
+	} else if (searchTerm) {
+		match.$or = [
+			{ voucherNumber: { $regex: `${searchTerm}`, $options: 'i' } },
+			{ approvedBy: { $regex: `${searchTerm}`, $options: 'i' } },
+		];
+	}
+
+	const aggregation = [
 		{
 			$match: match,
+		},
+		{
+			$sort: {
+				expenseDate: -1,
+			},
+		},
+		{
+			$skip: page * limit,
+		},
+		{
+			$limit: limit,
 		},
 		{
 			$lookup: {
@@ -344,31 +392,35 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+	];
+	if (sort) {
+		aggregation[1].$sort = {
+			amount: sort,
+		};
+	}
+	const expenseData = await ExpenseModel.aggregate([
 		{
-			$sort: {
-				amount: 1,
+			$facet: {
+				data: aggregation,
+				count: [
+					{
+						$match: match,
+					},
+					{
+						$count: 'count',
+					},
+				],
 			},
 		},
 	]);
-	const lowestExpense = expenseData[0].amount;
-	const highestExpense = expenseData[expenseData.length - 1].amount;
-	const finalData = {
-		lowestExpense,
-		highestExpense,
-		expensesList: expenseData,
-	};
-	if (!expenseData.length) {
+
+	const { data, count } = expenseData[0];
+	if (count.length === 0) {
 		return next(new ErrorResponse('Expense Not Found', 404));
 	}
 	res
 		.status(200)
-		.json(
-			SuccessResponse(
-				finalData,
-				expenseData.length,
-				'data fetched Successfully'
-			)
-		);
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
 function getDailyDates(date) {
@@ -531,9 +583,13 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		},
 	];
 	if (dateRange === 'daily') {
+		const today = new Date();
+		const startOfDate = today.setHours(0, 0, 0, 0);
+		const endOfDate = today.setHours(23, 59, 59, 999);
+
 		dateObj = {
-			$gte: moment().startOf('day').toDate(),
-			$lte: moment().endOf('day').toDate(),
+			$gte: new Date(startOfDate),
+			$lte: new Date(endOfDate),
 		};
 		prevDateObj = {
 			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
@@ -575,6 +631,8 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		};
 		totalExpenseAggregation.push(...tempAggregation);
 	}
+
+	totalExpenseAggregation[0].$match.expenseDate = dateObj;
 
 	const expenseData = await ExpenseModel.aggregate([
 		{

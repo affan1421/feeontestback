@@ -166,9 +166,15 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	if (receiptType) {
 		payload.receiptType = receiptType;
 	}
+
 	if (search) {
-		payload.$text = { $search: search };
+		payload.$or = [
+			{ 'student.name': { $regex: `${search}`, $options: 'i' } },
+			{ receiptId: { $regex: `${search}`, $options: 'i' } },
+		];
+		// payload.$text = { $search: search };
 	}
+
 	const feeReceipts = await FeeReceipt.aggregate([
 		{
 			$facet: {

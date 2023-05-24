@@ -19,7 +19,7 @@ const SuccessResponse = require('../utils/successResponse');
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
 	let {
-		pageNum = 0,
+		page = 0,
 		limit = 10,
 		schoolId = null,
 		sectionId = null,
@@ -59,7 +59,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	if (foundAcademicYear) {
 		matchQuery['academicYear.academicYearId'] = foundAcademicYear._id;
 	}
-	pageNum = +pageNum;
+	page = +page;
 	limit = +limit;
 
 	const foundTransactions = await FeeReceipt.aggregate([
@@ -72,7 +72,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$skip: pageNum * limit,
+			$skip: page * limit,
 		},
 		{
 			$limit: limit,
@@ -198,7 +198,7 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 
 exports.StudentsList = catchAsync(async (req, res, next) => {
 	const {
-		pageNum = 1,
+		page = 0,
 		limit = 10,
 		schoolId = null,
 		classId = null,
@@ -265,7 +265,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			$match: matchQuery,
 		},
 		{
-			$skip: limit * pageNum - limit,
+			$skip: limit * page,
 		},
 		{
 			$limit: parseInt(limit),
