@@ -12,6 +12,7 @@ exports.create = async (req, res, next) => {
 		address,
 		contactNumber,
 		bank,
+		schoolId,
 		IFSC,
 		accountNumber,
 		accountType,
@@ -23,6 +24,7 @@ exports.create = async (req, res, next) => {
 		!email ||
 		!address ||
 		!bank ||
+		!schoolId ||
 		!IFSC ||
 		!accountNumber ||
 		!accountType ||
@@ -45,6 +47,7 @@ exports.create = async (req, res, next) => {
 			address,
 			contactNumber,
 			bank,
+			schoolId,
 			IFSC,
 			accountNumber,
 			accountType,
@@ -62,16 +65,23 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.get = catchAsync(async (req, res, next) => {
-	let { page = 0, limit = 5 } = req.query;
+	let { page = 0, limit = 5, schoolId } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
+	if (schoolId) {
+		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
 	const donorList = await DonorModel.aggregate([
 		{
 			$facet: {
 				data: [
 					{ $match: payload },
-					{ $sort: 'updatedAt' },
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
 					{ $skip: page * limit },
 					{ $limit: limit },
 				],
@@ -127,13 +137,19 @@ exports.update = catchAsync(async (req, res, next) => {
 exports.updateStudentList = catchAsync(async (req, res, next) => {
 	const { id, studentList } = req.body;
 
-	await Promise.all(
-		studentList.map(async student => {
-			await DonorModel.updateOne(
-				{ _id: id },
-				{ $addToSet: { studentList: student } }
-			);
-		})
+	// calculate total amount
+	const totalAmount = studentList.reduce((acc, obj) => acc + obj.amount, 0);
+	// update total amount
+	await DonorModel.findOneAndUpdate(
+		{ _id: id },
+		{
+			$inc: {
+				totalAmount,
+			},
+			$push: {
+				studentList,
+			},
+		}
 	);
 	res.status(200).json(SuccessResponse(null, 1, 'Updated Successfully'));
 });
