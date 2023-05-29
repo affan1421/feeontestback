@@ -9,9 +9,12 @@ const {
 	expenseDelete,
 	totalExpenses,
 	totalExpenseFilter,
+	getExcel,
 	getDashboardData,
 	expensesList,
 } = require('../controller/expense');
+
+router.get('/excel', getExcel);
 
 router.post('/getAll', getExpenses).post('/', create);
 router.post('/totalExpense', totalExpenses);
