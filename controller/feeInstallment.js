@@ -325,11 +325,37 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parentId',
+				},
+				as: 'parentId',
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+			},
+		},
+		{
 			$project: {
 				_id: 1,
 				name: 1,
 				className: {
 					$first: '$className.className',
+				},
+				parentName: {
+					$arrayElemAt: ['$parentId.name', 0],
 				},
 				pendingAmount: {
 					$subtract: [
