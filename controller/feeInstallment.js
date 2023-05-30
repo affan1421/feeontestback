@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 
 const XLSX = require('xlsx');
+const Donations = require('../models/donation');
+const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
 
 const FeeType = require('../models/feeType');
@@ -469,6 +471,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		chequeNumber,
 		transactionDate,
 		transactionId,
+		donorId = null,
 		upiId,
 		payerName,
 		ddNumber,
@@ -675,6 +678,28 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			},
 		},
 	]).toArray();
+
+	if (donorId) {
+		// update the student object in donor collection
+		await DonorModel.updateOne(
+			{
+				_id: mongoose.Types.ObjectId(donorId),
+			},
+			{
+				$inc: {
+					totalAmount: totalFeeAmount,
+				},
+			}
+		);
+		await Donations.create({
+			amount: totalFeeAmount,
+			date: new Date(),
+			donorId,
+			paymentType: paymentMethod,
+			studentId,
+			sectionId: foundStudent[0].sectionId,
+		});
+	}
 
 	const {
 		studentName = '',

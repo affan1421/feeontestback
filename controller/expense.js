@@ -758,13 +758,19 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 });
 
 exports.getExcel = catchAsync(async (req, res, next) => {
-	const { schoolId } = req.query;
+	const { schoolId, paymentMethod } = req.body;
+	let match = {};
+	if (!schoolId) {
+		return next(new ErrorResponse('SchoolId is required', 422));
+	}
+	match = {
+		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
+	};
+	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 
 	const expenseDetails = await ExpenseModel.aggregate([
 		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(schoolId),
-			},
+			$match: match,
 		},
 		{
 			$lookup: {

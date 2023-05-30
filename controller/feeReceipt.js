@@ -610,13 +610,32 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
-	const { schoolId } = req.query;
+	const { schoolId, classId, paymentMode, receiptType } = req.query;
+	const payload = {};
+	// find the active academic year
+
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+	payload['academicYear.academicYearId'] =
+		mongoose.Types.ObjectId(academicYearId);
+	if (schoolId) {
+		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+	if (classId) {
+		payload['student.class.classId'] = mongoose.Types.ObjectId(classId);
+	}
+	if (paymentMode) {
+		payload['payment.method'] = paymentMode;
+	}
+	if (receiptType) {
+		payload.receiptType = receiptType;
+	}
 
 	const receiptDetails = await FeeReceipt.aggregate([
 		{
-			$match: {
-				'school.schoolId': mongoose.Types.ObjectId(schoolId),
-			},
+			$match: payload,
 		},
 		{
 			$unwind: {
