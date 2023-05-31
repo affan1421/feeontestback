@@ -393,13 +393,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		const { discountId } = req.params;
 		const { school_id } = req.user;
 		let discountAmount = 0;
-		// replace the logic
-		const filteredList = Array.from(
-			studentList
-				.reduce((map, obj) => map.set(obj.studentId, obj), new Map())
-				.values()
-		);
-		studentList = filteredList.map(({ studentId }) => studentId);
+		studentList = [...new Set(studentList)];
 
 		// TODO: filter the student objects with the attachment - filteredStudentList
 
