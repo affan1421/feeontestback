@@ -328,7 +328,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 			$lookup: {
 				from: 'parents',
 				let: {
-					parentId: '$parentId',
+					parentId: '$parent_id',
 				},
 				as: 'parentId',
 				pipeline: [
@@ -355,7 +355,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					$first: '$className.className',
 				},
 				parentName: {
-					$arrayElemAt: ['$parentId.name', 0],
+					$first: '$parentId.name',
 				},
 				pendingAmount: {
 					$subtract: [

@@ -66,7 +66,7 @@ mongoose
 			res.send('Server is up and Running👨‍💻👩‍💻');
 		});
 
-		app.use(authenticateUser);
+		// app.use(authenticateUser);
 
 		app.use('/api/v1/config', require('./router/academicYear'));
 		app.use('/api/v1/feetype', require('./router/feeType'));
