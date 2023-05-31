@@ -148,6 +148,12 @@ exports.updateStudentList = catchAsync(async (req, res, next) => {
 exports.donorDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 
+	const hasDonated = await Donations.findOne({ donorId: id });
+
+	if (hasDonated) {
+		return next(new ErrorResponse('Donor Has Donated, Cannot Delete', 400));
+	}
+
 	const donor = await DonorModel.findOneAndDelete({
 		_id: id,
 	});
@@ -268,4 +274,38 @@ exports.getDonations = catchAsync(async (req, res, next) => {
 	res
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
+exports.getReport = catchAsync(async (req, res, next) => {
+	const { schoolId } = req.params;
+	const donor = await DonorModel.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(schoolId),
+			},
+		},
+		{
+			$sort: {
+				totalAmount: -1,
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				totalDonations: {
+					$sum: '$totalAmount',
+				},
+				highestDonation: {
+					$first: '$totalAmount',
+				},
+				highestDonor: {
+					$first: '$$ROOT',
+				},
+			},
+		},
+	]);
+	if (donor.length === 0) {
+		return next(new ErrorResponse('No Donations Found', 404));
+	}
+	res.status(200).json(SuccessResponse(donor[0], 1, 'Fetched Successfully'));
 });

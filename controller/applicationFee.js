@@ -20,6 +20,7 @@ const createApplicationFee = async (req, res, next) => {
 			className,
 			parentName,
 			phoneNumber,
+			gender,
 			course = '',
 			amount,
 			schoolId,
@@ -32,6 +33,7 @@ const createApplicationFee = async (req, res, next) => {
 			!classId ||
 			!className ||
 			!parentName ||
+			!gender ||
 			!phoneNumber ||
 			!amount ||
 			!schoolId
@@ -87,6 +89,7 @@ const createApplicationFee = async (req, res, next) => {
 			parentName,
 			phoneNumber,
 			course,
+			gender,
 			amount,
 			schoolId,
 			academicYearId: academicYear._id,
