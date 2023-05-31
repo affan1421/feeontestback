@@ -52,7 +52,7 @@ const donorSchema = new Schema(
 		},
 		donorType: {
 			type: String,
-			enum: ['Individual', 'Trust', 'Company'],
+			enum: ['INDIVIDUAL', 'TRUST', 'COMPANY'],
 			required: [true, 'Please enter donor type'],
 		},
 		schoolId: {

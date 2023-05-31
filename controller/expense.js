@@ -758,10 +758,10 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 });
 
 exports.getExcel = catchAsync(async (req, res, next) => {
-	const { schoolId, paymentMethod } = req.body;
+	const { schoolId, paymentMethod } = req.query;
 	let match = {};
 	if (!schoolId) {
-		return next(new ErrorResponse('SchoolId is required', 422));
+		return next(new ErrorResponse('schoolId is required', 422));
 	}
 	match = {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
