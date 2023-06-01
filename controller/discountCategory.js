@@ -1004,16 +1004,130 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 			$project: projections,
 		},
 	]);
-	if (!sectionDiscount) {
-		return next(new ErrorResponse('No Discount Found', 404));
+	if (!sectionDiscount.length) {
+		// found the feestructure and fetch the feeDetails
+		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
+		const feeStructure = await FeeStructure.findOne(
+			{
+				_id: mongoose.Types.ObjectId(feeStructureId),
+			},
+			'_id feeDetails totalAmount categoryId'
+		).lean();
+		if (!feeStructure) {
+			return next(new ErrorResponse('Fee Structure Not Found', 404));
+		}
+		const { categoryId } = feeStructure;
+		const FeeTypes = (await FeeType.find({ schoolId, categoryId })) || [];
+		const feeDetails = feeStructure.feeDetails.map(fee => {
+			const feeType = FeeTypes.find(
+				f => f._id.toString() === fee.feeTypeId.toString()
+			);
+
+			return {
+				rowId: fee._id,
+				feeTypeId: fee.feeTypeId,
+				feeTypeName: feeType ? feeType.feeType : null,
+				breakDown: fee.scheduledDates.length,
+				amount: fee.totalAmount,
+			};
+		});
+
+		const studentList = await FeeInstallment.aggregate([
+			{
+				$match: {
+					schoolId,
+					feeStructureId: mongoose.Types.ObjectId(feeStructureId),
+				},
+			},
+			{
+				$group: {
+					_id: '$studentId',
+					sectionId: {
+						$first: '$sectionId',
+					},
+					totalFees: { $sum: '$totalAmount' },
+				},
+			},
+			{
+				$lookup: {
+					from: 'students',
+					let: {
+						studentId: '$_id',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$studentId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								name: 1,
+							},
+						},
+					],
+					as: '_id',
+				},
+			},
+			{
+				$lookup: {
+					from: 'sections',
+					let: {
+						sectionId: '$sectionId',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$sectionId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								className: 1,
+							},
+						},
+					],
+					as: 'section',
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					studentName: {
+						$first: '$_id.name',
+					},
+					studentId: {
+						$first: '$_id._id',
+					},
+					sectionName: {
+						$first: '$section.className',
+					},
+					totalFees: 1,
+				},
+			},
+		]);
+		feeStructure.studentList = studentList || [];
+		feeStructure.feeDetails = feeDetails;
+		return res
+			.status(200)
+			.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
 	}
-	res.json(
-		SuccessResponse(
-			sectionDiscount,
-			sectionDiscount.length,
-			'Fetched Successfully'
-		)
-	);
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(
+				sectionDiscount,
+				sectionDiscount.length,
+				'Fetched Successfully'
+			)
+		);
 });
 
 const discountReport = catchAsync(async (req, res, next) => {
