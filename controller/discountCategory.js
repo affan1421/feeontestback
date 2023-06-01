@@ -388,11 +388,14 @@ Payload:
 */
 const mapDiscountCategory = async (req, res, next) => {
 	try {
+		// TODO: StudentList should be array of objects with studentId and attachment
 		let { sectionId, categoryId, rows, studentList, sectionName } = req.body;
 		const { discountId } = req.params;
 		const { school_id } = req.user;
 		let discountAmount = 0;
 		studentList = [...new Set(studentList)];
+
+		// TODO: filter the student objects with the attachment - filteredStudentList
 
 		if (!sectionId || !categoryId || !rows || !studentList) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
@@ -434,9 +437,8 @@ const mapDiscountCategory = async (req, res, next) => {
 
 				const bulkOps = [];
 				const filter = {
-					studentId: { $in: studentList },
+					studentId: { $in: studentList }, // need to reduce the studentList
 					rowId,
-					// status: { $ne: 'Paid' },
 				};
 				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
 
@@ -461,7 +463,6 @@ const mapDiscountCategory = async (req, res, next) => {
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
 						if (calAmount <= netAmount - paidAmount) {
 							discountAmount += calAmount;
-
 							bulkOps.push({
 								updateOne: {
 									filter: { studentId, date: new Date(date), rowId },
@@ -493,6 +494,8 @@ const mapDiscountCategory = async (req, res, next) => {
 					value,
 				};
 			})
+			// TODO: Need to add the attachment in the student document
+			// loop through the filteredStudentList and update the attachment
 		);
 
 		//  Create multiple new document in the sectionDiscount model.
@@ -868,6 +871,7 @@ const addStudentToDiscount = async (req, res, next) => {
 						discountId,
 						isPercentage,
 						value,
+						// attachment: url,
 						discountAmount: 0,
 						status: 'Pending',
 					};
@@ -884,7 +888,7 @@ const addStudentToDiscount = async (req, res, next) => {
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
 						if (calAmount <= netAmount - paidAmount) {
 							discountAmount += calAmount;
-
+							// accept attachment and update in that object
 							bulkOps.push({
 								updateOne: {
 									filter: { studentId, date: new Date(date), rowId },
@@ -1000,9 +1004,10 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 			$project: projections,
 		},
 	]);
-	if (!sectionDiscount) {
+	if (!sectionDiscount.length) {
 		return next(new ErrorResponse('No Discount Found', 404));
 	}
+
 	res.json(
 		SuccessResponse(
 			sectionDiscount,

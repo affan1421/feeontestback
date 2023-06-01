@@ -6,11 +6,13 @@ const {
 	createReceipt,
 	getFeeReceiptSummary,
 	getFeeReceiptById,
+	getExcel,
 } = require('../controller/feeReceipt');
 
+router.get('/excel', getExcel);
 router.get('/', getFeeReceipt);
 
-router.get('/summary', getFeeReceiptSummary)
+router.get('/summary', getFeeReceiptSummary);
 
 router.get('/:id', getFeeReceiptById);
 

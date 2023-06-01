@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-expressions */
 const mongoose = require('mongoose');
 const moment = require('moment');
+const excel = require('excel4node');
 const ExpenseModel = require('../models/expense');
 const ExpenseType = require('../models/expenseType');
 const ErrorResponse = require('../utils/errorResponse');
@@ -754,4 +755,74 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Expense Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(finalData, 1, 'Fetched Successfully'));
+});
+
+exports.getExcel = catchAsync(async (req, res, next) => {
+	const { schoolId, paymentMethod } = req.query;
+	let match = {};
+	if (!schoolId) {
+		return next(new ErrorResponse('schoolId is required', 422));
+	}
+	match = {
+		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
+	};
+	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
+
+	const expenseDetails = await ExpenseModel.aggregate([
+		{
+			$match: match,
+		},
+		{
+			$lookup: {
+				from: 'expensetypes',
+				localField: 'expenseType',
+				foreignField: '_id',
+				as: 'expenseType',
+			},
+		},
+		{
+			$addFields: {
+				expenseType: {
+					$first: '$expenseType.name',
+				},
+			},
+		},
+	]);
+	const workbook = new excel.Workbook();
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('Expense Details');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Expense Type').style(style);
+	worksheet.cell(1, 2).string('Amount').style(style);
+	worksheet.cell(1, 3).string('Reason').style(style);
+	worksheet.cell(1, 4).string('Voucher Number').style(style);
+	worksheet.cell(1, 5).string('Expense Date').style(style);
+	worksheet.cell(1, 6).string('Payment Method').style(style);
+
+	expenseDetails.forEach((expense, index) => {
+		worksheet.cell(index + 2, 1).string(expense.expenseType);
+		worksheet.cell(index + 2, 2).number(expense.amount);
+
+		worksheet.cell(index + 2, 3).string(expense.reason);
+		worksheet.cell(index + 2, 4).string(expense.voucherNumber);
+		worksheet
+			.cell(index + 2, 5)
+			.string(moment(expense.expenseDate).format('DD-MM-YYYY'));
+		worksheet.cell(index + 2, 6).string(expense.paymentMethod);
+	});
+
+	workbook.write('expense.xlsx');
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, expenseDetails.length, 'Fetched Successfully'));
 });

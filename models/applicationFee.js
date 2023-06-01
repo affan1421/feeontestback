@@ -13,6 +13,10 @@ const applicationFeeSchema = new Schema(
 		},
 		parentName: String,
 		phoneNumber: Number,
+		gender: {
+			type: String,
+			enum: ['Male', 'Female'],
+		},
 		course: {
 			type: String,
 			default: '',

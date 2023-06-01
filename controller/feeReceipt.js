@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
+const excel = require('excel4node');
 const FeeReceipt = require('../models/feeReceipt');
 const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
@@ -291,6 +292,7 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
+		comments,
 		bankName,
 		chequeDate,
 		chequeNumber,
@@ -540,6 +542,7 @@ const createReceipt = async (req, res, next) => {
 				sectionId: section._id,
 			},
 		},
+		comments,
 		receiptType,
 		receiptId,
 		parent: {
@@ -607,9 +610,128 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 	res.status(200).json(SuccessResponse(feeReceipt, 1, 'Fetched Successfully'));
 });
 
+const getExcel = catchAsync(async (req, res, next) => {
+	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
+	const { schoolId, classId, paymentMode, receiptType } = req.query;
+	const payload = {};
+	// find the active academic year
+
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+	payload['academicYear.academicYearId'] =
+		mongoose.Types.ObjectId(academicYearId);
+	if (schoolId) {
+		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
+	}
+	if (classId) {
+		payload['student.class.classId'] = mongoose.Types.ObjectId(classId);
+	}
+	if (paymentMode) {
+		payload['payment.method'] = paymentMode;
+	}
+	if (receiptType) {
+		payload.receiptType = receiptType;
+	}
+
+	const receiptDetails = await FeeReceipt.aggregate([
+		{
+			$match: payload,
+		},
+		{
+			$unwind: {
+				path: '$items',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$lookup: {
+				from: 'feetypes',
+				localField: 'items.feeTypeId',
+				foreignField: '_id',
+				as: 'feetypes',
+			},
+		},
+		{
+			$group: {
+				_id: '$_id',
+				student: {
+					$first: '$student.name',
+				},
+				class: {
+					$first: '$student.class.name',
+				},
+				section: {
+					$first: '$student.section.name',
+				},
+				amount: {
+					$first: '$paidAmount',
+				},
+				description: {
+					$addToSet: {
+						$first: '$feetypes.feeType',
+					},
+				},
+				receiptId: {
+					$first: '$receiptId',
+				},
+				issueDate: {
+					$first: '$issueDate',
+				},
+				method: {
+					$first: '$payment.method',
+				},
+			},
+		},
+	]);
+	const workbook = new excel.Workbook();
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('Income Details');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Name').style(style);
+	worksheet.cell(1, 2).string('Class').style(style);
+	worksheet.cell(1, 3).string('Amount').style(style);
+	worksheet.cell(1, 4).string('Description').style(style);
+	worksheet.cell(1, 5).string('Receipt ID').style(style);
+	worksheet.cell(1, 6).string('Date').style(style);
+	worksheet.cell(1, 7).string('Payment Mode').style(style);
+
+	receiptDetails.forEach((receipt, index) => {
+		worksheet.cell(index + 2, 1).string(receipt.student);
+		worksheet
+			.cell(index + 2, 2)
+			.string(`${receipt.class} - ${receipt.section}`);
+		worksheet.cell(index + 2, 3).number(receipt.amount);
+		worksheet.cell(index + 2, 4).string(receipt.description.join(','));
+		worksheet.cell(index + 2, 5).string(receipt.receiptId);
+		// 20-05-2023
+		worksheet
+			.cell(index + 2, 6)
+			.string(moment(receipt.issueDate).format('DD-MM-YYYY'));
+		worksheet.cell(index + 2, 7).string(receipt.method);
+	});
+
+	workbook.write('income.xlsx');
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, receiptDetails.length, 'Fetched Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
 	createReceipt,
 	getFeeReceiptSummary,
+	getExcel,
 };
