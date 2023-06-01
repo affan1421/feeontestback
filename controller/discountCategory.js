@@ -389,7 +389,14 @@ Payload:
 const mapDiscountCategory = async (req, res, next) => {
 	try {
 		// TODO: StudentList should be array of objects with studentId and attachment
-		let { sectionId, categoryId, rows, studentList, sectionName } = req.body;
+		let {
+			sectionId,
+			categoryId,
+			rows,
+			studentList,
+			sectionName,
+			feeStructureId,
+		} = req.body;
 		const { discountId } = req.params;
 		const { school_id } = req.user;
 		let discountAmount = 0;
@@ -404,9 +411,7 @@ const mapDiscountCategory = async (req, res, next) => {
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
 			{
-				'classes.sectionId': sectionId,
-				categoryId,
-				schoolId: req.user.school_id,
+				_id: feeStructureId,
 			},
 			'feeDetails'
 		).lean();
