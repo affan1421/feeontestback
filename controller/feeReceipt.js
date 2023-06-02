@@ -4,6 +4,7 @@ const excel = require('excel4node');
 const FeeReceipt = require('../models/feeReceipt');
 const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
+const FeeInstallment = require('../models/feeInstallment');
 
 const Student = mongoose.connection.db.collection('students');
 const catchAsync = require('../utils/catchAsync');
@@ -728,10 +729,130 @@ const getExcel = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, receiptDetails.length, 'Fetched Successfully'));
 });
 
+const getDashboardData = catchAsync(async (req, res, next) => {
+	// get Student data total students, boys and girls count
+	// get income dashboard Data
+	// get expense dashboard data
+	// get payment method wise data
+	// fee payment status data
+	const { school_id } = req.user;
+	const studentData = await Student.aggregate([
+		{
+			$match: {
+				school_id: mongoose.Types.ObjectId(school_id),
+			},
+		},
+		{
+			$group: {
+				_id: '$school_id',
+				totalStudents: {
+					$sum: 1,
+				},
+				boysCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Male', 'M', 'MALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				girlsCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Female', 'F', 'FEMALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+	]);
+
+	const incomeData = await FeeReceipt.aggregate([
+		{
+			$match: {
+				'school.schoolId': mongoose.Types.ObjectId(school_id),
+			},
+		},
+		{
+			$group: {
+				_id: '$payment.method',
+				totalAmount: {
+					$sum: '$paidAmount',
+				},
+			},
+		},
+	]);
+
+	const feePerformance = await FeeInstallment.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(school_id),
+			},
+		},
+		{
+			$group: {
+				_id: '$schoolId',
+				paidCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Paid'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				lateCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Late'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				dueCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Due'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				upcomingCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Upcoming'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+	]);
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
 	createReceipt,
 	getFeeReceiptSummary,
+	getDashboardData,
 	getExcel,
 };
