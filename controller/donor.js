@@ -278,34 +278,85 @@ exports.getDonations = catchAsync(async (req, res, next) => {
 
 exports.getReport = catchAsync(async (req, res, next) => {
 	const { schoolId } = req.params;
-	const donor = await DonorModel.aggregate([
-		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(schoolId),
-			},
-		},
-		{
-			$sort: {
-				totalAmount: -1,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				totalDonations: {
-					$sum: '$totalAmount',
-				},
-				highestDonation: {
-					$first: '$totalAmount',
-				},
-				highestDonor: {
-					$first: '$$ROOT',
+	const [donor, donations] = await Promise.all([
+		await DonorModel.aggregate([
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
 				},
 			},
-		},
+			{
+				$sort: {
+					totalAmount: -1,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalDonations: {
+						$sum: '$totalAmount',
+					},
+					highestDonation: {
+						$first: '$totalAmount',
+					},
+					highestDonor: {
+						$first: '$$ROOT',
+					},
+				},
+			},
+		]),
+		await Donations.aggregate([
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+				},
+			},
+			{
+				$group: {
+					_id: '$sectionId',
+					totalDonations: {
+						$sum: '$amount',
+					},
+				},
+			},
+			{
+				$sort: {
+					totalDonations: -1,
+				},
+			},
+			{
+				$limit: 1,
+			},
+			{
+				$lookup: {
+					from: 'sections',
+					foreignField: '_id',
+					localField: '_id',
+					as: 'sectionId',
+				},
+			},
+			{
+				$unwind: '$sectionId',
+			},
+			{
+				$project: {
+					_id: 0,
+					className: '$sectionId.className',
+					totalDonations: 1,
+				},
+			},
+		]),
 	]);
-	if (donor.length === 0) {
-		return next(new ErrorResponse('No Donations Found', 404));
-	}
-	res.status(200).json(SuccessResponse(donor[0], 1, 'Fetched Successfully'));
+	const responseObj = {
+		totalDonations: donor[0]?.totalDonations || 0,
+		highestDonation: {
+			amount: donations[0]?.totalDonations || 0,
+			className: donations[0]?.className || null,
+		},
+		highestDonor: donor[0]?.highestDonor || null,
+	};
+	// if (donor.length === 0) {
+	// 	return next(new ErrorResponse('No Donations Found', 404));
+	// }
+	res.status(200).json(SuccessResponse(responseObj, 1, 'Fetched Successfully'));
 });
