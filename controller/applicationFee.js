@@ -19,6 +19,7 @@ const createApplicationFee = async (req, res, next) => {
 			sectionId,
 			className,
 			parentName,
+			parentType,
 			phoneNumber,
 			gender,
 			course = '',
@@ -33,6 +34,7 @@ const createApplicationFee = async (req, res, next) => {
 			!classId ||
 			!className ||
 			!parentName ||
+			!parentType ||
 			!gender ||
 			!phoneNumber ||
 			!amount ||
@@ -85,8 +87,10 @@ const createApplicationFee = async (req, res, next) => {
 		const payload = {
 			studentName,
 			classId,
+			sectionId,
 			className,
 			parentName,
+			parentType,
 			phoneNumber,
 			course,
 			gender,

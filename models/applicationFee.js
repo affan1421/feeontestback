@@ -11,6 +11,16 @@ const applicationFeeSchema = new Schema(
 			ref: 'Class',
 			required: [true, 'classId is required'],
 		},
+		sectionId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Section',
+			required: [true, 'sectionId is required'],
+		},
+		parentType: {
+			type: String,
+			enum: ['FATHER', 'MOTHER', 'GUARDIAN', 'OTHER'],
+			required: [true, 'Parent Type is required'],
+		},
 		parentName: String,
 		phoneNumber: Number,
 		gender: {
