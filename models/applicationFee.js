@@ -27,6 +27,10 @@ const applicationFeeSchema = new Schema(
 			type: String,
 			enum: ['Male', 'Female'],
 		},
+		isEnrolled: {
+			type: Boolean,
+			default: false,
+		},
 		course: {
 			type: String,
 			default: '',
