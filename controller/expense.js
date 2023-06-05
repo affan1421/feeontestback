@@ -322,6 +322,7 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId,
 		paymentMethod,
 		sort,
+		date, // single date
 		page = 0,
 		limit = 10,
 		searchTerm,
@@ -334,6 +335,12 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
+
+	if (date) {
+		const startDate = moment(date).startOf('day').toDate();
+		const endDate = moment(date).endOf('day').toDate();
+		match.expenseDate = { $gte: startDate, $lte: endDate };
+	}
 
 	// check if the search term is having number
 	// eslint-disable-next-line no-restricted-globals

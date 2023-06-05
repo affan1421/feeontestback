@@ -141,6 +141,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		sectionId,
 		paymentMode,
 		receiptType,
+		date, // single day
 		page = 0,
 		limit = 5,
 		search,
@@ -167,6 +168,11 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	}
 	if (receiptType) {
 		payload.receiptType = receiptType;
+	}
+	if (date) {
+		const startDate = moment(date).startOf('day').toDate();
+		const endDate = moment(date).endOf('day').toDate();
+		payload.issueDate = { $gte: startDate, $lte: endDate };
 	}
 
 	if (search) {

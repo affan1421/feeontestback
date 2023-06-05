@@ -7,6 +7,7 @@ const {
 	createApplicationFee,
 	updateApplicationFee,
 	deleteApplicationFee,
+	updategender,
 } = require('../controller/applicationFee');
 
 // GET all application fees
@@ -17,6 +18,8 @@ router.get('/:id', getApplicationFeeById);
 
 // CREATE a new application fee record
 router.post('/', createApplicationFee);
+
+router.post('/bulk', updategender);
 
 // UPDATE an existing application fee record
 router.put('/:id', updateApplicationFee);
