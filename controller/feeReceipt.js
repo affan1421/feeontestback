@@ -205,6 +205,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 									'$student.section.name',
 								],
 							},
+							parentName: '$parent.name',
 							amount: '$paidAmount',
 							items: 1,
 							receiptId: 1,
