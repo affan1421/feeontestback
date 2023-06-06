@@ -677,6 +677,7 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 				$gte: getStartDate(startDate),
 				$lte: getEndDate(endDate),
 			};
+			totalExpenseAggregation.push(...tempAggregation);
 			break;
 	}
 
