@@ -880,38 +880,79 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
 exports.IncomeDashboard = async (req, res, next) => {
 	try {
-		const { schoolId, dateRange = 'daily' } = req.query;
+		const {
+			schoolId,
+			dateRange = null,
+			startDate = null,
+			endDate = null,
+		} = req.query;
 		let dateObj = null;
 		let prevDateObj = null;
 
-		if (dateRange === 'daily') {
-			dateObj = {
-				$gte: moment().startOf('day').toDate(),
-				$lte: moment().endOf('day').toDate(),
-			};
-			prevDateObj = {
-				$gte: moment().subtract(1, 'days').startOf('day').toDate(),
-				$lte: moment().subtract(1, 'days').endOf('day').toDate(),
-			};
-		} else if (dateRange === 'weekly') {
-			dateObj = {
-				$gte: moment().startOf('week').toDate(),
-				$lte: moment().endOf('week').toDate(),
-			};
-			prevDateObj = {
-				$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
-				$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
-			};
-		} else if (dateRange === 'monthly') {
-			dateObj = {
-				$gte: moment().startOf('month').toDate(),
-				$lte: moment().endOf('month').toDate(),
-			};
-			prevDateObj = {
-				$gte: moment().subtract(1, 'months').startOf('month').toDate(),
-				$lte: moment().subtract(1, 'months').endOf('month').toDate(),
-			};
+		// START DATE
+		const getStartDate = (date, type) =>
+			date
+				? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
+				: moment().startOf(type).toDate();
+		// END DATE
+		const getEndDate = (date, type) =>
+			date
+				? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
+				: moment().endOf(type).toDate();
+
+		// PREV START DATE
+		const getPrevStartDate = (date, type, flag) =>
+			date
+				? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
+				: moment().subtract(1, flag).startOf(type).toDate();
+		// PREV END DATE
+		const getPrevEndDate = (date, type, flag) =>
+			date
+				? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
+				: moment().subtract(1, flag).endOf(type).toDate();
+
+		switch (dateRange) {
+			case 'daily':
+				dateObj = {
+					$gte: getStartDate(startDate, 'day'),
+					$lte: getEndDate(endDate, 'day'),
+				};
+				prevDateObj = {
+					$gte: getPrevStartDate(startDate, 'day', 'days'),
+					$lte: getPrevEndDate(endDate, 'day', 'days'),
+				};
+				break;
+
+			case 'weekly':
+				dateObj = {
+					$gte: getStartDate(startDate, 'week'),
+					$lte: getEndDate(endDate, 'week'),
+				};
+				prevDateObj = {
+					$gte: getPrevStartDate(startDate, 'week', 'weeks'),
+					$lte: getPrevEndDate(endDate, 'week', 'weeks'),
+				};
+				break;
+
+			case 'monthly':
+				dateObj = {
+					$gte: getStartDate(startDate, 'month'),
+					$lte: getEndDate(endDate, 'month'),
+				};
+				prevDateObj = {
+					$gte: getPrevStartDate(startDate, 'month', 'months'),
+					$lte: getPrevEndDate(endDate, 'month', 'months'),
+				};
+				break;
+
+			default:
+				dateObj = {
+					$gte: getStartDate(startDate),
+					$lte: getEndDate(endDate),
+				};
+				break;
 		}
+
 		let sectionList = await Sections.find({
 			school: mongoose.Types.ObjectId(schoolId),
 		})
@@ -983,7 +1024,6 @@ exports.IncomeDashboard = async (req, res, next) => {
 			);
 		}
 
-		//
 		const miscAggregate = [
 			{
 				$facet: {
@@ -1088,26 +1128,28 @@ exports.IncomeDashboard = async (req, res, next) => {
 					],
 					// totalIncomeCollected[0].totalAmount
 					totalIncomeCollected: totalIncomeAggregation,
-					// prevIncomeCollected[0].totalAmount
-					prevIncomeCollected: [
-						{
-							$match: {
-								'school.schoolId': mongoose.Types.ObjectId(schoolId),
-								issueDate: prevDateObj,
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								totalAmount: {
-									$sum: '$paidAmount',
-								},
-							},
-						},
-					],
 				},
 			},
 		];
+		// prevIncomeCollected[0].totalAmount
+		if (dateRange) {
+			miscAggregate[0].$facet.prevIncomeCollected = [
+				{
+					$match: {
+						'school.schoolId': mongoose.Types.ObjectId(schoolId),
+						issueDate: prevDateObj,
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						totalAmount: {
+							$sum: '$paidAmount',
+						},
+					},
+				},
+			];
+		}
 		const incomeAggregate = [
 			{
 				$facet: {
@@ -1210,7 +1252,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 			totalCollected,
 			miscCollected,
 			totalIncomeCollected,
-			prevIncomeCollected,
+			prevIncomeCollected = [],
 		} = totalIncomeData[0];
 		incomeData.miscellaneous = [];
 		const setDefaultValues = data => {

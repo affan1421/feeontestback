@@ -544,10 +544,16 @@ exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
 });
 
 exports.getDashboardData = catchAsync(async (req, res, next) => {
-	const { schoolId, dateRange = 'daily' } = req.query;
+	const {
+		schoolId,
+		dateRange = null,
+		startDate = null,
+		endDate = null,
+	} = req.query;
 
 	let dateObj = null;
 	let prevDateObj = null;
+
 	const totalExpenseAggregation = [
 		{
 			$match: {
@@ -590,59 +596,92 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 			},
 		},
 	];
-	if (dateRange === 'daily') {
-		const today = new Date();
-		const startOfDate = today.setHours(0, 0, 0, 0);
-		const endOfDate = today.setHours(23, 59, 59, 999);
 
-		dateObj = {
-			$gte: new Date(startOfDate),
-			$lte: new Date(endOfDate),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
-			$lte: moment().subtract(1, 'days').endOf('day').toDate(),
-		};
-		totalExpenseAggregation.push({
-			$group: {
-				_id: null,
-				totalExpAmount: {
-					$sum: '$amount',
-				},
-				// push only the issueDate and paidAmount
-				expenseList: {
-					$push: {
-						expenseDate: '$expenseDate',
-						amount: '$amount',
+	// START DATE
+	const getStartDate = (date, type) =>
+		date
+			? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
+			: moment().startOf(type).toDate();
+	// END DATE
+	const getEndDate = (date, type) =>
+		date
+			? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
+			: moment().endOf(type).toDate();
+
+	// PREV START DATE
+	const getPrevStartDate = (date, type, flag) =>
+		date
+			? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
+			: moment().subtract(1, flag).startOf(type).toDate();
+	// PREV END DATE
+	const getPrevEndDate = (date, type, flag) =>
+		date
+			? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
+			: moment().subtract(1, flag).endOf(type).toDate();
+
+	switch (dateRange) {
+		case 'daily':
+			dateObj = {
+				$gte: getStartDate(startDate, 'day'),
+				$lte: getEndDate(endDate, 'day'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'day', 'days'),
+				$lte: getPrevEndDate(endDate, 'day', 'days'),
+			};
+			totalExpenseAggregation.push({
+				$group: {
+					_id: null,
+					totalExpAmount: {
+						$sum: '$amount',
+					},
+					// push only the issueDate and paidAmount
+					expenseList: {
+						$push: {
+							expenseDate: '$expenseDate',
+							amount: '$amount',
+						},
 					},
 				},
-			},
-		});
-	} else if (dateRange === 'weekly') {
-		dateObj = {
-			$gte: moment().startOf('week').toDate(),
-			$lte: moment().endOf('week').toDate(),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
-			$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
-		};
-		totalExpenseAggregation.push(...tempAggregation);
-	} else if (dateRange === 'monthly') {
-		dateObj = {
-			$gte: moment().startOf('month').toDate(),
-			$lte: moment().endOf('month').toDate(),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'months').startOf('month').toDate(),
-			$lte: moment().subtract(1, 'months').endOf('month').toDate(),
-		};
-		totalExpenseAggregation.push(...tempAggregation);
+			});
+			break;
+
+		case 'weekly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'week'),
+				$lte: getEndDate(endDate, 'week'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'week', 'weeks'),
+				$lte: getPrevEndDate(endDate, 'week', 'weeks'),
+			};
+			totalExpenseAggregation.push(...tempAggregation);
+
+			break;
+
+		case 'monthly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'month'),
+				$lte: getEndDate(endDate, 'month'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'month', 'months'),
+				$lte: getPrevEndDate(endDate, 'month', 'months'),
+			};
+			totalExpenseAggregation.push(...tempAggregation);
+
+			break;
+
+		default:
+			dateObj = {
+				$gte: getStartDate(startDate),
+				$lte: getEndDate(endDate),
+			};
+			break;
 	}
 
 	totalExpenseAggregation[0].$match.expenseDate = dateObj;
-
-	const expenseData = await ExpenseModel.aggregate([
+	const aggregate = [
 		{
 			$facet: {
 				totalExpense: [
@@ -710,28 +749,37 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
-				totalExpensePrev: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(schoolId),
-							expenseDate: prevDateObj,
-						},
-					},
-					{
-						$group: {
-							_id: null,
-							totalExpAmount: {
-								$sum: '$amount',
-							},
-						},
-					},
-				],
 				totalExpenseCurrent: totalExpenseAggregation,
 			},
 		},
-	]);
-	const totalExpenseData = expenseData[0].totalExpense[0]
-		? expenseData[0].totalExpense[0]
+	];
+	if (dateRange) {
+		aggregate[0].$facet.totalExpensePrev = [
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+					expenseDate: prevDateObj,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalExpAmount: {
+						$sum: '$amount',
+					},
+				},
+			},
+		];
+	}
+
+	const expenseData = await ExpenseModel.aggregate(aggregate);
+	let {
+		totalExpense,
+		totalExpensePrev = [],
+		totalExpenseCurrent,
+	} = expenseData[0];
+	const totalExpenseData = totalExpense[0]
+		? totalExpense[0]
 		: {
 				totalAmount: 0,
 				maxExpType: {
@@ -743,13 +791,11 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 					expenseType: null,
 				},
 		  };
-	const totalExpensePrev =
-		expenseData[0].totalExpensePrev[0]?.totalExpAmount || 0;
-	const totalExpenseCurrent =
-		expenseData[0].totalExpenseCurrent[0]?.totalExpAmount || 0;
+	totalExpensePrev = totalExpensePrev[0]?.totalExpAmount || 0;
+	totalExpenseCurrent = totalExpenseCurrent[0]?.totalExpAmount || 0;
 	const finalData = {
 		totalExpense: totalExpenseData,
-		totalExpenseCurrent: expenseData[0].totalExpenseCurrent[0] ?? {
+		totalExpenseCurrent: totalExpenseCurrent[0] ?? {
 			totalExpAmount: 0,
 			expenseList: [],
 		},
