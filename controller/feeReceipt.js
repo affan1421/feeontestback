@@ -165,71 +165,17 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	if (categoryId)
 		payload['category.feeCategoryId'] = mongoose.Types.ObjectId(categoryId);
 
-	const aggregate = [
-		{
-			$match: payload,
-		},
-		{
-			$unwind: {
-				path: '$items',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$lookup: {
-				from: 'feetypes',
-				let: {
-					feeTypeId: '$items.feeTypeId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$feeTypeId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							feeType: 1,
-						},
-					},
-				],
-				as: 'items.feeTypeId',
-			},
-		},
-		{
-			$group: {
-				_id: '$_id',
-				items: {
-					$push: {
-						feeTypeId: {
-							$first: '$items.feeTypeId',
-						},
-						installmentId: '$items.installmentId',
-						netAmount: '$items.netAmount',
-						paidAmount: '$items.paidAmount',
-					},
-				},
-				root: { $first: '$$ROOT' },
-			},
-		},
-		{
-			$replaceRoot: {
-				newRoot: {
-					$mergeObjects: ['$root', { items: '$items' }],
-				},
-			},
-		},
-		{
-			$sort: {
-				createdAt: -1,
-			},
-		},
-	];
+	const projection = {
+		amount: '$paidAmount',
+		receiptId: 1,
+		issueDate: 1,
+		paymentMode: '$payment.method',
+		status: 1,
+	};
 
-	const feeReceipts = await FeeReceipt.aggregate(aggregate);
+	const feeReceipts = await FeeReceipt.find(payload, projection)
+		.sort({ createdAt: -1 })
+		.lean();
 	if (feeReceipts.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));
 	}
