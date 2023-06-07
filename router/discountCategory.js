@@ -15,7 +15,10 @@ const {
 	addStudentToDiscount,
 	getStudentForApproval,
 	getStudentsByStructure,
+	revokeStudentDiscount,
 } = require('../controller/discountCategory');
+
+router.post('/:id/revoke', revokeStudentDiscount);
 
 router.route('/').get(getDiscountCategory).post(createDiscountCategory);
 

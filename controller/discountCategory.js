@@ -1057,9 +1057,101 @@ const discountReport = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(sectionDiscounts, 1, 'Fetched Successfully'));
 });
 
+const revokeStudentDiscount = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { studentId, amount } = req.body;
+	// Fetch all feeInstallments of the student
+
+	const feeInstallments = await FeeInstallment.find({
+		studentId: mongoose.Types.ObjectId(studentId),
+		discounts: {
+			$elemMatch: {
+				discountId: mongoose.Types.ObjectId(id),
+				status: 'Approved',
+			},
+		},
+	}).lean();
+	if (!feeInstallments.length) {
+		return next(new ErrorResponse('No Fee Installment Found', 404));
+	}
+	// check if any installment has paidAmount > 0
+	const paidInstallments = feeInstallments.filter(
+		({ paidAmount }) => paidAmount > 0
+	);
+	if (paidInstallments.length) {
+		return next(
+			new ErrorResponse(
+				'Cannot Revoke Discount, Receipts Are Generated For The Installments',
+				400
+			)
+		);
+	}
+	// Update the feeInstallments
+	for (const { _id, discounts } of feeInstallments) {
+		const discount = discounts.find(
+			d => d.discountId.toString() === id.toString()
+		);
+		if (!discount) {
+			return next(new ErrorResponse('No Discount Found', 404));
+		}
+		const { discountAmount } = discount;
+		await FeeInstallment.findOneAndUpdate(
+			{
+				_id,
+				discounts: {
+					$elemMatch: {
+						discountId: mongoose.Types.ObjectId(id),
+						status: 'Approved',
+					},
+				},
+			},
+			{
+				// remove that discount object
+				$pull: {
+					discounts: {
+						discountId: mongoose.Types.ObjectId(id),
+					},
+				},
+				// update the totalDiscountAmount and netAmount
+				$inc: {
+					totalDiscountAmount: -discountAmount,
+					netAmount: discountAmount,
+				},
+			}
+		);
+	}
+	// Update the totalApproved and totalPending in sectionDiscount
+	await SectionDiscount.updateMany(
+		{
+			discountId: mongoose.Types.ObjectId(id),
+		},
+		{
+			$inc: {
+				totalStudents: -1,
+				totalApproved: -1,
+			},
+		}
+	);
+	await DiscountCategory.updateOne(
+		{
+			_id: id,
+		},
+		{
+			$inc: {
+				budgetRemaining: amount,
+				totalStudents: -1,
+				totalApproved: -1,
+				budgetAlloted: -amount,
+			},
+		}
+	);
+	res.status(200).json(SuccessResponse(null, 1, 'Revoked Successfully'));
+});
+
 module.exports = {
 	getStudentForApproval,
 	addStudentToDiscount,
+	revokeStudentDiscount,
 	approveStudentDiscount,
 	createDiscountCategory,
 	getStudentsByFilter,
