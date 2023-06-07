@@ -246,6 +246,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		sectionId,
 		paymentMode,
 		receiptType,
+		status,
 		date, // single day
 		page = 0,
 		limit = 5,
@@ -274,6 +275,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	if (receiptType) {
 		payload.receiptType = receiptType;
 	}
+	if (status) payload.status = status;
 	if (date) {
 		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
 		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
@@ -1805,6 +1807,30 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	};
 });
 
+const cancelReceipt = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { reason = '', status, date = new Date() } = req.body;
+
+	const reasonObj = { reason, status, date };
+	const update = { $set: { status } };
+
+	if (status !== 'CANCELLED') {
+		update.$push = { reasons: reasonObj };
+	}
+
+	const updatedReceipt = await FeeReceipt.findOneAndUpdate(
+		{ _id: id },
+		update,
+		{ new: true }
+	);
+	if (!updatedReceipt) {
+		return next(new ErrorResponse('Receipt Not Found', 400));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
@@ -1813,4 +1839,5 @@ module.exports = {
 	receiptByStudentId,
 	getDashboardData,
 	getExcel,
+	cancelReceipt,
 };

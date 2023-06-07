@@ -9,6 +9,7 @@ const {
 	getDashboardData,
 	receiptByStudentId,
 	getExcel,
+	cancelReceipt,
 } = require('../controller/feeReceipt');
 
 router.get('/student/:studentId', receiptByStudentId);
@@ -19,6 +20,8 @@ router.get('/', getFeeReceipt);
 router.get('/summary', getFeeReceiptSummary);
 
 router.get('/:id', getFeeReceiptById);
+
+router.post('/:id/cancellation', cancelReceipt);
 
 router.get('/dashboard', getDashboardData);
 

@@ -968,6 +968,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 				$match: {
 					'school.schoolId': mongoose.Types.ObjectId(schoolId),
 					issueDate: dateObj,
+					status: { $ne: 'CANCELLED' },
 				},
 			},
 		];
@@ -1033,6 +1034,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 								'school.schoolId': mongoose.Types.ObjectId(schoolId),
 								receiptType: 'ACADEMIC',
 								issueDate: dateObj,
+								status: { $ne: 'CANCELLED' },
 							},
 						},
 						{
@@ -1109,6 +1111,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 									$in: ['APPLICATION', 'MISCELLANEOUS'],
 								},
 								issueDate: dateObj,
+								status: { $ne: 'CANCELLED' },
 							},
 						},
 						{
