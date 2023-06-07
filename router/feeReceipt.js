@@ -7,8 +7,11 @@ const {
 	getFeeReceiptSummary,
 	getFeeReceiptById,
 	getDashboardData,
+	receiptByStudentId,
 	getExcel,
 } = require('../controller/feeReceipt');
+
+router.get('/student/:studentId', receiptByStudentId);
 
 router.get('/excel', getExcel);
 router.get('/', getFeeReceipt);
