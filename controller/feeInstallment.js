@@ -198,6 +198,48 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
 		);
 });
 
+exports.update = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { amount } = req.body;
+
+	// update the installment
+	const installment = await FeeInstallment.findOne({ _id: id });
+
+	const { paidAmount, totalDiscountAmount } = installment;
+
+	if (!installment) {
+		return next(new ErrorResponse('Installment not found', 404));
+	}
+
+	const update = {
+		$set: {
+			totalAmount: amount,
+			netAmount: amount - totalDiscountAmount,
+		},
+	};
+	if (paidAmount && paidAmount > amount) {
+		return next(
+			new ErrorResponse('Paid Amount Is Greater Than Total Amount', 400)
+		);
+	}
+	if (paidAmount > 0) {
+		update.$set.status = 'Due';
+	}
+
+	const updatedInstallment = await FeeInstallment.updateOne(
+		{ _id: id },
+		update
+	);
+
+	if (updatedInstallment.nModified === 0) {
+		return next(new ErrorResponse('Installment not updated', 400));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(updatedInstallment, 1, 'Updated Successfully'));
+});
+
 exports.StudentsList = catchAsync(async (req, res, next) => {
 	const {
 		page = 0,
