@@ -12,6 +12,8 @@ const {
 	cancelReceipt,
 } = require('../controller/feeReceipt');
 
+router.get('/dashboard', getDashboardData);
+
 router.get('/student/:studentId', receiptByStudentId);
 
 router.get('/excel', getExcel);
@@ -22,8 +24,6 @@ router.get('/summary', getFeeReceiptSummary);
 router.get('/:id', getFeeReceiptById);
 
 router.post('/:id/cancellation', cancelReceipt);
-
-router.get('/dashboard', getDashboardData);
 
 router.post('/', createReceipt);
 

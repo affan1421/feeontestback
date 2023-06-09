@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 const excel = require('excel4node');
 const FeeReceipt = require('../models/feeReceipt');
-const Discount = require('../models/discountCategory');
 const FeeType = require('../models/feeType');
+const SectionDiscount = require('../models/sectionDiscount');
 const SuccessResponse = require('../utils/successResponse');
 const FeeInstallment = require('../models/feeInstallment');
 const Expense = require('../models/expense');
@@ -909,21 +909,72 @@ interface item {
 */
 // ALL DATA IS FETCHED NEED TO REFACTOR AND RECONSTRUCT THE RESPONSE OBJECT
 const getDashboardData = catchAsync(async (req, res, next) => {
-	// get Student data total students, boys and girls count
-	// get income dashboard Data
 	// get expense dashboard data
-	// get payment method wise data
-	// fee payment status data
+
 	const resObj = {};
 	const { school_id } = req.user;
 	const { dateRange = null, startDate = null, endDate = null } = req.query;
 	let dateObj = null;
 
+	// Section Data
+	let sectionList = await Sections.find({
+		school: mongoose.Types.ObjectId(school_id),
+	})
+		.project({ name: 1, className: 1 })
+		.toArray();
+	sectionList = sectionList.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
+
+	// get Student data total students, boys and girls count
+	const studentData = await Student.aggregate([
+		{
+			$match: {
+				school_id: mongoose.Types.ObjectId(school_id),
+			},
+		},
+		{
+			$group: {
+				_id: '$school_id',
+				totalCount: {
+					$sum: 1,
+				},
+				boysCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Male', 'M', 'MALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				girlsCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Female', 'F', 'FEMALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+	]).toArray();
+
+	// eslint-disable-next-line prefer-destructuring
+	resObj.totalStudents = studentData[0];
+
+	/// ///////////////////////////////////////////////////////
+
 	const totalIncomeAggregation = [
 		{
 			$match: {
 				'school.schoolId': mongoose.Types.ObjectId(school_id),
-				issueDate: dateObj,
 			},
 		},
 	];
@@ -931,8 +982,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const totalExpenseAggregation = [
 		{
 			$match: {
-				schoolId: mongoose.Types.ObjectId(schoolId),
-				expenseDate: dateObj,
+				schoolId: mongoose.Types.ObjectId(school_id),
 			},
 		},
 	];
@@ -971,7 +1021,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		},
 	];
 
-	const aggregate = [
+	const expenseAggregate = [
 		{
 			$facet: {
 				totalExpense: [
@@ -1036,6 +1086,47 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 									},
 								},
 							},
+						},
+					},
+				],
+				expenseTypeData: [
+					{
+						$match: {
+							schoolId: mongoose.Types.ObjectId(school_id),
+						},
+					},
+					{
+						$group: {
+							_id: '$expenseType',
+							totalExpAmount: {
+								$sum: '$amount',
+							},
+							schoolId: {
+								$first: '$schoolId',
+							},
+						},
+					},
+					{
+						$lookup: {
+							from: 'expensetypes',
+							let: {
+								expTypeId: '$_id',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$expTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										name: 1,
+									},
+								},
+							],
+							as: '_id',
 						},
 					},
 				],
@@ -1221,58 +1312,13 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 			break;
 	}
 
+	// update the dateObj into aggregate
+	totalIncomeAggregation[0].$match.issueDate = dateObj;
 	totalExpenseAggregation[0].$match.expenseDate = dateObj;
 
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(school_id),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
-	const studentData = await Student.aggregate([
-		{
-			$match: {
-				school_id: mongoose.Types.ObjectId(school_id),
-			},
-		},
-		{
-			$group: {
-				_id: '$school_id',
-				totalCount: {
-					$sum: 1,
-				},
-				boysCount: {
-					$sum: {
-						$cond: [
-							{
-								$in: ['$gender', ['Male', 'M', 'MALE']],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				girlsCount: {
-					$sum: {
-						$cond: [
-							{
-								$in: ['$gender', ['Female', 'F', 'FEMALE']],
-							},
-							1,
-							0,
-						],
-					},
-				},
-			},
-		},
-	]).toArray();
-
-	// eslint-disable-next-line prefer-destructuring
-	resObj.totalStudents = studentData[0];
-
+	// get income dashboard Data
+	// get payment method wise data
+	// fee payment status data
 	// totalIncome pipeline
 	// totalCollected, miscCollected, totalIncomeCollected, paymentTypeData
 	const incomeAggregate = [
@@ -1376,6 +1422,36 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 							},
 						},
 					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							let: {
+								feeTypeId: '$_id',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$feeTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										feeType: 1,
+									},
+								},
+							],
+							as: '_id',
+						},
+					},
+					{
+						$addFields: {
+							_id: {
+								$first: '$_id.feeType',
+							},
+						},
+					},
 				],
 				// totalIncomeCollected[0].totalAmount
 				totalIncomeCollected: totalIncomeAggregation,
@@ -1403,22 +1479,34 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 				totalCollected: {
 					$first: '$totalCollected',
 				},
-				miscCollected: {
-					$first: '$miscCollected',
-				},
+				miscCollected: '$miscCollected',
+
 				totalIncomeCollected: {
 					$first: '$totalIncomeCollected',
 				},
-				paymentTypeData: {
-					$first: '$paymentTypeData',
-				},
+				paymentTypeData: '$paymentTypeData',
 			},
 		},
 	];
 	const incomeData = await FeeReceipt.aggregate(incomeAggregate);
-	const expenseData = await Expense.aggregate(aggregate);
 
-	let { totalExpense, totalExpenseCurrent } = expenseData[0];
+	const {
+		totalCollected,
+		miscCollected,
+		totalIncomeCollected,
+		paymentTypeData,
+	} = incomeData[0];
+
+	resObj.feeCollection = totalCollected;
+	resObj.paymentMethods = paymentTypeData;
+	resObj.financialFlows = { income: miscCollected };
+
+	/// ////////////////////////////////////////////////////////////////////
+
+	// EXPENSE DATA
+	const expenseData = await Expense.aggregate(expenseAggregate);
+
+	let { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData[0];
 	const totalExpenseData = totalExpense[0]
 		? totalExpense[0]
 		: {
@@ -1440,13 +1528,9 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 			expenseList: [],
 		},
 	};
+	resObj.financialFlows.expense = expenseTypeData;
 
-	const {
-		totalCollected,
-		miscCollected,
-		totalIncomeCollected,
-		paymentTypeData,
-	} = incomeData[0];
+	/// /////////////////////////////////////////////////////////////////
 
 	// FeeInstallment Detailed Data
 	// totalReceivable, totalPending, feePerformance
@@ -1607,12 +1691,13 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const { totalReceivable, totalPending, feePerformance } = feesReport[0];
 
 	resObj.totalReceivable = totalReceivable;
-	resObj.feeCollection = totalCollected;
 	resObj.totalPending = totalPending;
 	resObj.studentPerformance = feePerformance;
 
-	// Discount Data
-	const discountReport = await Discount.aggregate([
+	/// ////////////////////////////////////////////////////////////////////
+
+	// DISCOUNT DATA
+	const discountReport = await SectionDiscount.aggregate([
 		{
 			$match: {
 				schoolId: mongoose.Types.ObjectId(school_id),
@@ -1699,6 +1784,8 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	// eslint-disable-next-line prefer-destructuring
 	resObj.totalDiscounts = discountReport[0];
 
+	/// /////////////////////////////////////////////////////////////////////
+
 	const setDefaultValues = data => {
 		const defaultData = {
 			totalAmount: 0,
@@ -1738,19 +1825,21 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		sectionList
 	);
 	incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
-		totalCollected[0],
+		totalCollected,
 		sectionList
 	);
 	incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
 		incomeData.totalPending,
 		sectionList
 	);
-	const currentPaidAmount = totalIncomeCollected[0]?.totalAmount || 0;
+	const currentPaidAmount = totalIncomeCollected.totalAmount || 0;
 
 	resObj.incomeData = {
 		amount: currentPaidAmount,
-		incomeList: totalIncomeCollected[0]?.incomeList || [],
+		incomeList: totalIncomeCollected?.incomeList || [],
 	};
+
+	res.status(200).json(SuccessResponse(resObj, 1, 'Fetched Successfully'));
 });
 
 const cancelReceipt = catchAsync(async (req, res, next) => {
