@@ -175,6 +175,7 @@ exports.create = async (req, res, next) => {
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { school_id: schoolId } = req.user;
+	let updatedStudents = [];
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
 	})
@@ -226,38 +227,36 @@ exports.read = catchAsync(async (req, res, next) => {
 		]),
 	]);
 
-	if (!students.length) {
-		return next(new ErrorResponse('No students found', 404));
-	}
+	if (students.length) {
+		const installmentObj = feeInstallments.reduce((acc, curr) => {
+			acc[curr._id] = curr.installments;
+			return acc;
+		}, {});
+		updatedStudents = students.reduce((acc, curr) => {
+			const { _id } = curr;
+			const foundInstallment = installmentObj[_id];
+			const hasInstallment = Boolean(foundInstallment);
+			const hasMatchingFeeStructure =
+				hasInstallment &&
+				foundInstallment[0].feeStructureId.toString() === id.toString();
+			const hasPaidInstallment =
+				hasInstallment &&
+				foundInstallment.some(
+					installment =>
+						installment.status === 'Paid' || installment.status === 'Late'
+				);
 
-	const installmentObj = feeInstallments.reduce((acc, curr) => {
-		acc[curr._id] = curr.installments;
-		return acc;
-	}, {});
-	const updatedStudents = students.reduce((acc, curr) => {
-		const { _id } = curr;
-		const foundInstallment = installmentObj[_id];
-		const hasInstallment = Boolean(foundInstallment);
-		const hasMatchingFeeStructure =
-			hasInstallment &&
-			foundInstallment[0].feeStructureId.toString() === id.toString();
-		const hasPaidInstallment =
-			hasInstallment &&
-			foundInstallment.some(
-				installment =>
-					installment.status === 'Paid' || installment.status === 'Late'
-			);
-
-		if (!hasInstallment || hasMatchingFeeStructure) {
-			curr.isSelected = hasMatchingFeeStructure;
-			if (hasMatchingFeeStructure) {
-				curr.isPaid = hasPaidInstallment;
+			if (!hasInstallment || hasMatchingFeeStructure) {
+				curr.isSelected = hasMatchingFeeStructure;
+				if (hasMatchingFeeStructure) {
+					curr.isPaid = hasPaidInstallment;
+				}
+				acc.push(curr);
 			}
-			acc.push(curr);
-		}
 
-		return acc;
-	}, []);
+			return acc;
+		}, []);
+	}
 
 	feeStructure.studentList = updatedStudents;
 	res

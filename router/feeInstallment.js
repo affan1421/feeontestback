@@ -10,6 +10,8 @@ router.get(
 	feeInstallmentController.SectionWiseTransaction
 );
 
+router.post('/:id', feeInstallmentController.update);
+
 // Get Income Dashboard Data
 router.get('/incomeDashboard', feeInstallmentController.IncomeDashboard);
 
