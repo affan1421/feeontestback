@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
+const { Readable } = require('stream');
+const csv = require('fast-csv');
+
 const ApplicationFee = require('../models/applicationFee');
 const AcademicYear = require('../models/academicYear');
 const FeeReceipt = require('../models/feeReceipt');
@@ -19,7 +22,9 @@ const createApplicationFee = async (req, res, next) => {
 			sectionId,
 			className,
 			parentName,
+			parentType,
 			phoneNumber,
+			gender,
 			course = '',
 			amount,
 			schoolId,
@@ -32,6 +37,8 @@ const createApplicationFee = async (req, res, next) => {
 			!classId ||
 			!className ||
 			!parentName ||
+			!parentType ||
+			!gender ||
 			!phoneNumber ||
 			!amount ||
 			!schoolId
@@ -83,10 +90,13 @@ const createApplicationFee = async (req, res, next) => {
 		const payload = {
 			studentName,
 			classId,
+			sectionId,
 			className,
 			parentName,
+			parentType,
 			phoneNumber,
 			course,
+			gender,
 			amount,
 			schoolId,
 			academicYearId: academicYear._id,
@@ -165,17 +175,57 @@ const createApplicationFee = async (req, res, next) => {
 	}
 };
 
+const updategender = async (req, res, next) => {
+	try {
+		const { file } = req.files;
+		Readable.from(file.data)
+			.pipe(
+				csv.parse({
+					headers: true,
+					ignoreEmpty: true,
+				})
+			)
+			.on('error', error => console.error(error))
+			.on('data', async row => {
+				const { _id, Gender } = row;
+				console.log(_id, Gender);
+				const applicationFee = await ApplicationFee.findByIdAndUpdate(
+					mongoose.Types.ObjectId(_id),
+					{
+						$set: {
+							gender: Gender,
+						},
+					}
+				);
+			});
+		res.status(200).json({ success: true, message: 'Updated Successfully' });
+		// read the file
+	} catch (error) {
+		console.log(error);
+	}
+
+	// Call the function to update documents
+};
+
 // Get all application fee records
 const getAllApplicationFees = catchAsync(async (req, res, next) => {
-	let { schoolId, classId, page = 0, limit = 5 } = req.query;
+	let { schoolId, classId, searchTerm = null, page = 0, limit = 5 } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
+	const aggregate = [
+		{ $match: payload },
+		{ $skip: page * limit },
+		{ $limit: limit },
+	];
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
 	if (classId) {
 		payload.classId = mongoose.Types.ObjectId(classId);
+	}
+	if (searchTerm) {
+		payload.studentName = { $regex: searchTerm, $options: 'i' };
 	}
 	// find active academic year
 	const { _id: academicYearId } = await AcademicYear.findOne({
@@ -183,10 +233,11 @@ const getAllApplicationFees = catchAsync(async (req, res, next) => {
 		schoolId,
 	});
 	payload.academicYearId = mongoose.Types.ObjectId(academicYearId);
+
 	const applicationFee = await ApplicationFee.aggregate([
 		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
+				data: aggregate,
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
@@ -287,4 +338,5 @@ module.exports = {
 	getApplicationFeeById,
 	updateApplicationFee,
 	deleteApplicationFee,
+	updategender,
 };

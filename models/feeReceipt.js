@@ -36,6 +36,7 @@ const feeReceiptSchema = new Schema(
 				},
 			},
 		},
+		comments: String,
 		category: {
 			feeCategoryId: {
 				type: Schema.Types.ObjectId,
@@ -153,6 +154,28 @@ const feeReceiptSchema = new Schema(
 				},
 			],
 			default: [],
+		},
+		// cancellation status
+		status: {
+			type: String,
+			enum: ['REQUESTED', 'CANCELLED', 'REJECTED'],
+		},
+		// cancellation reason
+		reasons: {
+			type: [
+				{
+					reason: String,
+					date: Date,
+					status: {
+						type: String,
+						enum: ['REQUESTED', 'REJECTED'],
+					},
+				},
+			],
+		},
+		corReceiptId: {
+			type: Schema.Types.ObjectId,
+			ref: 'FeeReceipt',
 		},
 	},
 	{

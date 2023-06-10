@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const DonorModel = require('../models/donor');
 const ErrorResponse = require('../utils/errorResponse');
+const Donations = require('../models/donation');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 
@@ -12,6 +13,8 @@ exports.create = async (req, res, next) => {
 		address,
 		contactNumber,
 		bank,
+		schoolId,
+		profileImage,
 		IFSC,
 		accountNumber,
 		accountType,
@@ -23,6 +26,7 @@ exports.create = async (req, res, next) => {
 		!email ||
 		!address ||
 		!bank ||
+		!schoolId ||
 		!IFSC ||
 		!accountNumber ||
 		!accountType ||
@@ -44,7 +48,9 @@ exports.create = async (req, res, next) => {
 			email,
 			address,
 			contactNumber,
+			profileImage,
 			bank,
+			schoolId,
 			IFSC,
 			accountNumber,
 			accountType,
@@ -62,16 +68,23 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.get = catchAsync(async (req, res, next) => {
-	let { page = 0, limit = 5 } = req.query;
+	let { page = 0, limit = 5, schoolId } = req.query;
 	page = +page;
 	limit = +limit;
 	const payload = {};
+	if (schoolId) {
+		payload.schoolId = mongoose.Types.ObjectId(schoolId);
+	}
 	const donorList = await DonorModel.aggregate([
 		{
 			$facet: {
 				data: [
 					{ $match: payload },
-					{ $sort: 'updatedAt' },
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
 					{ $skip: page * limit },
 					{ $limit: limit },
 				],
@@ -91,22 +104,8 @@ exports.get = catchAsync(async (req, res, next) => {
 
 // READ
 exports.read = catchAsync(async (req, res, next) => {
-	const { id } = req.query;
-	const donorList = await DonorModel.findOne({ _id: id }).populate([
-		{
-			path: 'studentList.student_id',
-			select: 'name profile_image class section',
-			populate: [
-				{ path: 'class', select: 'name' },
-				{ path: 'section', select: 'name' },
-			],
-		},
-	]);
-	const donatedAmount = donorList.studentList.reduce(
-		(acc, obj) => acc + obj.amount,
-		0
-	);
-	donorList.donatedAmount = donatedAmount;
+	const { id } = req.params;
+	const donorList = await DonorModel.findOne({ _id: id });
 	if (donorList === null) {
 		return next(new ErrorResponse('Donor Not Found', 404));
 	}
@@ -127,20 +126,33 @@ exports.update = catchAsync(async (req, res, next) => {
 exports.updateStudentList = catchAsync(async (req, res, next) => {
 	const { id, studentList } = req.body;
 
-	await Promise.all(
-		studentList.map(async student => {
-			await DonorModel.updateOne(
-				{ _id: id },
-				{ $addToSet: { studentList: student } }
-			);
-		})
+	// calculate total amount
+	const totalAmount = studentList.reduce((acc, obj) => acc + obj.amount, 0);
+	// update total amount
+	await DonorModel.findOneAndUpdate(
+		{ _id: id },
+		{
+			$inc: {
+				totalAmount, // Assuming you want to increment the "totalAmount"
+			},
+			$push: {
+				studentList: { $each: studentList }, // Push each student from the "studentList" array
+			},
+		}
 	);
+
 	res.status(200).json(SuccessResponse(null, 1, 'Updated Successfully'));
 });
 
 // DELETE
 exports.donorDelete = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
+
+	const hasDonated = await Donations.findOne({ donorId: id });
+
+	if (hasDonated) {
+		return next(new ErrorResponse('Donor Has Donated, Cannot Delete', 400));
+	}
 
 	const donor = await DonorModel.findOneAndDelete({
 		_id: id,
@@ -149,4 +161,202 @@ exports.donorDelete = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Donor Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
+});
+
+exports.getDonations = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	let { page = 0, limit = 5 } = req.query;
+
+	page = +page;
+	limit = +limit;
+
+	const donations = await Donations.aggregate([
+		{
+			$facet: {
+				data: [
+					{
+						$match: {
+							donorId: mongoose.Types.ObjectId(id),
+						},
+					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+					{
+						$skip: page * limit,
+					},
+					{
+						$limit: limit,
+					},
+					{
+						$lookup: {
+							from: 'students',
+							let: {
+								studentId: '$studentId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$studentId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										name: 1,
+									},
+								},
+							],
+							as: 'studentId',
+						},
+					},
+					{
+						$lookup: {
+							from: 'sections',
+							let: {
+								sectionId: '$sectionId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$sectionId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										name: 1,
+										className: 1,
+									},
+								},
+							],
+							as: 'sectionId',
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							amount: 1,
+							date: 1,
+							paymentType: 1,
+							studentId: {
+								$arrayElemAt: ['$studentId', 0],
+							},
+							sectionId: {
+								$arrayElemAt: ['$sectionId', 0],
+							},
+						},
+					},
+				],
+				count: [
+					{
+						$match: {
+							donorId: mongoose.Types.ObjectId(id),
+						},
+					},
+					{
+						$count: 'count',
+					},
+				],
+			},
+		},
+	]);
+	const { data, count } = donations[0];
+	if (count.length === 0) {
+		return next(new ErrorResponse('No Donations Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
+exports.getReport = catchAsync(async (req, res, next) => {
+	const { schoolId } = req.params;
+	const [donor, donations] = await Promise.all([
+		await DonorModel.aggregate([
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+				},
+			},
+			{
+				$sort: {
+					totalAmount: -1,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalDonations: {
+						$sum: '$totalAmount',
+					},
+					highestDonation: {
+						$first: '$totalAmount',
+					},
+					highestDonor: {
+						$first: '$$ROOT',
+					},
+				},
+			},
+		]),
+		await Donations.aggregate([
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+				},
+			},
+			{
+				$group: {
+					_id: '$sectionId',
+					totalDonations: {
+						$sum: '$amount',
+					},
+				},
+			},
+			{
+				$sort: {
+					totalDonations: -1,
+				},
+			},
+			{
+				$limit: 1,
+			},
+			{
+				$lookup: {
+					from: 'sections',
+					foreignField: '_id',
+					localField: '_id',
+					as: 'sectionId',
+				},
+			},
+			{
+				$unwind: '$sectionId',
+			},
+			{
+				$project: {
+					_id: 0,
+					className: '$sectionId.className',
+					totalDonations: 1,
+				},
+			},
+		]),
+	]);
+	const responseObj = {
+		totalDonations: donor[0]?.totalDonations || 0,
+		highestDonation: {
+			amount: donations[0]?.totalDonations || 0,
+			className: donations[0]?.className || null,
+		},
+		highestDonor: donor[0]?.highestDonor || null,
+	};
+	// if (donor.length === 0) {
+	// 	return next(new ErrorResponse('No Donations Found', 404));
+	// }
+	res.status(200).json(SuccessResponse(responseObj, 1, 'Fetched Successfully'));
 });

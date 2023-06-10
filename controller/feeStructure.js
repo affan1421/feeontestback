@@ -175,6 +175,7 @@ exports.create = async (req, res, next) => {
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { school_id: schoolId } = req.user;
+	let updatedStudents = [];
 	const feeStructure = await FeeStructure.findOne({
 		_id: id,
 	})
@@ -226,38 +227,36 @@ exports.read = catchAsync(async (req, res, next) => {
 		]),
 	]);
 
-	if (!students.length) {
-		return next(new ErrorResponse('No students found', 404));
-	}
+	if (students.length) {
+		const installmentObj = feeInstallments.reduce((acc, curr) => {
+			acc[curr._id] = curr.installments;
+			return acc;
+		}, {});
+		updatedStudents = students.reduce((acc, curr) => {
+			const { _id } = curr;
+			const foundInstallment = installmentObj[_id];
+			const hasInstallment = Boolean(foundInstallment);
+			const hasMatchingFeeStructure =
+				hasInstallment &&
+				foundInstallment[0].feeStructureId.toString() === id.toString();
+			const hasPaidInstallment =
+				hasInstallment &&
+				foundInstallment.some(
+					installment =>
+						installment.status === 'Paid' || installment.status === 'Late'
+				);
 
-	const installmentObj = feeInstallments.reduce((acc, curr) => {
-		acc[curr._id] = curr.installments;
-		return acc;
-	}, {});
-	const updatedStudents = students.reduce((acc, curr) => {
-		const { _id } = curr;
-		const foundInstallment = installmentObj[_id];
-		const hasInstallment = Boolean(foundInstallment);
-		const hasMatchingFeeStructure =
-			hasInstallment &&
-			foundInstallment[0].feeStructureId.toString() === id.toString();
-		const hasPaidInstallment =
-			hasInstallment &&
-			foundInstallment.some(
-				installment =>
-					installment.status === 'Paid' || installment.status === 'Late'
-			);
-
-		if (!hasInstallment || hasMatchingFeeStructure) {
-			curr.isSelected = hasMatchingFeeStructure;
-			if (hasMatchingFeeStructure) {
-				curr.isPaid = hasPaidInstallment;
+			if (!hasInstallment || hasMatchingFeeStructure) {
+				curr.isSelected = hasMatchingFeeStructure;
+				if (hasMatchingFeeStructure) {
+					curr.isPaid = hasPaidInstallment;
+				}
+				acc.push(curr);
 			}
-			acc.push(curr);
-		}
 
-		return acc;
-	}, []);
+			return acc;
+		}, []);
+	}
 
 	feeStructure.studentList = updatedStudents;
 	res
@@ -588,7 +587,9 @@ exports.getUnmappedClassList = async (req, res, next) => {
 
 exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 	const { sectionId, categoryId } = req.params;
-	const foundStructure = await FeeStructure.find(
+	let { isMapped, discountId } = req.query;
+	isMapped = isMapped === 'true';
+	let foundStructure = await FeeStructure.find(
 		{
 			classes: { $elemMatch: { sectionId } },
 			categoryId,
@@ -596,6 +597,35 @@ exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 		},
 		'feeStructureName'
 	).lean();
+	const mappedStructures = await SectionDiscount.aggregate([
+		{
+			$match: {
+				discountId: mongoose.Types.ObjectId(discountId),
+				sectionId: mongoose.Types.ObjectId(sectionId),
+				categoryId: mongoose.Types.ObjectId(categoryId),
+			},
+		},
+		{
+			$group: {
+				_id: '$feeStructureId',
+			},
+		},
+	]);
+
+	if (isMapped) {
+		// filter the fee structure which is mapped to the discount
+
+		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
+		foundStructure = foundStructure.filter(s =>
+			mappedStructureIds.includes(s._id.toString())
+		);
+	} else {
+		// filter the fee structure which is not mapped to the discount
+		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
+		foundStructure = foundStructure.filter(
+			s => !mappedStructureIds.includes(s._id.toString())
+		);
+	}
 
 	if (!foundStructure.length) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
@@ -603,7 +633,13 @@ exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 
 	res
 		.status(200)
-		.json(SuccessResponse(foundStructure, 1, 'Fetched Successfully'));
+		.json(
+			SuccessResponse(
+				foundStructure,
+				foundStructure.length,
+				'Fetched Successfully'
+			)
+		);
 });
 
 exports.assignFeeStructure = async (req, res, next) => {
@@ -681,6 +717,7 @@ exports.getFeeCategory = async (req, res, next) => {
 					sectionId: {
 						$first: '$sectionId',
 					},
+					totalFees: { $sum: '$totalAmount' },
 				},
 			},
 			{
@@ -743,6 +780,7 @@ exports.getFeeCategory = async (req, res, next) => {
 					sectionName: {
 						$first: '$section.className',
 					},
+					totalFees: 1,
 				},
 			},
 		]);

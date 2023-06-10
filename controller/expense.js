@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-expressions */
 const mongoose = require('mongoose');
 const moment = require('moment');
+const excel = require('excel4node');
 const ExpenseModel = require('../models/expense');
 const ExpenseType = require('../models/expenseType');
 const ErrorResponse = require('../utils/errorResponse');
@@ -321,6 +322,7 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId,
 		paymentMethod,
 		sort,
+		date, // single date
 		page = 0,
 		limit = 10,
 		searchTerm,
@@ -333,6 +335,12 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
+
+	if (date) {
+		const startDate = moment(date).startOf('day').toDate();
+		const endDate = moment(date).endOf('day').toDate();
+		match.expenseDate = { $gte: startDate, $lte: endDate };
+	}
 
 	// check if the search term is having number
 	// eslint-disable-next-line no-restricted-globals
@@ -536,10 +544,16 @@ exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
 });
 
 exports.getDashboardData = catchAsync(async (req, res, next) => {
-	const { schoolId, dateRange = 'daily' } = req.query;
+	const {
+		schoolId,
+		dateRange = null,
+		startDate = null,
+		endDate = null,
+	} = req.query;
 
 	let dateObj = null;
 	let prevDateObj = null;
+
 	const totalExpenseAggregation = [
 		{
 			$match: {
@@ -582,59 +596,93 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 			},
 		},
 	];
-	if (dateRange === 'daily') {
-		const today = new Date();
-		const startOfDate = today.setHours(0, 0, 0, 0);
-		const endOfDate = today.setHours(23, 59, 59, 999);
 
-		dateObj = {
-			$gte: new Date(startOfDate),
-			$lte: new Date(endOfDate),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'days').startOf('day').toDate(),
-			$lte: moment().subtract(1, 'days').endOf('day').toDate(),
-		};
-		totalExpenseAggregation.push({
-			$group: {
-				_id: null,
-				totalExpAmount: {
-					$sum: '$amount',
-				},
-				// push only the issueDate and paidAmount
-				expenseList: {
-					$push: {
-						expenseDate: '$expenseDate',
-						amount: '$amount',
+	// START DATE
+	const getStartDate = (date, type) =>
+		date
+			? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
+			: moment().startOf(type).toDate();
+	// END DATE
+	const getEndDate = (date, type) =>
+		date
+			? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
+			: moment().endOf(type).toDate();
+
+	// PREV START DATE
+	const getPrevStartDate = (date, type, flag) =>
+		date
+			? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
+			: moment().subtract(1, flag).startOf(type).toDate();
+	// PREV END DATE
+	const getPrevEndDate = (date, type, flag) =>
+		date
+			? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
+			: moment().subtract(1, flag).endOf(type).toDate();
+
+	switch (dateRange) {
+		case 'daily':
+			dateObj = {
+				$gte: getStartDate(startDate, 'day'),
+				$lte: getEndDate(endDate, 'day'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'day', 'days'),
+				$lte: getPrevEndDate(endDate, 'day', 'days'),
+			};
+			totalExpenseAggregation.push({
+				$group: {
+					_id: null,
+					totalExpAmount: {
+						$sum: '$amount',
+					},
+					// push only the issueDate and paidAmount
+					expenseList: {
+						$push: {
+							expenseDate: '$expenseDate',
+							amount: '$amount',
+						},
 					},
 				},
-			},
-		});
-	} else if (dateRange === 'weekly') {
-		dateObj = {
-			$gte: moment().startOf('week').toDate(),
-			$lte: moment().endOf('week').toDate(),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'weeks').startOf('week').toDate(),
-			$lte: moment().subtract(1, 'weeks').endOf('week').toDate(),
-		};
-		totalExpenseAggregation.push(...tempAggregation);
-	} else if (dateRange === 'monthly') {
-		dateObj = {
-			$gte: moment().startOf('month').toDate(),
-			$lte: moment().endOf('month').toDate(),
-		};
-		prevDateObj = {
-			$gte: moment().subtract(1, 'months').startOf('month').toDate(),
-			$lte: moment().subtract(1, 'months').endOf('month').toDate(),
-		};
-		totalExpenseAggregation.push(...tempAggregation);
+			});
+			break;
+
+		case 'weekly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'week'),
+				$lte: getEndDate(endDate, 'week'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'week', 'weeks'),
+				$lte: getPrevEndDate(endDate, 'week', 'weeks'),
+			};
+			totalExpenseAggregation.push(...tempAggregation);
+
+			break;
+
+		case 'monthly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'month'),
+				$lte: getEndDate(endDate, 'month'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'month', 'months'),
+				$lte: getPrevEndDate(endDate, 'month', 'months'),
+			};
+			totalExpenseAggregation.push(...tempAggregation);
+
+			break;
+
+		default:
+			dateObj = {
+				$gte: getStartDate(startDate),
+				$lte: getEndDate(endDate),
+			};
+			totalExpenseAggregation.push(...tempAggregation);
+			break;
 	}
 
 	totalExpenseAggregation[0].$match.expenseDate = dateObj;
-
-	const expenseData = await ExpenseModel.aggregate([
+	const aggregate = [
 		{
 			$facet: {
 				totalExpense: [
@@ -702,28 +750,37 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
-				totalExpensePrev: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(schoolId),
-							expenseDate: prevDateObj,
-						},
-					},
-					{
-						$group: {
-							_id: null,
-							totalExpAmount: {
-								$sum: '$amount',
-							},
-						},
-					},
-				],
 				totalExpenseCurrent: totalExpenseAggregation,
 			},
 		},
-	]);
-	const totalExpenseData = expenseData[0].totalExpense[0]
-		? expenseData[0].totalExpense[0]
+	];
+	if (dateRange) {
+		aggregate[0].$facet.totalExpensePrev = [
+			{
+				$match: {
+					schoolId: mongoose.Types.ObjectId(schoolId),
+					expenseDate: prevDateObj,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalExpAmount: {
+						$sum: '$amount',
+					},
+				},
+			},
+		];
+	}
+
+	const expenseData = await ExpenseModel.aggregate(aggregate);
+	let {
+		totalExpense,
+		totalExpensePrev = [],
+		totalExpenseCurrent,
+	} = expenseData[0];
+	const totalExpenseData = totalExpense[0]
+		? totalExpense[0]
 		: {
 				totalAmount: 0,
 				maxExpType: {
@@ -735,13 +792,11 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 					expenseType: null,
 				},
 		  };
-	const totalExpensePrev =
-		expenseData[0].totalExpensePrev[0]?.totalExpAmount || 0;
-	const totalExpenseCurrent =
-		expenseData[0].totalExpenseCurrent[0]?.totalExpAmount || 0;
+	totalExpensePrev = totalExpensePrev[0]?.totalExpAmount || 0;
+	totalExpenseCurrent = totalExpenseCurrent[0]?.totalExpAmount || 0;
 	const finalData = {
 		totalExpense: totalExpenseData,
-		totalExpenseCurrent: expenseData[0].totalExpenseCurrent[0] ?? {
+		totalExpenseCurrent: totalExpenseCurrent[0] ?? {
 			totalExpAmount: 0,
 			expenseList: [],
 		},
@@ -754,4 +809,74 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Expense Not Found', 404));
 	}
 	res.status(200).json(SuccessResponse(finalData, 1, 'Fetched Successfully'));
+});
+
+exports.getExcel = catchAsync(async (req, res, next) => {
+	const { schoolId, paymentMethod } = req.query;
+	let match = {};
+	if (!schoolId) {
+		return next(new ErrorResponse('schoolId is required', 422));
+	}
+	match = {
+		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
+	};
+	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
+
+	const expenseDetails = await ExpenseModel.aggregate([
+		{
+			$match: match,
+		},
+		{
+			$lookup: {
+				from: 'expensetypes',
+				localField: 'expenseType',
+				foreignField: '_id',
+				as: 'expenseType',
+			},
+		},
+		{
+			$addFields: {
+				expenseType: {
+					$first: '$expenseType.name',
+				},
+			},
+		},
+	]);
+	const workbook = new excel.Workbook();
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('Expense Details');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Expense Type').style(style);
+	worksheet.cell(1, 2).string('Amount').style(style);
+	worksheet.cell(1, 3).string('Reason').style(style);
+	worksheet.cell(1, 4).string('Voucher Number').style(style);
+	worksheet.cell(1, 5).string('Expense Date').style(style);
+	worksheet.cell(1, 6).string('Payment Method').style(style);
+
+	expenseDetails.forEach((expense, index) => {
+		worksheet.cell(index + 2, 1).string(expense.expenseType);
+		worksheet.cell(index + 2, 2).number(expense.amount);
+
+		worksheet.cell(index + 2, 3).string(expense.reason);
+		worksheet.cell(index + 2, 4).string(expense.voucherNumber);
+		worksheet
+			.cell(index + 2, 5)
+			.string(moment(expense.expenseDate).format('DD-MM-YYYY'));
+		worksheet.cell(index + 2, 6).string(expense.paymentMethod);
+	});
+
+	workbook.write('expense.xlsx');
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, expenseDetails.length, 'Fetched Successfully'));
 });
