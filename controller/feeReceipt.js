@@ -171,6 +171,7 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
+		reasons: 1,
 	};
 
 	const feeReceipts = await FeeReceipt.find(payload, projection)
@@ -270,6 +271,8 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							receiptId: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
+							reasons: 1,
+							status: 1,
 						},
 					},
 					{
