@@ -1497,7 +1497,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		paymentTypeData,
 	} = incomeData[0];
 
-	resObj.feeCollection = totalCollected;
 	resObj.paymentMethods = paymentTypeData;
 	resObj.financialFlows = { income: miscCollected };
 
@@ -1690,8 +1689,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const feesReport = await FeeInstallment.aggregate(installmentAggregation);
 	const { totalReceivable, totalPending, feePerformance } = feesReport[0];
 
-	resObj.totalReceivable = totalReceivable;
-	resObj.totalPending = totalPending;
 	resObj.studentPerformance = feePerformance;
 
 	/// ////////////////////////////////////////////////////////////////////
@@ -1820,16 +1817,16 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		};
 	};
 
-	incomeData.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
-		incomeData.totalReceivable,
+	resObj.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
+		totalReceivable,
 		sectionList
 	);
-	incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
+	resObj.feeCollection = setDefaultValuesAndUpdateSectionInfo(
 		totalCollected,
 		sectionList
 	);
-	incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
-		incomeData.totalPending,
+	resObj.totalPending = setDefaultValuesAndUpdateSectionInfo(
+		totalPending,
 		sectionList
 	);
 	const currentPaidAmount = totalIncomeCollected.totalAmount || 0;
