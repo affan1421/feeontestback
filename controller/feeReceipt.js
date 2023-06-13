@@ -171,6 +171,25 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
+		reasons: 1,
+		reason: {
+			$let: {
+				vars: {
+					items: {
+						$filter: {
+							input: '$reasons',
+							as: 'item',
+							cond: {
+								$eq: ['$$item.status', '$status'],
+							},
+						},
+					},
+				},
+				in: {
+					$last: '$$items.reason',
+				},
+			},
+		},
 	};
 
 	const feeReceipts = await FeeReceipt.find(payload, projection)
@@ -270,6 +289,25 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							receiptId: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
+							reason: {
+								$let: {
+									vars: {
+										items: {
+											$filter: {
+												input: '$reasons',
+												as: 'item',
+												cond: {
+													$eq: ['$$item.status', '$status'],
+												},
+											},
+										},
+									},
+									in: {
+										$last: '$$items.reason',
+									},
+								},
+							},
+							status: 1,
 						},
 					},
 					{

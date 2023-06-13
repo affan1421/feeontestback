@@ -68,26 +68,28 @@ exports.create = async (req, res, next) => {
 
 // GET
 exports.get = catchAsync(async (req, res, next) => {
-	let { page = 0, limit = 5, schoolId } = req.query;
-	page = +page;
-	limit = +limit;
+	const { page = null, limit = null, schoolId } = req.query;
+
 	const payload = {};
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
+	const aggregate = [
+		{ $match: payload },
+		{
+			$sort: {
+				createdAt: -1,
+			},
+		},
+	];
+	const pagination = [{ $skip: +page * +limit }, { $limit: +limit }];
+	if (page && limit) {
+		aggregate.push(...pagination);
+	}
 	const donorList = await DonorModel.aggregate([
 		{
 			$facet: {
-				data: [
-					{ $match: payload },
-					{
-						$sort: {
-							createdAt: -1,
-						},
-					},
-					{ $skip: page * limit },
-					{ $limit: limit },
-				],
+				data: aggregate,
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
