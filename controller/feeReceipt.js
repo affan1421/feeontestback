@@ -702,12 +702,16 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 		{ _id: { $in: feeIds } },
 		{ feeType: 1 }
 	).lean();
+	const feeTypeMap = feetype.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
 
 	const data = {
 		...JSON.parse(JSON.stringify(feeReceipt)),
-		items: feeReceipt.items.map((item, index) => ({
+		items: feeReceipt.items.map(item => ({
 			...item,
-			feeTypeId: feetype[index],
+			feeTypeId: feeTypeMap[item.feeTypeId],
 		})),
 	};
 	if (!feeReceipt) {
