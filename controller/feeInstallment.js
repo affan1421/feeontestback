@@ -756,12 +756,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			},
 			{
 				$inc: {
-					totalAmount: totalFeeAmount,
+					totalAmount: collectedFee,
 				},
 			}
 		);
 		await Donations.create({
-			amount: totalFeeAmount,
+			amount: collectedFee,
 			date: new Date(),
 			donorId,
 			paymentType: paymentMethod,
