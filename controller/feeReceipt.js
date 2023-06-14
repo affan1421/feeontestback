@@ -171,6 +171,25 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
+		reasons: 1,
+		reason: {
+			$let: {
+				vars: {
+					items: {
+						$filter: {
+							input: '$reasons',
+							as: 'item',
+							cond: {
+								$eq: ['$$item.status', '$status'],
+							},
+						},
+					},
+				},
+				in: {
+					$last: '$$items.reason',
+				},
+			},
+		},
 	};
 
 	const feeReceipts = await FeeReceipt.find(payload, projection)
@@ -270,6 +289,25 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							receiptId: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
+							reason: {
+								$let: {
+									vars: {
+										items: {
+											$filter: {
+												input: '$reasons',
+												as: 'item',
+												cond: {
+													$eq: ['$$item.status', '$status'],
+												},
+											},
+										},
+									},
+									in: {
+										$last: '$$items.reason',
+									},
+								},
+							},
+							status: 1,
 						},
 					},
 					{
@@ -658,17 +696,29 @@ const createReceipt = async (req, res, next) => {
 
 const getFeeReceiptById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feeReceipt = await FeeReceipt.findById(id);
-	const feeId = feeReceipt.items[0].feeTypeId;
-	const feetype = await FeeType.findOne({ _id: feeId }, { feeType: 1 });
+	const feeReceipt = await FeeReceipt.findById(id).lean();
+	const feeIds = feeReceipt.items.map(item => item.feeTypeId);
+	const feetype = await FeeType.find(
+		{ _id: { $in: feeIds } },
+		{ feeType: 1 }
+	).lean();
+	const feeTypeMap = feetype.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
 
-	feeReceipt.items[0].feeTypeId = feetype;
-
+	const data = {
+		...JSON.parse(JSON.stringify(feeReceipt)),
+		items: feeReceipt.items.map(item => ({
+			...item,
+			feeTypeId: feeTypeMap[item.feeTypeId],
+		})),
+	};
 	if (!feeReceipt) {
 		return next(new ErrorResponse('Fee Receipt Not Found', 404));
 	}
 
-	res.status(200).json(SuccessResponse(feeReceipt, 1, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
 });
 
 const getExcel = catchAsync(async (req, res, next) => {
@@ -1497,7 +1547,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		paymentTypeData,
 	} = incomeData[0];
 
-	resObj.feeCollection = totalCollected;
 	resObj.paymentMethods = paymentTypeData;
 	resObj.financialFlows = { income: miscCollected };
 
@@ -1690,8 +1739,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const feesReport = await FeeInstallment.aggregate(installmentAggregation);
 	const { totalReceivable, totalPending, feePerformance } = feesReport[0];
 
-	resObj.totalReceivable = totalReceivable;
-	resObj.totalPending = totalPending;
 	resObj.studentPerformance = feePerformance;
 
 	/// ////////////////////////////////////////////////////////////////////
@@ -1820,16 +1867,16 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		};
 	};
 
-	incomeData.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
-		incomeData.totalReceivable,
+	resObj.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
+		totalReceivable,
 		sectionList
 	);
-	incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
+	resObj.feeCollection = setDefaultValuesAndUpdateSectionInfo(
 		totalCollected,
 		sectionList
 	);
-	incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
-		incomeData.totalPending,
+	resObj.totalPending = setDefaultValuesAndUpdateSectionInfo(
+		totalPending,
 		sectionList
 	);
 	const currentPaidAmount = totalIncomeCollected.totalAmount || 0;
@@ -1844,9 +1891,9 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 
 const cancelReceipt = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { reason = '', status, date = new Date() } = req.body;
+	const { reason = '', status, today = new Date() } = req.body;
 
-	const reasonObj = { reason, status, date };
+	const reasonObj = { reason, status, today };
 	const update = { $set: { status } };
 
 	if (status !== 'CANCELLED') {
@@ -1858,9 +1905,40 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 		update,
 		{ new: true }
 	);
+
 	if (!updatedReceipt) {
 		return next(new ErrorResponse('Receipt Not Found', 400));
 	}
+
+	if (status === 'CANCELLED') {
+		// Update the feeInstallment
+		const installmentIds = updatedReceipt.items.map(
+			({ installmentId }) => installmentId
+		);
+		const installments = await FeeInstallment.find({
+			_id: { $in: installmentIds },
+		});
+
+		for (const installment of installments) {
+			const { _id, date, paidAmount } = installment;
+			const newPaidAmount =
+				paidAmount -
+				updatedReceipt.items.find(
+					({ installmentId }) => installmentId.toString() === _id.toString()
+				).paidAmount;
+			const newStatus = moment(date).isAfter(moment()) ? 'Upcoming' : 'Due';
+			const newUpdate = {
+				$set: { status: newStatus, paidAmount: newPaidAmount },
+			};
+
+			if (newPaidAmount === 0) {
+				newUpdate.$unset = { paidDate: null };
+			}
+
+			await FeeInstallment.findOneAndUpdate({ _id }, newUpdate);
+		}
+	}
+
 	res
 		.status(200)
 		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));

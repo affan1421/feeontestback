@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const feeInstallmentController = require('../controller/feeInstallment');
 
+router.post('/makePayment', feeInstallmentController.MakePayment);
+
 router.get('/allTransactions', feeInstallmentController.GetTransactions);
 
 router.get(
@@ -25,6 +27,5 @@ router.get(
 	'/studentstructure',
 	feeInstallmentController.getStudentFeeStructure
 );
-router.post('/makePayment', feeInstallmentController.MakePayment);
 
 module.exports = router;
