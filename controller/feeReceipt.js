@@ -1879,9 +1879,9 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 
 const cancelReceipt = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const { reason = '', status, date = new Date() } = req.body;
+	const { reason = '', status, today = new Date() } = req.body;
 
-	const reasonObj = { reason, status, date };
+	const reasonObj = { reason, status, today };
 	const update = { $set: { status } };
 
 	if (status !== 'CANCELLED') {
@@ -1893,9 +1893,40 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 		update,
 		{ new: true }
 	);
+
 	if (!updatedReceipt) {
 		return next(new ErrorResponse('Receipt Not Found', 400));
 	}
+
+	if (status === 'CANCELLED') {
+		// Update the feeInstallment
+		const installmentIds = updatedReceipt.items.map(
+			({ installmentId }) => installmentId
+		);
+		const installments = await FeeInstallment.find({
+			_id: { $in: installmentIds },
+		});
+
+		for (const installment of installments) {
+			const { _id, date, paidAmount } = installment;
+			const newPaidAmount =
+				paidAmount -
+				updatedReceipt.items.find(
+					({ installmentId }) => installmentId.toString() === _id.toString()
+				).paidAmount;
+			const newStatus = moment(date).isAfter(moment()) ? 'Upcoming' : 'Due';
+			const newUpdate = {
+				$set: { status: newStatus, paidAmount: newPaidAmount },
+			};
+
+			if (newPaidAmount === 0) {
+				newUpdate.$unset = { paidDate: null };
+			}
+
+			await FeeInstallment.findOneAndUpdate({ _id }, newUpdate);
+		}
+	}
+
 	res
 		.status(200)
 		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
