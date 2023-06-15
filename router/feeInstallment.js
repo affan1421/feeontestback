@@ -28,4 +28,9 @@ router.get(
 	feeInstallmentController.getStudentFeeStructure
 );
 
+router.get(
+	'/studentFeeExcel/:schoolId',
+	feeInstallmentController.StudentFeeExcel
+);
+
 module.exports = router;

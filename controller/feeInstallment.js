@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 
 const XLSX = require('xlsx');
+const excel = require('excel4node');
 const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
@@ -12,7 +13,7 @@ const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
 
 const Sections = mongoose.connection.db.collection('sections');
-
+const School = mongoose.connection.db.collection('schools');
 const Student = mongoose.connection.db.collection('students');
 
 const catchAsync = require('../utils/catchAsync');
@@ -524,6 +525,245 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 				foundFeeInstallments.length
 			)
 		);
+});
+
+exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
+	// StudentName	ParentName	PhoneNumber Class Section Total AmountTerm feeAmount AmountPaid TermBal LastYearBal
+
+	const { schoolId } = req.params;
+	const regex = /^.*new.*$/i;
+	const studentList = [];
+	let tempStudentMap = null;
+	const feeStructureMap = {};
+
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+
+	// get schoolName
+	const { schoolName } = await School.findOne(
+		{
+			_id: mongoose.Types.ObjectId(schoolId),
+		},
+		{ schoolName: 1 }
+	);
+
+	let sectionList = await Sections.find({
+		school: mongoose.Types.ObjectId(schoolId),
+	})
+		.project({ name: 1, className: 1 })
+		.toArray();
+	sectionList = sectionList.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
+
+	// Find all the feestructures of this academic year
+	const feeStructures = await FeeStructure.find({
+		academicYearId,
+		schoolId,
+	}).lean();
+
+	// Find all the feeinstallments of this academic year
+	for (const feeStructure of feeStructures) {
+		let termDate = null;
+		let feeInstallments = null;
+		const { _id, feeStructureName, feeDetails, totalAmount } = feeStructure;
+		feeStructureMap[_id] = totalAmount;
+		const isNewAdmission = regex.test(feeStructureName);
+		const aggregate = [
+			{
+				$match: {
+					feeStructureId: mongoose.Types.ObjectId(_id),
+				},
+			},
+			{
+				$project: {
+					studentId: 1,
+					netAmount: 1,
+					paidAmount: 1,
+					balanceAmount: {
+						$subtract: ['$netAmount', '$paidAmount'],
+					},
+					sectionId: 1,
+					feeStructureId: 1,
+				},
+			},
+			{
+				$lookup: {
+					from: 'students',
+					let: {
+						stud: '$studentId',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$stud'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								name: 1,
+								parent_id: 1,
+								username: 1,
+							},
+						},
+					],
+					as: 'studentId',
+				},
+			},
+			{
+				$unwind: {
+					path: '$studentId',
+					preserveNullAndEmptyArrays: true,
+				},
+			},
+			{
+				$lookup: {
+					from: 'parents',
+					let: {
+						parentId: '$studentId.parent_id',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$parentId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								name: 1,
+							},
+						},
+					],
+					as: 'parent',
+				},
+			},
+			{
+				$unwind: {
+					path: '$parent',
+					preserveNullAndEmptyArrays: true,
+				},
+			},
+		];
+		if (isNewAdmission) {
+			termDate = feeDetails[0].scheduledDates[0].date;
+			aggregate[0].$match.date = new Date(termDate);
+			feeInstallments = await FeeInstallment.aggregate(aggregate);
+			// [{
+			//   "_id": "646df57e6014fec353252572",
+			//   "sectionId": "6284b90ebb0c8eeb51048c29",
+			//   "studentId": {
+			//     "_id": "646df4a03317392a4d591833",
+			//     "name": "W SAQIYA IRAM",
+			//     "parent_id": "646df4a03317392a4d591832",
+			//     "username": "9972644981"
+			//   },
+			//   "paidAmount": 6300,
+			//   "netAmount": 6300,
+			//   "balanceAmount": 0,
+			//   "parent": {
+			//     "_id": "646df4a03317392a4d591832",
+			//     "name": "K.M. WASEEM UR REHAMAN"
+			//   }
+			// }]
+			studentList.push(...feeInstallments);
+		} else {
+			for (const [index, object] of feeDetails.entries()) {
+				if (index === 0) {
+					termDate = object.scheduledDates[0].date;
+					tempStudentMap = await FeeInstallment.aggregate([
+						{
+							$match: {
+								feeStructureId: mongoose.Types.ObjectId(_id),
+								rowId: mongoose.Types.ObjectId(object._id),
+							},
+						},
+						{
+							$project: {
+								studentId: 1,
+								balanceAmount: {
+									$subtract: ['$netAmount', '$paidAmount'],
+								},
+							},
+						},
+					]);
+					tempStudentMap = tempStudentMap.reduce((acc, curr) => {
+						acc[curr.studentId] = curr.balanceAmount;
+						return acc;
+					}, {});
+					// eslint-disable-next-line no-continue
+					continue;
+				}
+				termDate = object.scheduledDates[0].date;
+				aggregate[0].$match.date = new Date(termDate);
+				aggregate[0].$match.rowId = mongoose.Types.ObjectId(object._id);
+				feeInstallments = await FeeInstallment.aggregate(aggregate);
+			}
+			studentList.push(...feeInstallments);
+		}
+	}
+	const workbook = new excel.Workbook();
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('Student Fees Excel');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Student Name').style(style);
+	worksheet.cell(1, 2).string('Parent Name').style(style);
+	worksheet.cell(1, 3).string('Phone Number').style(style);
+	worksheet.cell(1, 4).string('Class').style(style);
+	worksheet.cell(1, 5).string('Total Fees').style(style);
+	worksheet.cell(1, 6).string('Term Fee').style(style);
+	worksheet.cell(1, 7).string('Paid Fee').style(style);
+	worksheet.cell(1, 8).string('Balance Fee').style(style);
+	worksheet.cell(1, 9).string('Previous Year Balance').style(style);
+
+	studentList.forEach((installment, index) => {
+		const {
+			studentId,
+			parent,
+			sectionId,
+			paidAmount,
+			netAmount,
+			balanceAmount,
+			feeStructureId,
+		} = installment;
+		const feeTotalAmount = feeStructureMap[feeStructureId.toString()] ?? 0;
+		const studPrevBal = tempStudentMap[studentId._id.toString()] ?? 0;
+		const className = sectionList[sectionId.toString()]?.className || '';
+		worksheet.cell(index + 2, 1).string(studentId.name);
+		worksheet
+			.cell(index + 2, 2)
+			.string(parent?.name || `${studentId.name} (Parent)`);
+		worksheet.cell(index + 2, 3).string(studentId.username);
+		worksheet.cell(index + 2, 4).string(className);
+		worksheet.cell(index + 2, 5).number(feeTotalAmount);
+		worksheet.cell(index + 2, 6).number(netAmount);
+		worksheet.cell(index + 2, 7).number(paidAmount);
+		worksheet.cell(index + 2, 8).number(balanceAmount);
+		worksheet.cell(index + 2, 9).number(studPrevBal);
+	});
+
+	workbook.write(`${schoolName}.xlsx`);
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
 });
 
 exports.MakePayment = catchAsync(async (req, res, next) => {
