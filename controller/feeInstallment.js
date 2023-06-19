@@ -533,7 +533,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	const { schoolId } = req.params;
 	const regex = /^.*new.*$/i;
 	const studentList = [];
-	let tempStudentMap = null;
+	let finalStudentMap = {};
 	const feeStructureMap = {};
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
@@ -679,7 +679,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 			for (const [index, object] of feeDetails.entries()) {
 				if (index === 0) {
 					termDate = object.scheduledDates[0].date;
-					tempStudentMap = await FeeInstallment.aggregate([
+					let tempStudentMap = await FeeInstallment.aggregate([
 						{
 							$match: {
 								feeStructureId: mongoose.Types.ObjectId(_id),
@@ -692,13 +692,20 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 								balanceAmount: {
 									$subtract: ['$netAmount', '$paidAmount'],
 								},
+								netAmount: 1,
+								paidAmount: 1,
 							},
 						},
 					]);
 					tempStudentMap = tempStudentMap.reduce((acc, curr) => {
-						acc[curr.studentId] = curr.balanceAmount;
+						acc[curr.studentId] = {
+							balanceAmount: curr.balanceAmount,
+							netAmount: curr.netAmount,
+							paidAmount: curr.paidAmount,
+						};
 						return acc;
 					}, {});
+					finalStudentMap = { ...finalStudentMap, ...tempStudentMap };
 					// eslint-disable-next-line no-continue
 					continue;
 				}
@@ -729,7 +736,9 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	worksheet.cell(1, 6).string('Term Fee').style(style);
 	worksheet.cell(1, 7).string('Paid Fee').style(style);
 	worksheet.cell(1, 8).string('Balance Fee').style(style);
-	worksheet.cell(1, 9).string('Previous Year Balance').style(style);
+	worksheet.cell(1, 9).string('Total Balance (Previous Year)').style(style);
+	worksheet.cell(1, 10).string('Paid Fees (Previous Year)').style(style);
+	worksheet.cell(1, 11).string('Balance (Previous Year)').style(style);
 
 	studentList.forEach((installment, index) => {
 		const {
@@ -742,7 +751,11 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 			feeStructureId,
 		} = installment;
 		const feeTotalAmount = feeStructureMap[feeStructureId.toString()] ?? 0;
-		const studPrevBal = tempStudentMap[studentId._id.toString()] ?? 0;
+		const {
+			balanceAmount: studPrevBal = 0,
+			netAmount: studPrevNet = 0,
+			paidAmount: studPrevPaid = 0,
+		} = finalStudentMap[studentId._id.toString()] ?? {};
 		const className = sectionList[sectionId.toString()]?.className || '';
 		worksheet.cell(index + 2, 1).string(studentId.name);
 		worksheet
@@ -754,10 +767,130 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 6).number(netAmount);
 		worksheet.cell(index + 2, 7).number(paidAmount);
 		worksheet.cell(index + 2, 8).number(balanceAmount);
-		worksheet.cell(index + 2, 9).number(studPrevBal);
+		worksheet.cell(index + 2, 9).number(studPrevNet);
+		worksheet.cell(index + 2, 10).number(studPrevPaid);
+		worksheet.cell(index + 2, 11).number(studPrevBal);
 	});
 
 	workbook.write(`${schoolName}.xlsx`);
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
+});
+
+exports.UnmappedStudentExcel = catchAsync(async (req, res, next) => {
+	const { schoolId } = req.params;
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+
+	const { schoolName } = await School.findOne(
+		{
+			_id: mongoose.Types.ObjectId(schoolId),
+		},
+		{ schoolName: 1 }
+	);
+	const unmappedStudentList = await Student.aggregate([
+		{
+			$match: {
+				school_id: mongoose.Types.ObjectId(schoolId),
+				deleted: false,
+				feeCategoryIds: {
+					$exists: false,
+				},
+				profileStatus: 'APPROVED',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$project: {
+				name: 1,
+				username: 1,
+				parentName: {
+					$first: '$parent.name',
+				},
+				section: {
+					$first: '$section.className',
+				},
+			},
+		},
+	]).toArray();
+	const workbook = new excel.Workbook();
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('Student Fees Excel');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Student Name').style(style);
+	worksheet.cell(1, 2).string('Parent Name').style(style);
+	worksheet.cell(1, 3).string('Phone Number').style(style);
+	worksheet.cell(1, 4).string('Class').style(style);
+
+	unmappedStudentList.forEach((student, index) => {
+		const { name, parentName, username, section } = student;
+		worksheet.cell(index + 2, 1).string(name);
+		worksheet.cell(index + 2, 2).string(parentName);
+		worksheet.cell(index + 2, 3).string(username);
+		worksheet.cell(index + 2, 4).string(section);
+	});
+
+	workbook.write(`${schoolName}-unmapped.xlsx`);
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 

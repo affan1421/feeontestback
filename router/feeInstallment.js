@@ -14,6 +14,11 @@ router.get(
 
 router.post('/:id', feeInstallmentController.update);
 
+router.get(
+	'/unmappedStudentExcel/:schoolId',
+	feeInstallmentController.UnmappedStudentExcel
+);
+
 // Get Income Dashboard Data
 router.get('/incomeDashboard', feeInstallmentController.IncomeDashboard);
 

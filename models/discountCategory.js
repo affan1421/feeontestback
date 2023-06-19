@@ -71,6 +71,13 @@ const discountSchema = new Schema(
 			ref: 'User',
 			required: true,
 		},
+		// Reference to the student
+		// attachments: {
+		// 	"studentId": ["http://imageLink.com", "http://imageLink.com"]
+		// }
+		attachments: {
+			type: Object,
+		},
 	},
 	{ timestamps: true }
 );
