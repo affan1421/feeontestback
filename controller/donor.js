@@ -210,6 +210,7 @@ exports.getDonations = catchAsync(async (req, res, next) => {
 									$project: {
 										_id: 1,
 										name: 1,
+										admission_no: 1,
 									},
 								},
 							],
@@ -252,6 +253,9 @@ exports.getDonations = catchAsync(async (req, res, next) => {
 							},
 							sectionId: {
 								$arrayElemAt: ['$sectionId', 0],
+							},
+							admission_no: {
+								$arrayElemAt: ['$studentId.admission_no', 0],
 							},
 						},
 					},

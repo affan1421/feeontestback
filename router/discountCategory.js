@@ -10,6 +10,7 @@ const {
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
 	approveStudentDiscount,
+	addAttachment,
 	getSectionDiscount,
 	getStudentsByFilter,
 	addStudentToDiscount,
@@ -42,6 +43,8 @@ router
 	.route('/:discountId/approval')
 	.get(getStudentForApproval)
 	.post(approveStudentDiscount);
+
+router.post('/addAttachment', addAttachment);
 
 router
 	.route('/:id')

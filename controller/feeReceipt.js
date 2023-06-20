@@ -276,6 +276,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 					{
 						$project: {
 							name: '$student.name',
+							admission_no: '$student.admission_no',
 							className: {
 								$concat: [
 									'$student.class.name',
@@ -553,6 +554,7 @@ const createReceipt = async (req, res, next) => {
 				username: 1,
 				studentName: '$name',
 				classId: '$class',
+				admission_no: 1,
 				className: {
 					$first: '$section.className',
 				},
@@ -590,6 +592,7 @@ const createReceipt = async (req, res, next) => {
 		classId = '',
 		section = '',
 		parentName,
+		admission_no = '',
 		parentMobile,
 		parentId,
 		academicYear = '',
@@ -632,6 +635,7 @@ const createReceipt = async (req, res, next) => {
 		student: {
 			name: studentName,
 			studentId,
+			admission_no,
 			class: {
 				name: className1,
 				classId,
@@ -982,6 +986,8 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				school_id: mongoose.Types.ObjectId(school_id),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{

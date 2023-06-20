@@ -14,6 +14,11 @@ router.get(
 
 router.post('/:id', feeInstallmentController.update);
 
+router.get(
+	'/unmappedStudentExcel/:schoolId',
+	feeInstallmentController.UnmappedStudentExcel
+);
+
 // Get Income Dashboard Data
 router.get('/incomeDashboard', feeInstallmentController.IncomeDashboard);
 
@@ -26,6 +31,11 @@ router.get('/studentsList', feeInstallmentController.StudentsList);
 router.get(
 	'/studentstructure',
 	feeInstallmentController.getStudentFeeStructure
+);
+
+router.get(
+	'/studentFeeExcel/:schoolId',
+	feeInstallmentController.StudentFeeExcel
 );
 
 module.exports = router;

@@ -13,6 +13,7 @@ const feeReceiptSchema = new Schema(
 				ref: 'Student',
 				required: [false, 'studentid is required'],
 			},
+			admission_no: String,
 			class: {
 				name: {
 					type: String,
