@@ -192,6 +192,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				_id: 0,
 				studentName: '$student.name',
 				studentId: '$student._id',
+				admission_no: '$student.admission_no',
 				totalDiscountAmount: 1,
 				totalFees: 1,
 				discountApplied: {
@@ -658,6 +659,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 						$project: {
 							_id: 1,
 							name: 1,
+							admission_no: 1,
 						},
 					},
 				],
@@ -695,6 +697,9 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 				},
 				sectionName: {
 					$first: '$section.className',
+				},
+				admission_no: {
+					$first: '$student.admission_no',
 				},
 				isPending: {
 					$cond: [
