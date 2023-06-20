@@ -738,6 +738,7 @@ exports.getFeeCategory = async (req, res, next) => {
 							$project: {
 								_id: 1,
 								name: 1,
+								admission_no: 1,
 							},
 						},
 					],
@@ -781,6 +782,9 @@ exports.getFeeCategory = async (req, res, next) => {
 						$first: '$section.className',
 					},
 					totalFees: 1,
+					admission_no: {
+						$first: '$_id.admission_no',
+					},
 				},
 			},
 		]);

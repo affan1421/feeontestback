@@ -406,6 +406,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 						{ $first: '$feeinstallments.paidAmount' },
 					],
 				},
+				admission_no: 1,
 			},
 		},
 	]).toArray();
@@ -491,6 +492,7 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 				class: {
 					$first: '$section.className',
 				},
+				admission_no: 1,
 			},
 		},
 	]).toArray();
