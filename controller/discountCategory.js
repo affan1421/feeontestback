@@ -106,6 +106,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 
 const getStudentsByStructure = catchAsync(async (req, res, next) => {
 	const { id, structureId } = req.params;
+	// Fetch attachments object from discount
+	const { attachments = {} } = await DiscountCategory.findOne({
+		_id: id,
+	});
 	let students = await FeeInstallment.aggregate([
 		{
 			$match: {
@@ -217,6 +221,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			student.isSelected = true;
 		} else {
 			student.isSelected = false;
+		}
+		if (attachments[student.studentId.toString()]) {
+			student.attachments = attachments[student.studentId.toString()];
 		}
 		return student;
 	});
