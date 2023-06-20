@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 const DiscountCategory = require('../models/discountCategory');
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
@@ -892,7 +893,8 @@ const addAttachment = async (req, res, next) => {
 
 const addStudentToDiscount = async (req, res, next) => {
 	try {
-		const { sectionId, categoryId, rows, studentList } = req.body;
+		const { sectionId, categoryId, rows, studentList, feeStructureId } =
+			req.body;
 		const { discountId } = req.params;
 		let discountAmount = 0;
 		let discountCategory = null;
@@ -914,10 +916,7 @@ const addStudentToDiscount = async (req, res, next) => {
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
 			{
-				'classes.sectionId': sectionId,
-
-				categoryId,
-				schoolId: req.user.school_id,
+				_id: feeStructureId,
 			},
 			'feeDetails'
 		).lean();
@@ -958,6 +957,10 @@ const addStudentToDiscount = async (req, res, next) => {
 				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
 
 				for (const { amount, date } of scheduledDates) {
+					const dateRange = {
+						$gte: moment(date).startOf('day').toDate(),
+						$lte: moment(date).endOf('day').toDate(),
+					};
 					const discountToPush = {
 						discountId,
 						isPercentage,
@@ -972,7 +975,7 @@ const addStudentToDiscount = async (req, res, next) => {
 					discountToPush.discountAmount += calAmount;
 
 					const feeInstallments = await FeeInstallment.find(
-						{ ...filter, date: new Date(date) },
+						{ ...filter, date: dateRange },
 						projections
 					).lean();
 
