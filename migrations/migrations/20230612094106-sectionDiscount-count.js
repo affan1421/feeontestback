@@ -8,7 +8,8 @@ module.exports = {
 			.toArray();
 
 		const operations = sectionDiscounts.map(sectionDiscount => {
-			const { feeStructureId, sectionId, discountId } = sectionDiscount;
+			const { feeStructureId, sectionId, discountId, feeTypeId } =
+				sectionDiscount;
 			return db
 				.collection('feeinstallments')
 				.aggregate([
@@ -17,6 +18,7 @@ module.exports = {
 							feeStructureId: mongoose.Types.ObjectId(feeStructureId),
 							sectionId: mongoose.Types.ObjectId(sectionId),
 							'discounts.discountId': mongoose.Types.ObjectId(discountId),
+							feeTypeId: mongoose.Types.ObjectId(feeTypeId),
 						},
 					},
 					{
@@ -78,23 +80,28 @@ module.exports = {
 				])
 				.toArray()
 				.then(data => {
+					console.log('data', data);
+					// update the section discount for the total students, approved students and pending students
+					let totalStudents = 0;
+					let approvedCount = 0;
+					let pendingCount = 0;
 					if (data.length) {
-						console.log('data', data);
-						// update the section discount for the total students, approved students and pending students
-						const { totalStudents, approvedCount, pendingCount } = data[0];
-						db.collection('sectiondiscounts').updateOne(
-							{
-								_id: mongoose.Types.ObjectId(sectionDiscount._id),
-							},
-							{
-								$set: {
-									totalStudents,
-									totalApproved: approvedCount,
-									totalPending: pendingCount,
-								},
-							}
-						);
+						totalStudents = data[0].totalStudents;
+						approvedCount = data[0].approvedCount;
+						pendingCount = data[0].pendingCount;
 					}
+					db.collection('sectiondiscounts').updateOne(
+						{
+							_id: mongoose.Types.ObjectId(sectionDiscount._id),
+						},
+						{
+							$set: {
+								totalStudents,
+								totalApproved: approvedCount,
+								totalPending: pendingCount,
+							},
+						}
+					);
 				});
 		});
 

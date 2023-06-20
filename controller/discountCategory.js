@@ -4,7 +4,6 @@ const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
 const SectionDiscount = require('../models/sectionDiscount');
 const catchAsync = require('../utils/catchAsync');
-const FeeType = require('../models/feeType');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
@@ -389,7 +388,7 @@ Payload:
 const mapDiscountCategory = async (req, res, next) => {
 	try {
 		// TODO: StudentList should be array of objects with studentId and attachment
-		let {
+		const {
 			sectionId,
 			categoryId,
 			rows,
@@ -400,13 +399,25 @@ const mapDiscountCategory = async (req, res, next) => {
 		const { discountId } = req.params;
 		const { school_id } = req.user;
 		let discountAmount = 0;
-		studentList = [...new Set(studentList)];
-
-		// TODO: filter the student objects with the attachment - filteredStudentList
-
-		if (!sectionId || !categoryId || !rows || !studentList) {
+		if (!sectionId || !categoryId || !rows || !studentList.length) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+		const uniqueStudList = [
+			...new Set(studentList.map(({ studentId }) => studentId)),
+		];
+
+		// filter the attachmentObj from the studentList, if they have attachment.
+		const attachmentObj = studentList.reduce(
+			(acc, { studentId, attachment }) => {
+				if (attachment && attachment.length > 0) {
+					acc[studentId] = attachment;
+				}
+				return acc;
+			},
+			{}
+		);
+
+		// TODO: filter the student objects with the attachment - filteredStudentList
 
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
@@ -442,7 +453,7 @@ const mapDiscountCategory = async (req, res, next) => {
 
 				const bulkOps = [];
 				const filter = {
-					studentId: { $in: studentList }, // need to reduce the studentList
+					studentId: { $in: uniqueStudList }, // need to reduce the studentList
 					rowId,
 				};
 				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
@@ -489,8 +500,8 @@ const mapDiscountCategory = async (req, res, next) => {
 					feeTypeId,
 					categoryId,
 					feeStructureId: feeStructure._id,
-					totalStudents: studentList.length,
-					totalPending: studentList.length,
+					totalStudents: uniqueStudList.length,
+					totalPending: uniqueStudList.length,
 					schoolId: school_id,
 					totalAmount,
 					discountAmount: tempDiscountAmount,
@@ -499,7 +510,7 @@ const mapDiscountCategory = async (req, res, next) => {
 					value,
 				};
 			})
-			// TODO: Need to add the attachment in the student document
+			// TODO: Need to add the attachment in the discount document
 			// loop through the filteredStudentList and update the attachment
 		);
 
@@ -513,9 +524,12 @@ const mapDiscountCategory = async (req, res, next) => {
 			{
 				$inc: {
 					budgetAlloted: discountAmount,
-					totalStudents: studentList.length,
-					totalPending: studentList.length,
+					totalStudents: uniqueStudList.length,
+					totalPending: uniqueStudList.length,
 					classesAssociated: 1,
+				},
+				$set: {
+					attachments: attachmentObj,
 				},
 			}
 		);
@@ -540,9 +554,14 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 	};
 	if (sectionId) payload.sectionId = mongoose.Types.ObjectId(sectionId);
 	if (status) payload.discounts.$elemMatch.status = status;
+
+	const { attachments = {} } = await DiscountCategory.findOne({
+		_id: discountId,
+	});
+
 	// Need to push the sectionName in the student array
 	// Get the aggregated data of the students from feeInstallments
-	const students = await FeeInstallment.aggregate([
+	let students = await FeeInstallment.aggregate([
 		{
 			$match: payload,
 		},
@@ -690,6 +709,15 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('No Students Found', 404));
 	}
 
+	if (Object.keys(attachments).length > 0) {
+		students = students.map(student => {
+			if (attachments[student.studentId.toString()]) {
+				student.attachment = attachments[student.studentId.toString()];
+			}
+			return student;
+		});
+	}
+
 	res
 		.status(200)
 		.json(SuccessResponse(students, students.length, 'Fetched SuccessFully'));
@@ -698,7 +726,8 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 const approveStudentDiscount = async (req, res, next) => {
 	// TODO: Need to take confirmation from the approver with the amount that can be approved.
 	const { discountId } = req.params;
-	const { studentId, status, approvalAmount, sectionName } = req.body;
+	const { studentId, status, sectionName } = req.body;
+	let attachments = null;
 	let updatedAmount = 0;
 	let amountToSub = 0;
 	try {
@@ -774,22 +803,30 @@ const approveStudentDiscount = async (req, res, next) => {
 						},
 					}
 				);
+				const discountCategory = await DiscountCategory.findOne({
+					_id: discountId,
+				});
+				attachments = discountCategory.attachments;
+				if (attachments[studentId.toString()]) {
+					delete attachments[studentId.toString()];
+				}
 			}
 		}
-		// Update the totalPending and totalApproved in DiscountCategory
 
-		await DiscountCategory.updateOne(
-			{
-				_id: discountId,
+		const finalUpdate = {
+			$inc: {
+				...update,
+				budgetRemaining: -updatedAmount,
+				budgetAlloted: -amountToSub,
 			},
-			{
-				$inc: {
-					...update,
-					budgetRemaining: -updatedAmount,
-					budgetAlloted: -amountToSub,
-				},
-			}
-		);
+		};
+
+		if (status === 'Rejected') {
+			finalUpdate.$set = { attachments };
+		}
+
+		// Update the totalPending and totalApproved in DiscountCategory
+		await DiscountCategory.updateOne({ _id: discountId }, finalUpdate);
 
 		// update the totalApproved and totalPending in sectionDiscount
 
@@ -814,16 +851,53 @@ const approveStudentDiscount = async (req, res, next) => {
 	}
 };
 
+const addAttachment = async (req, res, next) => {
+	const { studentId, attachment, discountId } = req.body;
+	try {
+		const discount = await DiscountCategory.findOne({
+			_id: discountId,
+		});
+		if (!discount) {
+			return next(new ErrorResponse('Discount Not Found', 404));
+		}
+		const { attachments = {} } = discount;
+		attachments[studentId] = attachment;
+		await DiscountCategory.updateOne(
+			{
+				_id: discountId,
+			},
+			{
+				$set: {
+					attachments,
+				},
+			}
+		);
+		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
+	} catch (err) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+};
+
 const addStudentToDiscount = async (req, res, next) => {
 	try {
-		let { sectionId, categoryId, rows, studentList } = req.body;
+		const { sectionId, categoryId, rows, studentList } = req.body;
 		const { discountId } = req.params;
 		let discountAmount = 0;
-		studentList = [...new Set(studentList)];
+		let discountCategory = null;
+		const uniqueStudList = [
+			...new Set(studentList.map(({ studentId }) => studentId)),
+		];
 
-		if (!sectionId || !categoryId || !rows || !studentList) {
+		if (!sectionId || !categoryId || !rows || !studentList.length) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+
+		let attachmentObj = studentList.reduce((acc, { studentId, attachment }) => {
+			if (attachment && attachment.length > 0) {
+				acc[studentId] = attachment;
+			}
+			return acc;
+		}, {});
 
 		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
@@ -866,7 +940,7 @@ const addStudentToDiscount = async (req, res, next) => {
 
 				const bulkOps = [];
 				const filter = {
-					studentId: { $in: studentList },
+					studentId: { $in: uniqueStudList },
 					rowId,
 				};
 				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
@@ -909,6 +983,30 @@ const addStudentToDiscount = async (req, res, next) => {
 				}
 			})
 		);
+		const update = {
+			$inc: {
+				budgetAlloted: discountAmount,
+				totalStudents: uniqueStudList.length,
+				totalPending: uniqueStudList.length,
+			},
+		};
+		if (Object.keys(attachmentObj).length > 0) {
+			discountCategory = await DiscountCategory.findOne({
+				_id: discountId,
+			});
+			if (!discountCategory) {
+				return next(new ErrorResponse('Discount Not Found', 404));
+			}
+			if (discountCategory.attachments) {
+				attachmentObj = {
+					...discountCategory.attachments,
+					...attachmentObj,
+				};
+			}
+			update.$set = {
+				attachments: attachmentObj,
+			};
+		}
 		//  Update the totalPending and totalApproved in SectionDiscount
 		await SectionDiscount.updateMany(
 			{
@@ -917,8 +1015,8 @@ const addStudentToDiscount = async (req, res, next) => {
 			},
 			{
 				$inc: {
-					totalPending: studentList.length,
-					totalStudents: studentList.length,
+					totalPending: uniqueStudList.length,
+					totalStudents: uniqueStudList.length,
 				},
 			}
 		);
@@ -927,13 +1025,7 @@ const addStudentToDiscount = async (req, res, next) => {
 			{
 				_id: discountId,
 			},
-			{
-				$inc: {
-					budgetAlloted: discountAmount,
-					totalStudents: studentList.length,
-					totalPending: studentList.length,
-				},
-			}
+			update
 		);
 
 		res.json(SuccessResponse(null, 1, 'Mapped Successfully'));
@@ -1168,5 +1260,6 @@ module.exports = {
 	deleteDiscountCategory,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
+	addAttachment,
 	getSectionDiscount,
 };

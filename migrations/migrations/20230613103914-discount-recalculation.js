@@ -9,7 +9,7 @@ module.exports = {
 			.toArray();
 
 		const operations = discounts.map(async discount => {
-			const { _id: discountId } = discount;
+			const { _id: discountId, totalBudget } = discount;
 			const amountData = await db
 				.collection('feeinstallments')
 				.aggregate([
@@ -82,17 +82,25 @@ module.exports = {
 					},
 				])
 				.toArray();
-			console.log({ discountId, amountData, countData });
 			if (amountData.length > 0 && countData.length > 0) {
 				const { allotted, approved } = amountData[0];
 				const { totalStudents, totalPending, totalApproved } = countData[0];
-				console.log({
-					allotted,
-					approved,
-					totalStudents,
-					totalPending,
-					totalApproved,
-				});
+
+				// update discount
+				return db.collection('discountcategories').updateOne(
+					{
+						_id: mongoose.Types.ObjectId(discountId),
+					},
+					{
+						$set: {
+							budgetAlloted: allotted,
+							budgetRemaining: totalBudget - approved,
+							totalStudents,
+							totalPending,
+							totalApproved,
+						},
+					}
+				);
 			}
 		});
 
