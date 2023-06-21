@@ -725,7 +725,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 	if (Object.keys(attachments).length > 0) {
 		students = students.map(student => {
 			if (attachments[student.studentId.toString()]) {
-				student.attachment = attachments[student.studentId.toString()];
+				student.attachments = attachments[student.studentId.toString()];
 			}
 			return student;
 		});
