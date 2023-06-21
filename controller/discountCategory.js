@@ -740,9 +740,21 @@ const approveStudentDiscount = async (req, res, next) => {
 	// TODO: Need to take confirmation from the approver with the amount that can be approved.
 	const { discountId } = req.params;
 	const { studentId, status, sectionName } = req.body;
+
+	// input validation
+	if (
+		!studentId ||
+		status !== ('Approved' || 'Rejected') ||
+		!sectionName ||
+		!discountId
+	) {
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	}
+
 	let attachments = null;
 	let updatedAmount = 0;
 	let amountToSub = 0;
+	let installmentLoopCount = 0;
 	try {
 		// update.$inc.totalStudents = -1;
 		// sectionUpdate.$inc.totalStudents = -1;
@@ -778,6 +790,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			}
 			const { discountAmount } = discount;
 			if (status === 'Approved' && discountAmount <= netAmount - paidAmount) {
+				installmentLoopCount += 1;
 				updatedAmount += discountAmount;
 
 				await FeeInstallment.findOneAndUpdate(
@@ -816,25 +829,34 @@ const approveStudentDiscount = async (req, res, next) => {
 						},
 					}
 				);
-				const discountCategory = await DiscountCategory.findOne({
-					_id: discountId,
-				});
-				attachments = discountCategory.attachments;
-				if (attachments[studentId.toString()]) {
-					delete attachments[studentId.toString()];
-				}
 			}
 		}
 
 		const finalUpdate = {
 			$inc: {
 				...update,
-				budgetRemaining: -updatedAmount,
+				budgetRemaining: -updatedAmount, // If Rejected, then 0 is subtracted
 				budgetAlloted: -amountToSub,
 			},
 		};
 
-		if (status === 'Rejected') {
+		if (status === 'Approved' || installmentLoopCount === 0) {
+			return next(
+				new ErrorResponse(
+					'Amount Exceeds Balance Fee. Cannot Approve Discount',
+					400
+				)
+			);
+		}
+
+		if (status === 'Rejected' || installmentLoopCount === 0) {
+			const discountCategory = await DiscountCategory.findOne({
+				_id: discountId,
+			});
+			attachments = discountCategory.attachments;
+			if (attachments[studentId.toString()]) {
+				delete attachments[studentId.toString()];
+			}
 			finalUpdate.$set = { attachments };
 		}
 
