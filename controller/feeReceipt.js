@@ -1885,7 +1885,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		totalPending,
 		sectionList
 	);
-	const currentPaidAmount = totalIncomeCollected.totalAmount || 0;
+	const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
 
 	resObj.incomeData = {
 		amount: currentPaidAmount,
