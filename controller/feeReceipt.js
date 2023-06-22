@@ -1185,6 +1185,17 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 							as: '_id',
 						},
 					},
+					// _id[0].name
+					{
+						$addFields: {
+							_id: {
+								$first: '$_id._id',
+							},
+							expenseTypeName: {
+								$first: '$_id.name',
+							},
+						},
+					},
 				],
 				totalExpenseCurrent: totalExpenseAggregation,
 			},

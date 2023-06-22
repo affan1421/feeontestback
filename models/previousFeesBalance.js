@@ -9,7 +9,7 @@ const previousBalanceSchema = new Schema({
 	},
 	dueDate: {
 		type: Date,
-		default: '2020-01-01',
+		default: Date.now(),
 	},
 	schoolId: {
 		type: Schema.Types.ObjectId,
@@ -43,10 +43,12 @@ const previousBalanceSchema = new Schema({
 	sectionId: {
 		type: Schema.Types.ObjectId,
 		ref: 'Section',
+		required: true,
 	},
 	academicYearId: {
 		type: Schema.Types.ObjectId,
 		ref: 'AcademicYear',
+		required: true,
 	},
 	pendingAmount: {
 		type: Number,
