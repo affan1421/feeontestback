@@ -61,7 +61,9 @@ exports.create = async (req, res, next) => {
 		.toUpperCase()}${date}${newCount}`;
 
 	// const currentDate = new Date();
-	const expenseDateDate = new Date(expenseDate).toUTCString();
+	const expenseDateDate = moment(expenseDate, 'MM-DD-YYYY').format(
+		'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'
+	);
 	// const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
 
 	let newExpense;

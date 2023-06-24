@@ -13,10 +13,11 @@ module.exports = {
 				.add(1, 'days')
 				.format('DDMMYY');
 
+			// format as 2023-06-21T00:00:00.000Z
 			const ActualExpenseDate = moment(
 				ActualExpenseDateVoucher,
 				'DDMMYY'
-			).format('MM-DD-YY');
+			).format('YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
 
 			// replace the 2nd to 8th with the ActualExpenseDate
 			const voucherNumberFinal = voucherNumber.replace(
@@ -33,7 +34,7 @@ module.exports = {
 				{
 					$set: {
 						voucherNumber: voucherNumberFinal,
-						expenseDate: new Date(ActualExpenseDate),
+						expenseDate: ActualExpenseDate,
 					},
 				}
 			);
