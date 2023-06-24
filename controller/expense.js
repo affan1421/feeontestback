@@ -23,7 +23,7 @@ exports.create = async (req, res, next) => {
 		transactionDetails,
 	} = req.body;
 
-	const date = moment(expenseDate).format('DDMMYY');
+	const date = moment(expenseDate, 'MM-DD-YYYY').format('DDMMYY');
 
 	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -60,9 +60,11 @@ exports.create = async (req, res, next) => {
 		.slice(0, 2)
 		.toUpperCase()}${date}${newCount}`;
 
-	const currentDate = new Date();
-	const expenseDateDate = new Date(expenseDate);
-	const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
+	// const currentDate = new Date();
+	const expenseDateDate = moment(expenseDate, 'MM-DD-YYYY').format(
+		'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'
+	);
+	// const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
 
 	let newExpense;
 	try {
@@ -72,7 +74,8 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			expenseDate: updatedExpenseDate,
+			// expenseDate: updatedExpenseDate,
+			expenseDate: expenseDateDate,
 			paymentMethod,
 			expenseType,
 			approvedBy,
