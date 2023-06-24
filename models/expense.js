@@ -64,7 +64,7 @@ const expenseSchema = new mongoose.Schema(
 );
 
 // index voucherNumber
-expenseSchema.index({ voucherNumber: 'text' });
+// expenseSchema.index({ voucherNumber: 'text' });
 
 // index approvedBy
 expenseSchema.index({ approvedBy: 'text' });

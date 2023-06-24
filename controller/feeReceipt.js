@@ -1185,6 +1185,17 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 							as: '_id',
 						},
 					},
+					// _id[0].name
+					{
+						$addFields: {
+							_id: {
+								$first: '$_id._id',
+							},
+							expenseTypeName: {
+								$first: '$_id.name',
+							},
+						},
+					},
 				],
 				totalExpenseCurrent: totalExpenseAggregation,
 			},
@@ -1885,7 +1896,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		totalPending,
 		sectionList
 	);
-	const currentPaidAmount = totalIncomeCollected.totalAmount || 0;
+	const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
 
 	resObj.incomeData = {
 		amount: currentPaidAmount,

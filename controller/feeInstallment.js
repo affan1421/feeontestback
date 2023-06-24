@@ -783,6 +783,147 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
 });
 
+exports.NewAdmissionExcel = catchAsync(async (req, res, next) => {
+	const { schoolId } = req.params;
+	const { _id: academicYearId } = await AcademicYear.findOne({
+		isActive: true,
+		schoolId,
+	});
+
+	let sectionList = await Sections.find({
+		school: mongoose.Types.ObjectId(schoolId),
+	})
+		.project({ name: 1, className: 1 })
+		.toArray();
+	sectionList = sectionList.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
+	// Find the feeStructure of this academic year and regex for new admission
+	let feeStructures = await FeeStructure.find({
+		academicYearId,
+		schoolId,
+		feeStructureName: /^.*new.*$/i,
+	}).lean();
+
+	feeStructures = feeStructures.map(feeStructure =>
+		mongoose.Types.ObjectId(feeStructure._id)
+	);
+
+	// Find all the feeinstallments of this academic year and feeStructure
+	const studentList = await FeeInstallment.aggregate([
+		{
+			$match: {
+				feeStructureId: {
+					$in: feeStructures,
+				},
+			},
+		},
+
+		{
+			$group: {
+				_id: '$studentId',
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					stud: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$stud'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+							parent_id: 1,
+							username: 1,
+							section: 1,
+						},
+					},
+				],
+				as: 'studentId',
+			},
+		},
+		{
+			$unwind: '$studentId',
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$studentId.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$unwind: '$parent',
+		},
+	]);
+
+	const { schoolName } = await School.findOne({
+		_id: mongoose.Types.ObjectId(schoolId),
+	});
+
+	const workbook = new excel.Workbook();
+
+	// Add Worksheets to the workbook
+	const worksheet = workbook.addWorksheet('New Admission Students');
+	const style = workbook.createStyle({
+		font: {
+			bold: true,
+			color: '#000000',
+			size: 12,
+		},
+		numberFormat: '$#,##0.00; ($#,##0.00); -',
+	});
+	worksheet.cell(1, 1).string('Student Name').style(style);
+	worksheet.cell(1, 2).string('Parent Name').style(style);
+	worksheet.cell(1, 3).string('Phone Number').style(style);
+	worksheet.cell(1, 4).string('Class').style(style);
+
+	studentList.forEach((student, index) => {
+		const { name, username, section } = student.studentId;
+		const { name: parentName } = student.parent;
+		const className = sectionList[section.toString()]?.className || '';
+		worksheet.cell(index + 2, 1).string(name);
+		worksheet.cell(index + 2, 2).string(parentName ?? `${name} (Parent)`);
+		worksheet.cell(index + 2, 3).string(username);
+		worksheet.cell(index + 2, 4).string(className);
+	});
+
+	workbook.write(`${schoolName} - New Admissions.xlsx`);
+	let data = await workbook.writeToBuffer();
+	data = data.toJSON().data;
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
+});
+
 exports.UnmappedStudentExcel = catchAsync(async (req, res, next) => {
 	const { schoolId } = req.params;
 	const { _id: academicYearId } = await AcademicYear.findOne({
