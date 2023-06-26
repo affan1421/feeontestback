@@ -1572,7 +1572,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	// EXPENSE DATA
 	const expenseData = await Expense.aggregate(expenseAggregate);
 
-	let { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData[0];
+	const { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData[0];
 	const totalExpenseData = totalExpense[0]
 		? totalExpense[0]
 		: {
@@ -1586,7 +1586,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 					expenseType: null,
 				},
 		  };
-	totalExpenseCurrent = totalExpenseCurrent[0]?.totalExpAmount || 0;
 	resObj.expenseData = {
 		totalExpense: totalExpenseData,
 		totalExpenseCurrent: totalExpenseCurrent[0] ?? {

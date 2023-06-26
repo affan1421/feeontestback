@@ -796,7 +796,7 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 				},
 		  };
 	totalExpensePrev = totalExpensePrev[0]?.totalExpAmount || 0;
-	totalExpenseCurrent = totalExpenseCurrent[0]?.totalExpAmount || 0;
+	const totalExpenseAmount = totalExpenseCurrent[0]?.totalExpAmount || 0;
 	const finalData = {
 		totalExpense: totalExpenseData,
 		totalExpenseCurrent: totalExpenseCurrent[0] ?? {
@@ -805,7 +805,7 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 		},
 		percentage:
 			totalExpensePrev > 0
-				? ((totalExpenseCurrent - totalExpensePrev) / totalExpensePrev) * 100
+				? ((totalExpenseAmount - totalExpensePrev) / totalExpensePrev) * 100
 				: 0,
 	};
 	if (!expenseData.length) {
