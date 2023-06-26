@@ -1845,7 +1845,17 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	]);
 
 	// eslint-disable-next-line prefer-destructuring
-	resObj.totalDiscounts = discountReport[0];
+	resObj.totalDiscounts = discountReport[0] ?? {
+		totalApprovedAmount: 0,
+		maxClass: {
+			amount: 0,
+			sectionId: null,
+		},
+		minClass: {
+			amount: 0,
+			sectionId: null,
+		},
+	};
 
 	/// /////////////////////////////////////////////////////////////////////
 
