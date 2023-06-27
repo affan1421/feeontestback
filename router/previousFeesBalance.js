@@ -6,6 +6,7 @@ const {
 	UpdatePreviousBalance,
 	BulkCreatePreviousBalance,
 	DeletePreviousBalance,
+	existingStudentExcel,
 } = require('../controller/previousFeesBalance');
 
 router.route('/').get(GetAllByFilter).post(CreatePreviousBalance);
@@ -17,5 +18,7 @@ router
 	.delete(DeletePreviousBalance);
 
 router.post('/bulkCreate', BulkCreatePreviousBalance);
+
+router.post('/existingStudentExcel', existingStudentExcel);
 
 module.exports = router;
