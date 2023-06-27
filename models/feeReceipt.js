@@ -57,7 +57,7 @@ const feeReceiptSchema = new Schema(
 			type: String,
 			required: [true, 'Receipt type is required'],
 			default: 'ACADEMIC',
-			enum: ['ACADEMIC', 'APPLICATION', 'MISCELLANEOUS'],
+			enum: ['ACADEMIC', 'APPLICATION', 'MISCELLANEOUS', 'PREVIOUS_BALANCE'],
 		},
 		parent: {
 			name: {
@@ -173,6 +173,10 @@ const feeReceiptSchema = new Schema(
 					},
 				},
 			],
+		},
+		isPreviousBalance: {
+			type: Boolean,
+			default: false,
 		},
 		corReceiptId: {
 			type: Schema.Types.ObjectId,

@@ -821,7 +821,7 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('schoolId is required', 422));
 	}
 	match = {
-		schoolId: mongoose.Types.ObjectId(req.body.schoolId),
+		schoolId: mongoose.Types.ObjectId(schoolId),
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 
