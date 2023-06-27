@@ -840,7 +840,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			},
 		};
 
-		if (status === 'Approved' || installmentLoopCount === 0) {
+		if (status === 'Approved' && installmentLoopCount === 0) {
 			return next(
 				new ErrorResponse(
 					'Amount Exceeds Balance Fee. Cannot Approve Discount',
@@ -849,7 +849,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			);
 		}
 
-		if (status === 'Rejected' || installmentLoopCount === 0) {
+		if (status === 'Rejected' && installmentLoopCount === 0) {
 			const discountCategory = await DiscountCategory.findOne({
 				_id: discountId,
 			});
