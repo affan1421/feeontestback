@@ -74,33 +74,34 @@ module.exports = {
 			if (paidAmount > 0) {
 				previousBalance.status = paidAmount === totalAmount ? 'Paid' : 'Due';
 				previousBalance.lastPaidDate = paidDate;
+
 				const feereceipts = await db
 					.collection('feereceipts')
 					.find({ 'items.installmentId': mongoose.Types.ObjectId(_id) })
 					.toArray();
 
 				if (feereceipts.length) {
-					if (feereceipts.length > 1) {
-						for (const { _id: receipt, items } of feereceipts) {
-							if (items.length === 1) {
-								const typeChange = 'PREVIOUS_BALANCE';
-								await db.collection('feereceipts').updateOne(
-									{ _id: mongoose.Types.ObjectId(receipt) },
-									{
-										$set: {
-											receiptType: typeChange,
-										},
-									}
-								);
-							}
-						}
-					} else {
-						previousBalance.receiptId = [
-							mongoose.Types.ObjectId(feereceipts[0]._id),
-						];
-					}
+					const tempReceiptArr = feereceipts
+						// filter the single item receipt
+						.filter(({ items }) => items.length === 1)
+						// update the receiptId and receiptType
+						.map(({ _id: receipt }) => {
+							db.collection('feereceipts').updateOne(
+								{ _id: mongoose.Types.ObjectId(receipt) },
+								{
+									$set: {
+										receiptType: 'PREVIOUS_BALANCE',
+									},
+								}
+							);
+							return mongoose.Types.ObjectId(receipt);
+						});
+
+					previousBalance.receiptId =
+						tempReceiptArr.length > 1 ? tempReceiptArr : [tempReceiptArr[0]];
 				}
 			}
+
 			await db.collection('previousfeesbalances').insertOne(previousBalance);
 		});
 
