@@ -13,6 +13,16 @@ const CatchAsync = require('../utils/catchAsync');
 
 const Student = mongoose.connection.db.collection('students');
 
+const lockCell = (worksheet, range) => {
+	worksheet.addDataValidation({
+		type: 'textLength',
+		error: 'This cell is locked',
+		operator: 'equal',
+		sqref: range,
+		formulas: [''],
+	});
+};
+
 const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	let {
 		schoolId,
@@ -159,12 +169,14 @@ const UpdatePreviousBalance = async (req, res) => {};
 const DeletePreviousBalance = async (req, res) => {};
 
 const existingStudentExcel = CatchAsync(async (req, res, next) => {
-	let { schoolId, studentList } = req.body;
+	let { schoolId, studentList, academicYearName } = req.body;
 	studentList = studentList.map(student => mongoose.Types.ObjectId(student));
 	const workbook = new excel.Workbook();
+
 	const school = await Schools.findOne({
 		_id: mongoose.Types.ObjectId(schoolId),
 	});
+
 	const worksheet = workbook.addWorksheet(`${school.schoolName}`);
 	const style = workbook.createStyle({
 		font: {
@@ -299,16 +311,23 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(row, col + 1).string(name);
 		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
 		worksheet.cell(row, col + 3).string(parent);
+		worksheet.cell(row, col + 4).number(0);
 		row += 1;
 		col = 1;
 	});
 
-	workbook.write(`${school.schoolName}.xlsx`);
+	// Locking the cells
+	lockCell(worksheet, `A1:D${students.length + 1}`);
+
+	workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
+	// Previous Balance - (2020-2021).xlsx
 
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
-	res.status(200).json(SuccessResponse(data, data.length, 'fetched'));
+	res
+		.status(200)
+		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
 });
 
 module.exports = {
