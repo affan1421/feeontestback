@@ -88,6 +88,8 @@ const GetStudents = CatchAsync(async (req, res, next) => {
 		{
 			$match: {
 				section: mongoose.Types.ObjectId(sectionId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -239,15 +241,6 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 	const bulkOps = [];
 	const { file } = req.files;
 
-	const fileName = file.name;
-
-	const academicYearName = fileName.match(/\((.*?)\)/)[1];
-
-	const { _id: academicYearId } = await AcademicYears.findOne({
-		name: academicYearName,
-		schoolId: mongoose.Types.ObjectId(schoolId),
-	});
-
 	const workbook = XLSX.read(file.data, { type: 'buffer' });
 	const sheetName = workbook.SheetNames[0];
 	const worksheet = workbook.Sheets[sheetName];
@@ -258,8 +251,15 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 		return next(new ErrorResponse('No Data Found', 404));
 	}
 
+	const academicYearName = rows[0].ACADEMIC_YEAR.trim();
+
+	const { _id: academicYearId } = await AcademicYears.findOne({
+		name: academicYearName,
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	});
+
 	if (isExisting) {
-		for (const { STUDENTID, BALANCE, PARENT } of rows) {
+		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
 			const previousBalanceExists = await PreviousBalance.exists({
 				studentId: STUDENTID,
 				academicYearId,
@@ -271,14 +271,14 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				continue;
 			}
 
-			const { name, gender, username, section } = await Student.findOne({
+			const { gender, username, section } = await Student.findOne({
 				_id: mongoose.Types.ObjectId(STUDENTID),
 			});
 
 			const previousBalance = {
 				isEnrolled: true,
 				studentId: STUDENTID,
-				studentName: name,
+				studentName: NAME,
 				parentName: PARENT,
 				status: 'Due',
 				username,
@@ -349,12 +349,15 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 	worksheet.cell(1, 3).string('CLASS').style(style);
 	worksheet.cell(1, 4).string('PARENT').style(style);
 	worksheet.cell(1, 5).string('BALANCE').style(style);
+	worksheet.cell(1, 6).string('ACADEMIC_YEAR').style(style);
 	const students = await Students.aggregate([
 		{
 			$match: {
 				_id: {
 					$in: studentList,
 				},
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -470,6 +473,7 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
 		worksheet.cell(row, col + 3).string(parent);
 		worksheet.cell(row, col + 4).number(0);
+		worksheet.cell(row, col + 5).string(academicYearName);
 		row += 1;
 		col = 1;
 	});
