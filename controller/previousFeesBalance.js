@@ -3,15 +3,29 @@
 const mongoose = require('mongoose');
 const moment = require('moment');
 const excel = require('excel4node');
+const XLSX = require('xlsx');
+
 const PreviousBalance = require('../models/previousFeesBalance');
 
 const Schools = mongoose.connection.db.collection('schools');
+const AcademicYears = require('../models/academicYear');
+
 const Students = mongoose.connection.db.collection('students');
 const SuccessResponse = require('../utils/successResponse');
 const ErrorResponse = require('../utils/errorResponse');
 const CatchAsync = require('../utils/catchAsync');
 
 const Student = mongoose.connection.db.collection('students');
+
+const lockCell = (worksheet, range) => {
+	worksheet.addDataValidation({
+		type: 'textLength',
+		error: 'This cell is locked',
+		operator: 'equal',
+		sqref: range,
+		formulas: [''],
+	});
+};
 
 const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	let {
@@ -61,6 +75,72 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	res
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
+const GetStudents = CatchAsync(async (req, res, next) => {
+	const { sectionId, academicYearId } = req.query;
+
+	if (!sectionId || !academicYearId) {
+		return next(new ErrorResponse('Please Provide All Fields', 422));
+	}
+
+	const students = await Student.aggregate([
+		{
+			$match: {
+				section: mongoose.Types.ObjectId(sectionId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'previousfeesbalances',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$studentId', '$$studentId'],
+									},
+									{
+										$eq: [
+											'$academicYearId',
+											mongoose.Types.ObjectId(academicYearId),
+										],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'previousBalance',
+			},
+		},
+	]).toArray();
+
+	if (students.length === 0) {
+		return next(new ErrorResponse('No Students Found', 404));
+	}
+
+	const filteredStudents = students.filter(
+		el => el.previousBalance.length === 0
+	);
+
+	if (filteredStudents.length === 0) {
+		return next(new ErrorResponse('All Students Are Mapped', 404));
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(
+				filteredStudents,
+				filteredStudents.length,
+				'Fetched Successfully'
+			)
+		);
 });
 
 const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
@@ -150,7 +230,93 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		.json(SuccessResponse(previousBalance, 1, 'Created Successfully'));
 });
 
-const BulkCreatePreviousBalance = async (req, res) => {};
+const BulkCreatePreviousBalance = async (req, res, next) => {
+	const { schoolId, isExisting = true } = req.query;
+	let notUpdatedCount = 0;
+	let updatedCount = 0;
+	const bulkOps = [];
+	const { file } = req.files;
+
+	const fileName = file.name;
+
+	const academicYearName = fileName.match(/\((.*?)\)/)[1];
+
+	const { _id: academicYearId } = await AcademicYears.findOne({
+		name: academicYearName,
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	});
+
+	const workbook = XLSX.read(file.data, { type: 'buffer' });
+	const sheetName = workbook.SheetNames[0];
+	const worksheet = workbook.Sheets[sheetName];
+
+	const rows = XLSX.utils.sheet_to_json(worksheet);
+
+	if (rows.length === 0) {
+		return next(new ErrorResponse('No Data Found', 404));
+	}
+
+	if (isExisting) {
+		for (const { STUDENTID, BALANCE, PARENT } of rows) {
+			const previousBalanceExists = await PreviousBalance.exists({
+				studentId: STUDENTID,
+				academicYearId,
+			});
+
+			if (previousBalanceExists) {
+				notUpdatedCount += 1;
+				// eslint-disable-next-line no-continue
+				continue;
+			}
+
+			const { name, gender, username, section } = await Student.findOne({
+				_id: mongoose.Types.ObjectId(STUDENTID),
+			});
+
+			const previousBalance = {
+				isEnrolled: true,
+				studentId: STUDENTID,
+				studentName: name,
+				parentName: PARENT,
+				status: 'Due',
+				username,
+				gender,
+				sectionId: section,
+				academicYearId,
+				totalAmount: BALANCE,
+				paidAmount: 0,
+				dueAmount: BALANCE,
+				schoolId,
+			};
+
+			bulkOps.push({
+				insertOne: {
+					document: previousBalance,
+				},
+			});
+
+			updatedCount += 1;
+		}
+
+		if (bulkOps.length > 0) {
+			await PreviousBalance.bulkWrite(bulkOps);
+		}
+	}
+
+	if (notUpdatedCount === rows.length) {
+		return next(new ErrorResponse('All Students Are Mapped', 404));
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(
+				{ notUpdatedCount, updatedCount },
+				1,
+				'Fetched Successfully'
+			)
+		);
+};
 
 const GetById = async (req, res) => {};
 
@@ -159,12 +325,14 @@ const UpdatePreviousBalance = async (req, res) => {};
 const DeletePreviousBalance = async (req, res) => {};
 
 const existingStudentExcel = CatchAsync(async (req, res, next) => {
-	let { schoolId, studentList } = req.body;
+	let { schoolId, studentList, academicYearName } = req.body;
 	studentList = studentList.map(student => mongoose.Types.ObjectId(student));
 	const workbook = new excel.Workbook();
+
 	const school = await Schools.findOne({
 		_id: mongoose.Types.ObjectId(schoolId),
 	});
+
 	const worksheet = workbook.addWorksheet(`${school.schoolName}`);
 	const style = workbook.createStyle({
 		font: {
@@ -178,7 +346,7 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 	worksheet.cell(1, 2).string('NAME').style(style);
 	worksheet.cell(1, 3).string('CLASS').style(style);
 	worksheet.cell(1, 4).string('PARENT').style(style);
-	worksheet.cell(1, 5).string('BALANCE FEES').style(style);
+	worksheet.cell(1, 5).string('BALANCE').style(style);
 	const students = await Students.aggregate([
 		{
 			$match: {
@@ -299,22 +467,30 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(row, col + 1).string(name);
 		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
 		worksheet.cell(row, col + 3).string(parent);
+		worksheet.cell(row, col + 4).number(0);
 		row += 1;
 		col = 1;
 	});
 
-	workbook.write(`${school.schoolName}.xlsx`);
+	// Locking the cells
+	lockCell(worksheet, `A1:D${students.length + 1}`);
+
+	workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
+	// Previous Balance - (2020-2021).xlsx
 
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
-	res.status(200).json(SuccessResponse(data, data.length, 'fetched'));
+	res
+		.status(200)
+		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
 });
 
 module.exports = {
 	GetAllByFilter,
 	existingStudentExcel,
 	GetById,
+	GetStudents,
 	CreatePreviousBalance,
 	UpdatePreviousBalance,
 	DeletePreviousBalance,
