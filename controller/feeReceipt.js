@@ -1755,7 +1755,12 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const feesReport = await FeeInstallment.aggregate(installmentAggregation);
 	const { totalReceivable, totalPending, feePerformance } = feesReport[0];
 
-	resObj.studentPerformance = feePerformance;
+	resObj.studentPerformance = feePerformance ?? {
+		dueCount: 0,
+		lateCount: 0,
+		paidCount: 0,
+		upcomingCount: 0,
+	};
 
 	/// ////////////////////////////////////////////////////////////////////
 

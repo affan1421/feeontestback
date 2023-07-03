@@ -3,10 +3,13 @@ const {
 	create,
 	getAll,
 	deleteAcademicYear,
+	getPreviousAcademicYear,
 	changeState,
 	getAcademicYear,
 	update,
 } = require('../controller/academicYear');
+
+router.get('/previous', getPreviousAcademicYear);
 
 router.route('/').get(getAll).post(create);
 
