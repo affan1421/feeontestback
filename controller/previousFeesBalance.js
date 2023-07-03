@@ -215,7 +215,9 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		schoolId,
 		sectionId,
 		academicYearId,
-		pendingAmount,
+		totalAmount: pendingAmount,
+		paidAmount: 0,
+		dueAmount: pendingAmount,
 	};
 	studentId ? (creationPayload.studentId = studentId) : null;
 
