@@ -8,10 +8,6 @@ const previousBalanceSchema = new Schema(
 			type: Boolean,
 			required: [true, 'Please Provide The IsEnrolled'],
 		},
-		dueDate: {
-			type: Date,
-			default: Date.now(),
-		},
 		schoolId: {
 			type: Schema.Types.ObjectId,
 			ref: 'School',
@@ -54,10 +50,17 @@ const previousBalanceSchema = new Schema(
 			ref: 'AcademicYear',
 			required: [true, 'Please Provide The Academic Year'],
 		},
-		pendingAmount: {
+		totalAmount: {
 			type: Number,
-			required: [true, 'Please Provide The Pending Amount'],
-			min: 1,
+			required: [true, 'Please Provide The Total Amount'],
+		},
+		paidAmount: {
+			type: Number,
+			default: 0,
+		},
+		dueAmount: {
+			type: Number,
+			required: [true, 'Please Provide The Due Amount'],
 		},
 		receiptId: {
 			type: Schema.Types.ObjectId,
