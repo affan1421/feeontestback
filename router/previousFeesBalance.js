@@ -4,10 +4,13 @@ const {
 	GetById,
 	CreatePreviousBalance,
 	UpdatePreviousBalance,
+	GetStudents,
 	BulkCreatePreviousBalance,
 	DeletePreviousBalance,
 	existingStudentExcel,
 } = require('../controller/previousFeesBalance');
+
+router.get('/students', GetStudents);
 
 router.route('/').get(GetAllByFilter).post(CreatePreviousBalance);
 

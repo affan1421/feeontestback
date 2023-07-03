@@ -73,6 +73,72 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+const GetStudents = CatchAsync(async (req, res, next) => {
+	const { sectionId, academicYearId } = req.query;
+
+	if (!sectionId || !academicYearId) {
+		return next(new ErrorResponse('Please Provide All Fields', 422));
+	}
+
+	const students = await Student.aggregate([
+		{
+			$match: {
+				section: mongoose.Types.ObjectId(sectionId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'previousfeesbalances',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$studentId', '$$studentId'],
+									},
+									{
+										$eq: [
+											'$academicYearId',
+											mongoose.Types.ObjectId(academicYearId),
+										],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'previousBalance',
+			},
+		},
+	]).toArray();
+
+	if (students.length === 0) {
+		return next(new ErrorResponse('No Students Found', 404));
+	}
+
+	const filteredStudents = students.filter(
+		el => el.previousBalance.length === 0
+	);
+
+	if (filteredStudents.length === 0) {
+		return next(new ErrorResponse('All Students Are Mapped', 404));
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(
+				filteredStudents,
+				filteredStudents.length,
+				'Fetched Successfully'
+			)
+		);
+});
+
 const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 	let {
 		studentId = null,
@@ -160,7 +226,9 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		.json(SuccessResponse(previousBalance, 1, 'Created Successfully'));
 });
 
-const BulkCreatePreviousBalance = async (req, res) => {};
+const BulkCreatePreviousBalance = async (req, res) => {
+	// Dont update if the student already has a previous balance in same academic year
+};
 
 const GetById = async (req, res) => {};
 
@@ -334,6 +402,7 @@ module.exports = {
 	GetAllByFilter,
 	existingStudentExcel,
 	GetById,
+	GetStudents,
 	CreatePreviousBalance,
 	UpdatePreviousBalance,
 	DeletePreviousBalance,
