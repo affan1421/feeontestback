@@ -799,6 +799,11 @@ const getExcel = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+		{
+			$sort: {
+				issueDate: 1,
+			},
+		},
 	]);
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
@@ -843,125 +848,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, receiptDetails.length, 'Fetched Successfully'));
 });
 
-/*
-export interface Dashboard {
-    totalStudents: {
-        boysCount: number
-        girlsCount: number
-    },
-    incomeData: {
-		totalIncome: number
-        percentage: number
-    },
-    expenseData: {
-		totalExpense: number
-        percentage: number
-    }
-    totalDiscounts: {
-        totalDiscount: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            } 
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    totalReceivable: {
-        totalReceivable: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    feeCollection: {
-        totalFeeCollection: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    totalPending: {
-        totalPending: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-
-    paymentMethods: {
-        typeName: string
-        items: item[]
-    },
-
-    studentPerformance: {
-        percentage: number
-        onTime: number
-        late: number
-        outstanding: number
-        notPaid: number
-    },
-	
-
-    financialFlows: {
-        income: item[],
-        expense: item[]
-    }
-}
-
-interface item {
-    amount: number,
-    feeTypeId: {
-        feeType: string
-    },
-}
-*/
-// ALL DATA IS FETCHED NEED TO REFACTOR AND RECONSTRUCT THE RESPONSE OBJECT
 const getDashboardData = catchAsync(async (req, res, next) => {
 	// get expense dashboard data
 

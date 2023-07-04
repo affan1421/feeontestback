@@ -7,6 +7,8 @@ const XLSX = require('xlsx');
 
 const PreviousBalance = require('../models/previousFeesBalance');
 
+const Sections = mongoose.connection.db.collection('sections');
+
 const Schools = mongoose.connection.db.collection('schools');
 const AcademicYears = require('../models/academicYear');
 
@@ -148,7 +150,6 @@ const GetStudents = CatchAsync(async (req, res, next) => {
 const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 	let {
 		studentId = null,
-		dueDate = moment().subtract(1, 'days').format('MM-DD-YYYY'),
 		studentName, // Left
 		parentName, // Left
 		username, // Left
@@ -200,19 +201,12 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		({ studentName, parentName, username, gender } = student[0]);
 	}
 
-	// Status
-	// TODO: Configure the cron job to update the status of previous balance
-	const status = moment(dueDate, 'MM-DD-YYYY').isBefore(moment())
-		? 'Due'
-		: 'Upcoming';
-
 	const creationPayload = {
-		dueDate: new Date(dueDate),
 		isEnrolled,
 		studentName,
 		parentName,
 		username,
-		status,
+		status: 'Due',
 		gender,
 		schoolId,
 		sectionId,
@@ -302,6 +296,38 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 
 		if (bulkOps.length > 0) {
 			await PreviousBalance.bulkWrite(bulkOps);
+		}
+	} else {
+		let sectionList = await Sections.find({
+			school: mongoose.Types.ObjectId(schoolId),
+		})
+			.project({ name: 1, className: 1 })
+			.toArray();
+		sectionList = sectionList.reduce((acc, curr) => {
+			acc[curr.className] = curr._id;
+			return acc;
+		}, {});
+		for (const { NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER } of rows) {
+			const previousBalance = {
+				isEnrolled: false,
+				studentName: NAME,
+				parentName: PARENT,
+				status: 'Due',
+				username: USERNAME,
+				gender: GENDER,
+				sectionId: sectionList[CLASS],
+				academicYearId,
+				totalAmount: BALANCE,
+				paidAmount: 0,
+				dueAmount: BALANCE,
+				schoolId,
+			};
+
+			bulkOps.push({
+				insertOne: {
+					document: previousBalance,
+				},
+			});
 		}
 	}
 

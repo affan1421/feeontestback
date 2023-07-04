@@ -844,6 +844,11 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+		{
+			$sort: {
+				expenseDate: 1,
+			},
+		},
 	]);
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
