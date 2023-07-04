@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-expressions */
 /* eslint-disable prefer-destructuring */
 const mongoose = require('mongoose');
-const moment = require('moment');
 const excel = require('excel4node');
 const XLSX = require('xlsx');
 
@@ -230,44 +229,58 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 
 const BulkCreatePreviousBalance = async (req, res, next) => {
 	const { schoolId, isExisting = true } = req.query;
-	let notUpdatedCount = 0;
-	let updatedCount = 0;
-	const bulkOps = [];
 	const { file } = req.files;
-
 	const workbook = XLSX.read(file.data, { type: 'buffer' });
 	const sheetName = workbook.SheetNames[0];
 	const worksheet = workbook.Sheets[sheetName];
-
 	const rows = XLSX.utils.sheet_to_json(worksheet);
 
 	if (rows.length === 0) {
 		return next(new ErrorResponse('No Data Found', 404));
 	}
 
-	const academicYearName = rows[0].ACADEMIC_YEAR.trim();
+	const [academicYear] = rows;
+	const academicYearName = academicYear.ACADEMIC_YEAR.trim();
 
-	const { _id: academicYearId } = await AcademicYears.findOne({
+	const academicYearObj = await AcademicYears.findOne({
 		name: academicYearName,
 		schoolId: mongoose.Types.ObjectId(schoolId),
 	});
 
-	if (isExisting) {
-		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
-			const previousBalanceExists = await PreviousBalance.exists({
-				studentId: STUDENTID,
-				academicYearId,
-			});
+	if (!academicYearObj) {
+		return next(new ErrorResponse('Academic Year not found', 404));
+	}
 
-			if (previousBalanceExists) {
-				notUpdatedCount += 1;
+	const academicYearId = academicYearObj._id;
+
+	let bulkOps = [];
+
+	if (isExisting) {
+		const studentIds = rows.map(({ STUDENTID }) => STUDENTID);
+		const existingBalances = await PreviousBalance.find({
+			studentId: { $in: studentIds },
+			academicYearId,
+		}).select('studentId');
+
+		const existingStudentIds = existingBalances.map(({ studentId }) =>
+			studentId.toString()
+		);
+		const notUpdatedStudents = [];
+
+		const existingStudents = await Student.find({
+			_id: { $in: studentIds },
+		}).select('gender username section');
+
+		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
+			if (existingStudentIds.includes(STUDENTID)) {
+				notUpdatedStudents.push(STUDENTID);
 				// eslint-disable-next-line no-continue
 				continue;
 			}
 
-			const { gender, username, section } = await Student.findOne({
-				_id: mongoose.Types.ObjectId(STUDENTID),
-			});
+			const { gender, username, section } = existingStudents.find(
+				({ _id }) => _id.toString() === STUDENTID
+			);
 
 			const previousBalance = {
 				isEnrolled: true,
@@ -285,65 +298,82 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				schoolId,
 			};
 
-			bulkOps.push({
-				insertOne: {
-					document: previousBalance,
-				},
-			});
-
-			updatedCount += 1;
+			bulkOps.push({ insertOne: { document: previousBalance } });
 		}
+
+		const updatedCount = rows.length - notUpdatedStudents.length;
 
 		if (bulkOps.length > 0) {
 			await PreviousBalance.bulkWrite(bulkOps);
 		}
-	} else {
-		let sectionList = await Sections.find({
-			school: mongoose.Types.ObjectId(schoolId),
-		})
-			.project({ name: 1, className: 1 })
-			.toArray();
-		sectionList = sectionList.reduce((acc, curr) => {
-			acc[curr.className] = curr._id;
-			return acc;
-		}, {});
-		for (const { NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER } of rows) {
-			const previousBalance = {
-				isEnrolled: false,
-				studentName: NAME,
-				parentName: PARENT,
-				status: 'Due',
-				username: USERNAME,
-				gender: GENDER,
-				sectionId: sectionList[CLASS],
-				academicYearId,
-				totalAmount: BALANCE,
-				paidAmount: 0,
-				dueAmount: BALANCE,
-				schoolId,
-			};
 
-			bulkOps.push({
-				insertOne: {
-					document: previousBalance,
-				},
-			});
+		if (updatedCount === 0) {
+			return next(new ErrorResponse('All Students Are Mapped', 404));
 		}
-	}
 
-	if (notUpdatedCount === rows.length) {
-		return next(new ErrorResponse('All Students Are Mapped', 404));
-	}
+		res
+			.status(200)
+			.json(
+				SuccessResponse(
+					{ notUpdatedCount: notUpdatedStudents.length, updatedCount },
+					1,
+					'Created Successfully'
+				)
+			);
+	} else {
+		const sectionIds = await Sections.find({
+			school: mongoose.Types.ObjectId(schoolId),
+		}).distinct('_id');
 
-	res
-		.status(200)
-		.json(
-			SuccessResponse(
-				{ notUpdatedCount, updatedCount },
-				1,
-				'Fetched Successfully'
-			)
-		);
+		const sectionDocs = await Sections.find({
+			_id: { $in: sectionIds },
+		}).select('name className');
+
+		bulkOps = rows
+			.map(({ NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER }) => {
+				const sectionDoc = sectionDocs.find(
+					({ className }) => className === CLASS
+				);
+
+				if (!sectionDoc) {
+					return null;
+				}
+
+				return {
+					insertOne: {
+						document: {
+							isEnrolled: false,
+							studentName: NAME,
+							parentName: PARENT,
+							status: 'Due',
+							username: USERNAME,
+							gender: GENDER,
+							sectionId: sectionDoc._id,
+							academicYearId,
+							totalAmount: BALANCE,
+							paidAmount: 0,
+							dueAmount: BALANCE,
+							schoolId,
+						},
+					},
+				};
+			})
+			.filter(Boolean);
+
+		if (bulkOps.length === 0) {
+			return next(
+				new ErrorResponse('No Students To Create Previous Balance', 404)
+			);
+		}
+
+		await PreviousBalance.bulkWrite(bulkOps);
+
+		res
+			.status(200)
+			.json(
+				SuccessResponse({ count: bulkOps.length }, 1, 'Created Successfully')
+			);
+	}
 };
 
 const GetById = async (req, res) => {};
