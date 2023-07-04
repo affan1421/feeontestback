@@ -255,7 +255,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 
 	let bulkOps = [];
 
-	if (isExisting) {
+	if (isExisting === 'true' || isExisting === true) {
 		const studentIds = rows.map(({ STUDENTID }) => STUDENTID);
 		const existingBalances = await PreviousBalance.find({
 			studentId: { $in: studentIds },
@@ -321,21 +321,19 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				)
 			);
 	} else {
-		const sectionIds = await Sections.find({
+		let sectionList = await Sections.find({
 			school: mongoose.Types.ObjectId(schoolId),
-		}).distinct('_id');
-
-		const sectionDocs = await Sections.find({
-			_id: { $in: sectionIds },
-		}).select('name className');
+		})
+			.project({ name: 1, className: 1 })
+			.toArray();
+		sectionList = sectionList.reduce((acc, curr) => {
+			acc[curr.className] = curr;
+			return acc;
+		}, {});
 
 		bulkOps = rows
 			.map(({ NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER }) => {
-				const sectionDoc = sectionDocs.find(
-					({ className }) => className === CLASS
-				);
-
-				if (!sectionDoc) {
+				if (!sectionList[CLASS]) {
 					return null;
 				}
 
@@ -348,7 +346,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 							status: 'Due',
 							username: USERNAME,
 							gender: GENDER,
-							sectionId: sectionDoc._id,
+							sectionId: sectionList[CLASS]._id,
 							academicYearId,
 							totalAmount: BALANCE,
 							paidAmount: 0,
