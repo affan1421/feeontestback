@@ -744,7 +744,7 @@ const approveStudentDiscount = async (req, res, next) => {
 	// input validation
 	if (
 		!studentId ||
-		status !== ('Approved' || 'Rejected') ||
+		(status !== 'Approved' && status !== 'Rejected') ||
 		!sectionName ||
 		!discountId
 	) {
