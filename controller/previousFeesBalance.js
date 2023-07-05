@@ -402,8 +402,8 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 	worksheet.cell(1, 2).string('NAME').style(style);
 	worksheet.cell(1, 3).string('CLASS').style(style);
 	worksheet.cell(1, 4).string('PARENT').style(style);
-	worksheet.cell(1, 5).string('BALANCE').style(style);
-	worksheet.cell(1, 6).string('ACADEMIC_YEAR').style(style);
+	worksheet.cell(1, 5).string('ACADEMIC_YEAR').style(style);
+	worksheet.cell(1, 6).string('BALANCE').style(style);
 	const students = await Students.aggregate([
 		{
 			$match: {
@@ -526,14 +526,14 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(row, col + 1).string(name);
 		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
 		worksheet.cell(row, col + 3).string(parent);
-		worksheet.cell(row, col + 4).number(0);
-		worksheet.cell(row, col + 5).string(academicYearName);
+		worksheet.cell(row, col + 4).string(academicYearName);
+		worksheet.cell(row, col + 5).number(0);
 		row += 1;
 		col = 1;
 	});
 
 	// Locking the cells
-	lockCell(worksheet, `A1:D${students.length + 1}`);
+	lockCell(worksheet, `A1:E${students.length + 1}`);
 
 	workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
 	// Previous Balance - (2020-2021).xlsx
