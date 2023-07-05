@@ -533,7 +533,7 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 	});
 
 	// Locking the cells
-	// lockCell(worksheet, `A1:E${students.length + 1}`);
+	lockCell(worksheet, `A1:E${students.length + 1}`);
 
 	// workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
 	// Previous Balance - (2020-2021).xlsx
