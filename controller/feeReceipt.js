@@ -213,6 +213,8 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		receiptType,
 		status,
 		date, // single day
+		startDate, // range
+		endDate, // range
 		page = 0,
 		limit = 5,
 		search,
@@ -242,9 +244,15 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	}
 	if (status) payload.status = status;
 	if (date) {
-		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
-		payload.issueDate = { $gte: startDate, $lte: endDate };
+		const fromDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const tillDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
+		payload.issueDate = { $gte: fromDate, $lte: tillDate };
+	}
+	if (startDate && endDate) {
+		payload.issueDate = {
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
 	}
 
 	if (search) {

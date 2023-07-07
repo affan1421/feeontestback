@@ -41,7 +41,7 @@ module.exports = {
 				studentId,
 				feeTypeId,
 				totalAmount,
-				_id,
+				_id: prevBalInstallmentId,
 				netAmount,
 				paidAmount,
 				sectionId,
@@ -77,32 +77,64 @@ module.exports = {
 
 				const feereceipts = await db
 					.collection('feereceipts')
-					.find({ 'items.installmentId': mongoose.Types.ObjectId(_id) })
+					.find({
+						'items.installmentId':
+							mongoose.Types.ObjectId(prevBalInstallmentId),
+					})
 					.toArray();
 
 				if (feereceipts.length) {
-					const tempReceiptArr = feereceipts
-						// filter the single item receipt
-						.filter(({ items }) => items.length === 1)
-						// update the receiptId and receiptType
-						.map(({ _id: receipt }) => {
+					const tempReceiptArr = [];
+
+					for (const receipt of feereceipts) {
+						const { _id: rId, items } = receipt;
+						if (items.length === 1) {
 							db.collection('feereceipts').updateOne(
-								{ _id: mongoose.Types.ObjectId(receipt) },
+								{ _id: mongoose.Types.ObjectId(rId) },
 								{
 									$set: {
 										receiptType: 'PREVIOUS_BALANCE',
 									},
 								}
 							);
-							return mongoose.Types.ObjectId(receipt);
-						});
+						} else {
+							// calculate the total previous balance amount
+							const totalPrevBalAmount = items.reduce((acc, item) => {
+								if (
+									item.installmentId.toString() ===
+									prevBalInstallmentId.toString()
+								) {
+									// eslint-disable-next-line no-param-reassign
+									acc += item.amount;
+								}
+								return acc;
+							}, 0);
+							db.collection('feereceipts').updateOne(
+								{ _id: mongoose.Types.ObjectId(rId) },
+								{
+									$set: {
+										academicAmount: netAmount - totalPrevBalAmount,
+										isPrev: true,
+									},
+								}
+							);
+						}
+						tempReceiptArr.push(rId);
+					}
 
-					previousBalance.receiptId =
-						tempReceiptArr.length > 1 ? tempReceiptArr : [tempReceiptArr[0]];
+					previousBalance.receiptId = tempReceiptArr;
 				}
 			}
 
 			await db.collection('previousfeesbalances').insertOne(previousBalance);
+
+			// post migration script
+			/*
+				Delete the previous balance row from fee Structure
+				Remove the previous balance row from fee installments
+				Add the totalAcademicPaidAmount to the fee Receipts (Filter: isPrev: {$exists: false}).
+				Calculate the total Income from the totalAcademicPaidAmount.
+			*/
 		});
 
 		return Promise.all(Operations);
