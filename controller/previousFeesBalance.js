@@ -58,7 +58,39 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		payload.studentName = { $regex: searchTerm, $options: 'i' };
 	}
 	// Optional Pagination
-	const dataFacet = [{ $match: payload }];
+	const dataFacet = [
+		{ $match: payload },
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$$sectionId', '$_id'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							className: 1,
+						},
+					},
+				],
+				as: 'sectionId',
+			},
+		},
+		{
+			$unwind: {
+				path: '$sectionId',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+	];
 	if (page && limit) {
 		page = +page;
 		limit = +limit;
