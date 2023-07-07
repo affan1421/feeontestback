@@ -35,6 +35,7 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		isEnrolled = false,
 		page,
 		limit,
+		searchTerm = null,
 		sectionId,
 	} = req.query;
 	const payload = {};
@@ -52,6 +53,9 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	}
 	if (sectionId) {
 		payload.sectionId = mongoose.Types.ObjectId(sectionId);
+	}
+	if (searchTerm) {
+		payload.studentName = { $regex: searchTerm, $options: 'i' };
 	}
 	// Optional Pagination
 	const dataFacet = [{ $match: payload }];
