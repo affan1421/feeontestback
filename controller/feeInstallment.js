@@ -1228,6 +1228,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				studentId: '$_id',
 				username: 1,
 				studentName: '$name',
+				admission_no: 1,
 				classId: {
 					$first: '$class._id',
 				},
@@ -1294,6 +1295,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		sectionId = '',
 		sectionName = '',
 		parentName,
+		admission_no = '',
 		parentMobile,
 		parentId,
 		academicYear = '',
@@ -1376,6 +1378,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		student: {
 			name: studentName,
 			studentId,
+			admission_no,
 			class: {
 				name: className,
 				classId,
