@@ -274,9 +274,34 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 						$limit: limit,
 					},
 					{
+						$lookup: {
+							from: 'students',
+							let: {
+								studId: '$student.studentId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$studId'],
+										},
+									},
+								},
+								{
+									$project: {
+										admission_no: 1,
+									},
+								},
+							],
+							as: 'admission',
+						},
+					},
+					{
 						$project: {
 							name: '$student.name',
-							admission_no: '$student.admission_no',
+							admission_no: {
+								$first: '$admission.admission_no',
+							},
 							className: {
 								$concat: [
 									'$student.class.name',
@@ -710,6 +735,13 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 		acc[curr._id] = curr;
 		return acc;
 	}, {});
+	if (feeReceipt.student.studentId) {
+		// find the admission number
+		const studentInfo = await Student.findOne({
+			_id: mongoose.Types.ObjectId(feeReceipt.student.studentId),
+		});
+		feeReceipt.student.admission_no = studentInfo.admission_no;
+	}
 
 	const data = {
 		...JSON.parse(JSON.stringify(feeReceipt)),
