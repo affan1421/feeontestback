@@ -282,9 +282,34 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 						$limit: limit,
 					},
 					{
+						$lookup: {
+							from: 'students',
+							let: {
+								studId: '$student.studentId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$studId'],
+										},
+									},
+								},
+								{
+									$project: {
+										admission_no: 1,
+									},
+								},
+							],
+							as: 'admission',
+						},
+					},
+					{
 						$project: {
 							name: '$student.name',
-							admission_no: '$student.admission_no',
+							admission_no: {
+								$first: '$admission.admission_no',
+							},
 							className: {
 								$concat: [
 									'$student.class.name',

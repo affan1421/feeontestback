@@ -132,7 +132,8 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		ddNumber,
 		ddDate,
 	} = req.body;
-
+	let student;
+	let admission_no;
 	const receipt_id = mongoose.Types.ObjectId();
 
 	const previousBalance = await PreviousBalance.findOne({ _id: prevBalId });
@@ -149,9 +150,12 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		username,
 	} = previousBalance;
 
-	const studentPromise = Student.findOne({
-		_id: mongoose.Types.ObjectId(studentId),
-	});
+	if (studentId) {
+		student = await Student.findOne({
+			_id: mongoose.Types.ObjectId(studentId),
+		});
+		({ admission_no = '' } = student);
+	}
 
 	const feeTypePromise = FeeType.findOne({ schoolId, feeCategory: 'PREVIOUS' });
 
@@ -169,14 +173,12 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		'schoolName address'
 	);
 
-	const [student, feeType, lastReceipt, section, school] = await Promise.all([
-		studentPromise,
+	const [feeType, lastReceipt, section, school] = await Promise.all([
 		feeTypePromise,
 		lastReceiptPromise,
 		sectionPromise,
 		schoolPromise,
 	]);
-	const { admission_no = '' } = student;
 
 	const formattedDate = moment().format('DDMMYY');
 	const newCount = lastReceipt
