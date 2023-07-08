@@ -134,6 +134,7 @@ module.exports = {
 				Remove the previous balance row from fee installments
 				Add the totalAcademicPaidAmount to the fee Receipts (Filter: isPrev: {$exists: false}).
 				Calculate the total Income from the totalAcademicPaidAmount.
+				Update the make payment APIs to add the totalAcademicPaidAmount to the fee Receipts.
 			*/
 		});
 

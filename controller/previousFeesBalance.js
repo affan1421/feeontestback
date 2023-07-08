@@ -2,14 +2,17 @@
 /* eslint-disable prefer-destructuring */
 const mongoose = require('mongoose');
 const excel = require('excel4node');
+const moment = require('moment');
 const XLSX = require('xlsx');
 
+const FeeReceipt = require('../models/feeReceipt');
 const PreviousBalance = require('../models/previousFeesBalance');
 
 const Sections = mongoose.connection.db.collection('sections');
 
 const Schools = mongoose.connection.db.collection('schools');
 const AcademicYears = require('../models/academicYear');
+const FeeType = require('../models/feeType');
 
 const Students = mongoose.connection.db.collection('students');
 const SuccessResponse = require('../utils/successResponse');
@@ -114,6 +117,153 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+const MakePayment = CatchAsync(async (req, res, next) => {
+	const {
+		prevBalId,
+		paidAmount,
+		paymentMode,
+		bankName,
+		chequeDate,
+		chequeNumber,
+		transactionDate,
+		transactionId,
+		upiId,
+		payerName,
+		ddNumber,
+		ddDate,
+	} = req.body;
+
+	const receipt_id = mongoose.Types.ObjectId();
+
+	const previousBalance = await PreviousBalance.findOne({ _id: prevBalId });
+
+	const {
+		schoolId,
+		studentId,
+		studentName,
+		parentName,
+		parentId,
+		totalAmount,
+		dueAmount,
+		sectionId,
+		username,
+	} = previousBalance;
+
+	const feeTypePromise = FeeType.findOne({ schoolId, feeCategory: 'PREVIOUS' });
+
+	const lastReceiptPromise = FeeReceipt.findOne({ 'school.schoolId': schoolId })
+		.sort({ createdAt: -1 })
+		.lean();
+
+	const sectionPromise = Sections.findOne(
+		{ _id: mongoose.Types.ObjectId(sectionId) },
+		'name className class_id'
+	);
+
+	const schoolPromise = Schools.findOne(
+		{ _id: mongoose.Types.ObjectId(schoolId) },
+		'schoolName address'
+	);
+
+	const [feeType, lastReceipt, section, school] = await Promise.all([
+		feeTypePromise,
+		lastReceiptPromise,
+		sectionPromise,
+		schoolPromise,
+	]);
+
+	const formattedDate = moment().format('DDMMYY');
+	const newCount = lastReceipt
+		? (parseInt(lastReceipt.receiptId.slice(-5)) + 1)
+				.toString()
+				.padStart(5, '0')
+		: '00001';
+	const receiptId = `PY${formattedDate}${newCount}`;
+
+	const receiptPayload = {
+		_id: receipt_id,
+		student: {
+			name: studentName,
+			studentId,
+			class: {
+				classId: section.class_id,
+				name: section.className.split(' - ')[0],
+			},
+			section: {
+				sectionId,
+				name: section.name,
+			},
+		},
+		parent: {
+			name: parentName,
+			mobile: username,
+			parentId,
+		},
+		school: {
+			name: school.schoolName,
+			address: school.address,
+			schoolId,
+		},
+		receiptType: 'PREVIOUS_BALANCE',
+		academicYear: lastReceipt.academicYear,
+		totalAmount,
+		paidAmount,
+		dueAmount: dueAmount - paidAmount,
+		receiptId,
+		issueDate: new Date(),
+		payment: {
+			method: paymentMode,
+			bankName,
+			chequeDate,
+			chequeNumber,
+			transactionDate,
+			transactionId,
+			upiId,
+			payerName,
+			ddNumber,
+			ddDate,
+		},
+		items: {
+			feeTypeId: feeType._id,
+			netAmount: totalAmount,
+			paidAmount,
+		},
+	};
+
+	const updatePayload = {
+		lastPaidDate: new Date(),
+		$push: {
+			receiptId: receipt_id,
+		},
+	};
+
+	if (dueAmount - paidAmount === 0) {
+		updatePayload.status = 'Paid';
+	}
+
+	const updateBalancePromise = PreviousBalance.updateOne(
+		{ _id: prevBalId },
+		{
+			$set: { ...updatePayload },
+			$inc: {
+				paidAmount,
+				dueAmount: -paidAmount,
+			},
+			$push: {
+				receiptId: receipt_id,
+			},
+		}
+	);
+
+	const createReceiptPromise = FeeReceipt.create(receiptPayload);
+
+	await Promise.all([updateBalancePromise, createReceiptPromise]);
+
+	res
+		.status(200)
+		.json(SuccessResponse(receiptPayload, 1, 'Payment Successful'));
+});
+
 const GetStudents = CatchAsync(async (req, res, next) => {
 	const { sectionId, academicYearId } = req.query;
 
@@ -195,6 +345,7 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		pendingAmount,
 	} = req.body;
 	const isEnrolled = !!studentId;
+	let parentId = null;
 	if (
 		(!studentId && (!studentName || !parentName || !username || !gender)) ||
 		!academicYearId ||
@@ -228,12 +379,15 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 					parentName: {
 						$first: '$parent.name',
 					},
+					parentId: {
+						$first: '$parent._id',
+					},
 					username: 1,
 					gender: 1,
 				},
 			},
 		]).toArray();
-		({ studentName, parentName, username, gender } = student[0]);
+		({ studentName, parentName, username, gender, parentId } = student[0]);
 	}
 
 	const creationPayload = {
@@ -243,6 +397,7 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		username,
 		status: 'Due',
 		gender,
+		parentId,
 		schoolId,
 		sectionId,
 		academicYearId,
@@ -305,7 +460,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 
 		const existingStudents = await Student.find({
 			_id: { $in: studentIds },
-		}).select('gender username section');
+		}).select('gender username section parent_id');
 
 		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
 			if (existingStudentIds.includes(STUDENTID)) {
@@ -314,7 +469,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				continue;
 			}
 
-			const { gender, username, section } = existingStudents.find(
+			const { gender, username, section, parent_id } = existingStudents.find(
 				({ _id }) => _id.toString() === STUDENTID
 			);
 
@@ -326,6 +481,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				status: 'Due',
 				username,
 				gender,
+				parentId: parent_id,
 				sectionId: section,
 				academicYearId,
 				totalAmount: BALANCE,
@@ -591,4 +747,5 @@ module.exports = {
 	UpdatePreviousBalance,
 	DeletePreviousBalance,
 	BulkCreatePreviousBalance,
+	MakePayment,
 };
