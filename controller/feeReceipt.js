@@ -967,6 +967,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				'school.schoolId': mongoose.Types.ObjectId(school_id),
+				status: { $ne: 'CANCELLED' },
 			},
 		},
 	];
@@ -1333,6 +1334,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 							'school.schoolId': mongoose.Types.ObjectId(school_id),
 							receiptType: 'ACADEMIC',
 							issueDate: dateObj,
+							status: { $ne: 'CANCELLED' },
 						},
 					},
 					{
@@ -1348,7 +1350,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 								$first: '$class',
 							},
 							totalAmount: {
-								$sum: '$paidAmount',
+								$sum: '$AcademicPaidAmount',
 							},
 						},
 					},
@@ -1409,6 +1411,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 								$in: ['APPLICATION', 'MISCELLANEOUS'],
 							},
 							issueDate: dateObj,
+							status: { $ne: 'CANCELLED' },
 						},
 					},
 					{

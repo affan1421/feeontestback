@@ -8,6 +8,7 @@ module.exports = {
 		const feeInstallments = await db
 			.collection('feeinstallments')
 			.find({
+				deleted: false,
 				feeTypeId: {
 					$in: [
 						mongoose.Types.ObjectId('64565aca23b727b3b7d89772'),
@@ -27,6 +28,7 @@ module.exports = {
 						mongoose.Types.ObjectId('64807f21ecb0e33e17a8cae5'),
 						mongoose.Types.ObjectId('6482a918ecb0e33e17a8f288'),
 						mongoose.Types.ObjectId('648fe1364dcd693bac7bce48'),
+						mongoose.Types.ObjectId('64a68b7be5c50765fde07b87'),
 					],
 				},
 				totalAmount: {
@@ -39,23 +41,20 @@ module.exports = {
 		const Operations = feeInstallments.map(async feeInstallment => {
 			const {
 				studentId,
-				feeTypeId,
 				totalAmount,
 				_id: prevBalInstallmentId,
-				netAmount,
 				paidAmount,
 				sectionId,
 				academicYearId,
 				paidDate = null,
 			} = feeInstallment;
-			const receiptId = null;
 			const studentInfo = await db
 				.collection('students')
 				.findOne({ _id: mongoose.Types.ObjectId(studentId) });
-			const { name, username, parentId, gender } = studentInfo;
+			const { name, username, parent_id, gender } = studentInfo;
 			const parentInfo = await db
 				.collection('parents')
-				.findOne({ _id: mongoose.Types.ObjectId(parentId) });
+				.findOne({ _id: mongoose.Types.ObjectId(parent_id) });
 			const parentName = parentInfo?.name || `${name} Parent`;
 			const previousBalance = {
 				isEnrolled: true,
@@ -65,6 +64,7 @@ module.exports = {
 				status: 'Due',
 				username,
 				gender,
+				parentId: parent_id,
 				sectionId,
 				academicYearId,
 				totalAmount,
@@ -75,7 +75,7 @@ module.exports = {
 				previousBalance.status = paidAmount === totalAmount ? 'Paid' : 'Due';
 				previousBalance.lastPaidDate = paidDate;
 
-				const feereceipts = await db
+				const feeReceipts = await db
 					.collection('feereceipts')
 					.find({
 						'items.installmentId':
@@ -83,11 +83,11 @@ module.exports = {
 					})
 					.toArray();
 
-				if (feereceipts.length) {
+				if (feeReceipts.length) {
 					const tempReceiptArr = [];
 
-					for (const receipt of feereceipts) {
-						const { _id: rId, items } = receipt;
+					for (const receipt of feeReceipts) {
+						const { _id: rId, items, paidAmount: rPaidAmount } = receipt;
 						if (items.length === 1) {
 							db.collection('feereceipts').updateOne(
 								{ _id: mongoose.Types.ObjectId(rId) },
@@ -99,22 +99,20 @@ module.exports = {
 							);
 						} else {
 							// calculate the total previous balance amount
-							const totalPrevBalAmount = items.reduce((acc, item) => {
-								if (
+							const totalPrevBalAmount = items.reduce(
+								(acc, item) =>
 									item.installmentId.toString() ===
 									prevBalInstallmentId.toString()
-								) {
-									// eslint-disable-next-line no-param-reassign
-									acc += item.amount;
-								}
-								return acc;
-							}, 0);
+										? acc + item.paidAmount
+										: acc,
+								0
+							);
 							db.collection('feereceipts').updateOne(
 								{ _id: mongoose.Types.ObjectId(rId) },
 								{
 									$set: {
-										academicAmount: netAmount - totalPrevBalAmount,
-										isPrev: true,
+										academicPaidAmount: rPaidAmount - totalPrevBalAmount,
+										isPreviousBalance: true,
 									},
 								}
 							);
@@ -122,7 +120,7 @@ module.exports = {
 						tempReceiptArr.push(rId);
 					}
 
-					previousBalance.receiptId = tempReceiptArr;
+					previousBalance.receiptIds = tempReceiptArr;
 				}
 			}
 
@@ -132,9 +130,9 @@ module.exports = {
 			/*
 				Delete the previous balance row from fee Structure
 				Remove the previous balance row from fee installments
-				Add the totalAcademicPaidAmount to the fee Receipts (Filter: isPrev: {$exists: false}).
-				Calculate the total Income from the totalAcademicPaidAmount.
-				Update the make payment APIs to add the totalAcademicPaidAmount to the fee Receipts.
+				Add the academicPaidAmount to the fee Receipts (Filter: isPreviousBalance: {$exists: false}).
+				Calculate the total Income from the academicPaidAmount.
+				Update the make payment APIs to add the academicPaidAmount to the fee Receipts.
 			*/
 		});
 

@@ -1373,8 +1373,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	}
 
 	await FeeInstallment.bulkWrite(bulkWriteOps);
-
-	const createdReceipt = await FeeReceipt.create({
+	const receiptPayload = {
 		student: {
 			name: studentName,
 			studentId,
@@ -1412,6 +1411,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		paidAmount: currentPaidAmount,
 		totalAmount: totalFeeAmount,
 		dueAmount: dueAmount - currentPaidAmount,
+		academicPaidAmount: currentPaidAmount,
 		payment: {
 			method: paymentMethod,
 			bankName,
@@ -1426,7 +1426,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		},
 		issueDate,
 		items,
-	});
+	};
+
+	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
 	return res.status(201).json(
 		SuccessResponse(
@@ -1612,7 +1614,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 								},
 								// TODO: Separate field "AcademicPaidAmount" to be summed.
 								totalAmount: {
-									$sum: '$paidAmount',
+									$sum: '$AcademicPaidAmount',
 								},
 							},
 						},
