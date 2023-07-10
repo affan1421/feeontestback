@@ -4,31 +4,70 @@ const mongoose = require('mongoose');
 // If the length of receipt.items is 1, then update the receiptId(PYDDMMYY#####) and receiptType to 'PREVIOUS_BALANCE'.
 
 module.exports = {
+	// TODO: to solve the academic year problem in the previous balance. After the manual creation of AY, will create an hash map of AYs and use it in the migration.
+
 	async up(db) {
+		const academicYears = await db
+			.collection('academicyears')
+			.aggregate([
+				{
+					$match: {
+						deleted: false,
+					},
+				},
+				{
+					$sort: {
+						startDate: 1,
+					},
+				},
+				{
+					$group: {
+						_id: '$schoolId',
+						academicYearId: {
+							$push: '$_id',
+						},
+					},
+				},
+			])
+			.toArray();
+		/*
+			[{
+				_id: "5f9d1b6b1c3b9a1b1c0f0b1c",
+				academicYearId: ["5f9d1b6b1c3b9a1b1c0f0b1c", "5f9d1b6b1c3b9a1b1c0f0b1c"]
+			}]
+		*/
+		const academicYearMap = academicYears.reduce((acc, curr) => {
+			// eslint-disable-next-line prefer-destructuring
+			acc[curr._id] = curr.academicYearId[0];
+			return acc;
+		}, {});
+		console.log(academicYearMap);
+
 		const feeInstallments = await db
 			.collection('feeinstallments')
 			.find({
 				deleted: false,
 				feeTypeId: {
 					$in: [
-						mongoose.Types.ObjectId('64565aca23b727b3b7d89772'),
-						mongoose.Types.ObjectId('645693c223b727b3b7d89e58'),
-						mongoose.Types.ObjectId('6456986b23b727b3b7d89f2b'),
-						mongoose.Types.ObjectId('64569b9023b727b3b7d8a00a'),
-						mongoose.Types.ObjectId('6457305b23b727b3b7d8a4d5'),
-						mongoose.Types.ObjectId('6457397b23b727b3b7d8a668'),
-						mongoose.Types.ObjectId('64573ba723b727b3b7d8a72a'),
-						mongoose.Types.ObjectId('64573ddd23b727b3b7d8a7e6'),
-						mongoose.Types.ObjectId('64573fb623b727b3b7d8a8ac'),
-						mongoose.Types.ObjectId('645c83ec23b727b3b7d8c83c'),
-						mongoose.Types.ObjectId('646c5b5d507a1e1f0a70de8e'),
-						mongoose.Types.ObjectId('6475e07717550b6b61dcf795'),
-						mongoose.Types.ObjectId('6475edfb17550b6b61dcfa42'),
-						mongoose.Types.ObjectId('647b24c5ecb0e33e17a863ac'),
-						mongoose.Types.ObjectId('64807f21ecb0e33e17a8cae5'),
-						mongoose.Types.ObjectId('6482a918ecb0e33e17a8f288'),
-						mongoose.Types.ObjectId('648fe1364dcd693bac7bce48'),
-						mongoose.Types.ObjectId('64a68b7be5c50765fde07b87'),
+						mongoose.Types.ObjectId('6457397b23b727b3b7d8a668'), // DELETE UMAR NAGAR
+						// mongoose.Types.ObjectId('64565aca23b727b3b7d89772'),
+						// mongoose.Types.ObjectId('645693c223b727b3b7d89e58'),
+						// mongoose.Types.ObjectId('6456986b23b727b3b7d89f2b'),
+						// mongoose.Types.ObjectId('64569b9023b727b3b7d8a00a'),
+						// mongoose.Types.ObjectId('6457305b23b727b3b7d8a4d5'),
+						// mongoose.Types.ObjectId('6457397b23b727b3b7d8a668'),
+						// mongoose.Types.ObjectId('64573ba723b727b3b7d8a72a'),
+						// mongoose.Types.ObjectId('64573ddd23b727b3b7d8a7e6'),
+						// mongoose.Types.ObjectId('64573fb623b727b3b7d8a8ac'),
+						// mongoose.Types.ObjectId('645c83ec23b727b3b7d8c83c'),
+						// mongoose.Types.ObjectId('646c5b5d507a1e1f0a70de8e'),
+						// mongoose.Types.ObjectId('6475e07717550b6b61dcf795'),
+						// mongoose.Types.ObjectId('6475edfb17550b6b61dcfa42'),
+						// mongoose.Types.ObjectId('647b24c5ecb0e33e17a863ac'),
+						// mongoose.Types.ObjectId('64807f21ecb0e33e17a8cae5'),
+						// mongoose.Types.ObjectId('6482a918ecb0e33e17a8f288'),
+						// mongoose.Types.ObjectId('648fe1364dcd693bac7bce48'),
+						// mongoose.Types.ObjectId('64a68b7be5c50765fde07b87'),
 					],
 				},
 				totalAmount: {
@@ -45,7 +84,7 @@ module.exports = {
 				_id: prevBalInstallmentId,
 				paidAmount,
 				sectionId,
-				academicYearId,
+				schoolId,
 				paidDate = null,
 			} = feeInstallment;
 			const studentInfo = await db
@@ -61,12 +100,13 @@ module.exports = {
 				studentId,
 				studentName: name,
 				parentName,
+				schoolId,
 				status: 'Due',
 				username,
 				gender,
 				parentId: parent_id,
 				sectionId,
-				academicYearId,
+				academicYearId: academicYearMap[schoolId] ?? null,
 				totalAmount,
 				paidAmount,
 				dueAmount: totalAmount - paidAmount,
