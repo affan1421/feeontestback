@@ -349,7 +349,14 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					{
 						$match: {
 							$expr: {
-								$eq: ['$studentId', '$$studentId'],
+								$and: [
+									{
+										$eq: ['$studentId', '$$studentId'],
+									},
+									{
+										$eq: ['$deleted', false],
+									},
+								],
 							},
 						},
 					},
@@ -362,6 +369,30 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 							netAmount: {
 								$sum: '$netAmount',
 							},
+						},
+					},
+				],
+			},
+		},
+		// Look up previous fees
+		{
+			$lookup: {
+				from: 'previousfeesbalances',
+				let: {
+					studentId: '$_id',
+				},
+				as: 'previousfees',
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$studentId', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							dueAmount: 1,
 						},
 					},
 				],
@@ -401,9 +432,22 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					$first: '$parentId.name',
 				},
 				pendingAmount: {
-					$subtract: [
-						{ $first: '$feeinstallments.netAmount' },
-						{ $first: '$feeinstallments.paidAmount' },
+					// add the previous fees and feeinstallments
+					$add: [
+						{
+							$ifNull: [
+								{
+									$first: '$previousfees.dueAmount',
+								},
+								0,
+							],
+						},
+						{
+							$subtract: [
+								{ $first: '$feeinstallments.netAmount' },
+								{ $first: '$feeinstallments.paidAmount' },
+							],
+						},
 					],
 				},
 				admission_no: 1,
@@ -1614,7 +1658,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 								},
 								// TODO: Separate field "AcademicPaidAmount" to be summed.
 								totalAmount: {
-									$sum: '$AcademicPaidAmount',
+									$sum: '$academicPaidAmount',
 								},
 							},
 						},
