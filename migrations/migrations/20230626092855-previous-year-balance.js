@@ -8,6 +8,7 @@ module.exports = {
 		const feeInstallments = await db
 			.collection('feeinstallments')
 			.find({
+				deleted: false,
 				feeTypeId: {
 					$in: [
 						mongoose.Types.ObjectId('64565aca23b727b3b7d89772'),
@@ -27,6 +28,7 @@ module.exports = {
 						mongoose.Types.ObjectId('64807f21ecb0e33e17a8cae5'),
 						mongoose.Types.ObjectId('6482a918ecb0e33e17a8f288'),
 						mongoose.Types.ObjectId('648fe1364dcd693bac7bce48'),
+						mongoose.Types.ObjectId('64a68b7be5c50765fde07b87'),
 					],
 				},
 				totalAmount: {
@@ -39,23 +41,20 @@ module.exports = {
 		const Operations = feeInstallments.map(async feeInstallment => {
 			const {
 				studentId,
-				feeTypeId,
 				totalAmount,
-				_id,
-				netAmount,
+				_id: prevBalInstallmentId,
 				paidAmount,
 				sectionId,
 				academicYearId,
 				paidDate = null,
 			} = feeInstallment;
-			const receiptId = null;
 			const studentInfo = await db
 				.collection('students')
 				.findOne({ _id: mongoose.Types.ObjectId(studentId) });
-			const { name, username, parentId, gender } = studentInfo;
+			const { name, username, parent_id, gender } = studentInfo;
 			const parentInfo = await db
 				.collection('parents')
-				.findOne({ _id: mongoose.Types.ObjectId(parentId) });
+				.findOne({ _id: mongoose.Types.ObjectId(parent_id) });
 			const parentName = parentInfo?.name || `${name} Parent`;
 			const previousBalance = {
 				isEnrolled: true,
@@ -65,6 +64,7 @@ module.exports = {
 				status: 'Due',
 				username,
 				gender,
+				parentId: parent_id,
 				sectionId,
 				academicYearId,
 				totalAmount,
@@ -75,34 +75,65 @@ module.exports = {
 				previousBalance.status = paidAmount === totalAmount ? 'Paid' : 'Due';
 				previousBalance.lastPaidDate = paidDate;
 
-				const feereceipts = await db
+				const feeReceipts = await db
 					.collection('feereceipts')
-					.find({ 'items.installmentId': mongoose.Types.ObjectId(_id) })
+					.find({
+						'items.installmentId':
+							mongoose.Types.ObjectId(prevBalInstallmentId),
+					})
 					.toArray();
 
-				if (feereceipts.length) {
-					const tempReceiptArr = feereceipts
-						// filter the single item receipt
-						.filter(({ items }) => items.length === 1)
-						// update the receiptId and receiptType
-						.map(({ _id: receipt }) => {
+				if (feeReceipts.length) {
+					const tempReceiptArr = [];
+
+					for (const receipt of feeReceipts) {
+						const { _id: rId, items, paidAmount: rPaidAmount } = receipt;
+						if (items.length === 1) {
 							db.collection('feereceipts').updateOne(
-								{ _id: mongoose.Types.ObjectId(receipt) },
+								{ _id: mongoose.Types.ObjectId(rId) },
 								{
 									$set: {
 										receiptType: 'PREVIOUS_BALANCE',
 									},
 								}
 							);
-							return mongoose.Types.ObjectId(receipt);
-						});
+						} else {
+							// calculate the total previous balance amount
+							const totalPrevBalAmount = items.reduce(
+								(acc, item) =>
+									item.installmentId.toString() ===
+									prevBalInstallmentId.toString()
+										? acc + item.paidAmount
+										: acc,
+								0
+							);
+							db.collection('feereceipts').updateOne(
+								{ _id: mongoose.Types.ObjectId(rId) },
+								{
+									$set: {
+										academicPaidAmount: rPaidAmount - totalPrevBalAmount,
+										isPreviousBalance: true,
+									},
+								}
+							);
+						}
+						tempReceiptArr.push(rId);
+					}
 
-					previousBalance.receiptId =
-						tempReceiptArr.length > 1 ? tempReceiptArr : [tempReceiptArr[0]];
+					previousBalance.receiptIds = tempReceiptArr;
 				}
 			}
 
 			await db.collection('previousfeesbalances').insertOne(previousBalance);
+
+			// post migration script
+			/*
+				Delete the previous balance row from fee Structure
+				Remove the previous balance row from fee installments
+				Add the academicPaidAmount to the fee Receipts (Filter: isPreviousBalance: {$exists: false}).
+				Calculate the total Income from the academicPaidAmount.
+				Update the make payment APIs to add the academicPaidAmount to the fee Receipts.
+			*/
 		});
 
 		return Promise.all(Operations);

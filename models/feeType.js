@@ -50,6 +50,10 @@ const feetypeSchema = new Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		feeCategory: {
+			type: String,
+			enum: ['APPLICATION', 'ACADEMIC', 'MISCELLANEOUS', 'PREVIOUS_YEAR'],
+		},
 		categoryId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeCategory',

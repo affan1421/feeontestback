@@ -25,6 +25,10 @@ const previousBalanceSchema = new Schema(
 			type: String,
 			required: [true, 'Please Provide The Parent Name'],
 		},
+		parentId: {
+			type: Schema.Types.ObjectId,
+			ref: 'Parent',
+		},
 		status: {
 			type: String,
 			required: true,
@@ -62,9 +66,13 @@ const previousBalanceSchema = new Schema(
 			type: Number,
 			required: [true, 'Please Provide The Due Amount'],
 		},
-		receiptId: {
-			type: Schema.Types.ObjectId,
-			ref: 'FeeReceipt',
+		receiptIds: {
+			type: [
+				{
+					type: Schema.Types.ObjectId,
+					ref: 'FeeReceipt',
+				},
+			],
 		},
 	},
 	{

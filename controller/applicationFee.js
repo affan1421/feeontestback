@@ -71,6 +71,7 @@ const createApplicationFee = async (req, res, next) => {
 				schoolId,
 				description: 'Application Fee',
 				isMisc: true,
+				feeCategory: 'APPLICATION',
 			});
 			feeTypeId = feeType._id;
 		} else {

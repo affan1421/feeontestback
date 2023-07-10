@@ -14,7 +14,8 @@ const {
 
 router.get('/dashboard', getDashboardData);
 
-router.get('/student/:studentId', receiptByStudentId);
+// Update API to accept username and sectionId for left student as unique value.
+router.post('/student', receiptByStudentId);
 
 router.get('/excel', getExcel);
 router.get('/', getFeeReceipt);

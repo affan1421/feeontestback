@@ -8,6 +8,7 @@ const {
 	BulkCreatePreviousBalance,
 	DeletePreviousBalance,
 	existingStudentExcel,
+	MakePayment,
 } = require('../controller/previousFeesBalance');
 
 router.get('/students', GetStudents);
@@ -19,6 +20,8 @@ router
 	.get(GetById)
 	.put(UpdatePreviousBalance)
 	.delete(DeletePreviousBalance);
+
+router.post('/makePayment', MakePayment);
 
 router.post('/bulkCreate', BulkCreatePreviousBalance);
 
