@@ -66,7 +66,7 @@ const previousBalanceSchema = new Schema(
 			type: Number,
 			required: [true, 'Please Provide The Due Amount'],
 		},
-		receiptId: {
+		receiptIds: {
 			type: [
 				{
 					type: Schema.Types.ObjectId,

@@ -140,9 +140,20 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 });
 
 const receiptByStudentId = catchAsync(async (req, res, next) => {
-	const { studentId } = req.params;
 	const { school_id } = req.user;
-	const { date, status, paymentMethod, categoryId } = req.query;
+	const {
+		date,
+		status,
+		paymentMethod,
+		categoryId,
+		studentId = null,
+		username,
+		sectionId,
+	} = req.body;
+
+	if (!studentId && !username) {
+		return next(new ErrorResponse('Please Provide All Fields', 422));
+	}
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
 		isActive: true,
@@ -150,9 +161,15 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	});
 
 	const payload = {
-		'student.studentId': mongoose.Types.ObjectId(studentId),
 		'academicYear.academicYearId': mongoose.Types.ObjectId(academicYearId),
 	};
+
+	if (studentId) {
+		payload['student.studentId'] = mongoose.Types.ObjectId(studentId);
+	} else {
+		payload['student.username'] = username;
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
+	}
 
 	if (date) {
 		payload.issueDate = {
