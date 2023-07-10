@@ -149,6 +149,7 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 		studentId = null,
 		username,
 		sectionId,
+		isPrev = false,
 	} = req.body;
 
 	if (!studentId && !username) {
@@ -171,6 +172,9 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
 	}
 
+	if (isPrev && isPrev === 'true') {
+		payload.receiptType = 'PREVIOUS';
+	}
 	if (date) {
 		payload.issueDate = {
 			$gte: moment(date, 'DD/MM/YYYY').startOf('day').toDate(),
