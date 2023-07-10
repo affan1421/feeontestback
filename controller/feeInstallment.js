@@ -1614,7 +1614,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 								},
 								// TODO: Separate field "AcademicPaidAmount" to be summed.
 								totalAmount: {
-									$sum: '$AcademicPaidAmount',
+									$sum: '$academicPaidAmount',
 								},
 							},
 						},

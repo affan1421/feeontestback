@@ -1350,7 +1350,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 								$first: '$class',
 							},
 							totalAmount: {
-								$sum: '$AcademicPaidAmount',
+								$sum: '$academicPaidAmount',
 							},
 						},
 					},
