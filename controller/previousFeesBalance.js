@@ -667,8 +667,8 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		row += 1;
 	});
 
-	const fileName = `${school.schoolName}.xlsx`;
-	await workbook.write(fileName);
+	// const fileName = `${school.schoolName}.xlsx`;
+	// await workbook.write(fileName);
 
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
