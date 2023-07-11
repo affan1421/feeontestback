@@ -353,6 +353,7 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		academicYearId,
 		pendingAmount,
 	} = req.body;
+	let secondaryParentName = null;
 	const isEnrolled = !!studentId;
 	let parentId = null;
 	if (
@@ -388,6 +389,9 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 					parentName: {
 						$first: '$parent.name',
 					},
+					secondaryParentName: {
+						$first: '$parent.father_name',
+					},
 					parentId: {
 						$first: '$parent._id',
 					},
@@ -396,8 +400,20 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 				},
 			},
 		]).toArray();
-		({ studentName, parentName, username, gender, parentId } = student[0]);
+		({
+			studentName,
+			parentName,
+			username,
+			gender,
+			parentId,
+			secondaryParentName,
+		} = student[0]);
 	}
+
+	parentName =
+		(parentName === '' || !parentName) && !secondaryParentName
+			? `${studentName} Parent`
+			: parentName ?? secondaryParentName;
 
 	const creationPayload = {
 		isEnrolled,
