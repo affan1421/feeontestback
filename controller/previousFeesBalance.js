@@ -173,12 +173,27 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		'schoolName address'
 	);
 
-	const [feeType, lastReceipt, section, school] = await Promise.all([
+	let [feeType, lastReceipt, section, school] = await Promise.all([
 		feeTypePromise,
 		lastReceiptPromise,
 		sectionPromise,
 		schoolPromise,
 	]);
+
+	if (!feeType) {
+		// Create Fee Type
+		const feeTypePayload = {
+			_id: mongoose.Types.ObjectId(),
+			feeType: 'Previous Balance',
+			accountType: 'Revenue',
+			schoolId,
+			description: 'Previous Balance Fee',
+			isMisc: false,
+			feeCategory: 'PREVIOUS',
+		};
+
+		feeType = await FeeType.create(feeTypePayload);
+	}
 
 	const formattedDate = moment().format('DDMMYY');
 	const newCount = lastReceipt

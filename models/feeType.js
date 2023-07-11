@@ -52,7 +52,7 @@ const feetypeSchema = new Schema(
 		},
 		feeCategory: {
 			type: String,
-			enum: ['APPLICATION', 'ACADEMIC', 'MISCELLANEOUS', 'PREVIOUS_YEAR'],
+			enum: ['APPLICATION', 'ACADEMIC', 'MISCELLANEOUS', 'PREVIOUS'],
 		},
 		categoryId: {
 			type: Schema.Types.ObjectId,
