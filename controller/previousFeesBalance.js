@@ -456,7 +456,9 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 	let bulkOps = [];
 
 	if (isExisting === 'true' || isExisting === true) {
-		const studentIds = rows.map(({ STUDENTID }) => STUDENTID);
+		const studentIds = rows.map(({ STUDENTID }) =>
+			mongoose.Types.ObjectId(STUDENTID)
+		);
 		const existingBalances = await PreviousBalance.find({
 			studentId: { $in: studentIds },
 			academicYearId,
@@ -467,9 +469,12 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 		);
 		const notUpdatedStudents = [];
 
-		const existingStudents = await Student.find({
-			_id: { $in: studentIds },
-		}).select('gender username section parent_id');
+		const existingStudents = await Student.find(
+			{
+				_id: { $in: studentIds },
+			},
+			'gender username section parent_id'
+		).toArray();
 
 		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
 			if (existingStudentIds.includes(STUDENTID)) {
@@ -486,7 +491,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				isEnrolled: true,
 				studentId: STUDENTID,
 				studentName: NAME,
-				parentName: PARENT,
+				parentName: PARENT === '' ? `${NAME} Parent` : PARENT,
 				status: 'Due',
 				username,
 				gender,
@@ -582,11 +587,8 @@ const UpdatePreviousBalance = async (req, res) => {};
 const DeletePreviousBalance = async (req, res) => {};
 
 const existingStudentExcel = CatchAsync(async (req, res, next) => {
-	const { schoolId, studentList, academicYearName } = req.body;
+	const { studentList, academicYearName } = req.body;
 	const workbook = new excel.Workbook();
-	const school = await Schools.findOne({
-		_id: mongoose.Types.ObjectId(schoolId),
-	});
 
 	const worksheet = workbook.addWorksheet('Previous Balances');
 	const style = workbook.createStyle({
@@ -646,6 +648,7 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 				className: { $arrayElemAt: ['$class.name', 0] },
 				sectionName: { $arrayElemAt: ['$section.name', 0] },
 				parentName: { $arrayElemAt: ['$parent.name', 0] },
+				secondaryParentName: { $arrayElemAt: ['$parent.father_name', 0] },
 			},
 		},
 		{
@@ -657,11 +660,18 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 
 	let row = 2;
 	students.forEach(stud => {
-		const { _id, name, className, sectionName, parentName } = stud;
+		const {
+			_id,
+			name,
+			className,
+			sectionName,
+			parentName,
+			secondaryParentName,
+		} = stud;
 		worksheet.cell(row, 1).string(_id.toString());
 		worksheet.cell(row, 2).string(name);
 		worksheet.cell(row, 3).string(`${className} - ${sectionName}`);
-		worksheet.cell(row, 4).string(parentName);
+		worksheet.cell(row, 4).string(parentName ?? secondaryParentName);
 		worksheet.cell(row, 5).string(academicYearName);
 		worksheet.cell(row, 6).number(0);
 		row += 1;
