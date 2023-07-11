@@ -582,15 +582,13 @@ const UpdatePreviousBalance = async (req, res) => {};
 const DeletePreviousBalance = async (req, res) => {};
 
 const existingStudentExcel = CatchAsync(async (req, res, next) => {
-	let { schoolId, studentList, academicYearName } = req.body;
-	studentList = studentList.map(student => mongoose.Types.ObjectId(student));
+	const { schoolId, studentList, academicYearName } = req.body;
 	const workbook = new excel.Workbook();
-
 	const school = await Schools.findOne({
 		_id: mongoose.Types.ObjectId(schoolId),
 	});
 
-	const worksheet = workbook.addWorksheet(`${school.schoolName}`);
+	const worksheet = workbook.addWorksheet('Previous Balances');
 	const style = workbook.createStyle({
 		font: {
 			bold: true,
@@ -599,152 +597,83 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		},
 		numberFormat: '$#,##0.00; ($#,##0.00); -',
 	});
+
 	worksheet.cell(1, 1).string('STUDENTID').style(style);
 	worksheet.cell(1, 2).string('NAME').style(style);
 	worksheet.cell(1, 3).string('CLASS').style(style);
 	worksheet.cell(1, 4).string('PARENT').style(style);
 	worksheet.cell(1, 5).string('ACADEMIC_YEAR').style(style);
 	worksheet.cell(1, 6).string('BALANCE').style(style);
+
 	const students = await Students.aggregate([
 		{
 			$match: {
 				_id: {
-					$in: studentList,
+					$in: studentList.map(student => mongoose.Types.ObjectId(student)),
 				},
 				deleted: false,
 				profileStatus: 'APPROVED',
 			},
 		},
 		{
-			$project: {
-				_id: 1,
-				name: 1,
-				section: 1,
-				class: 1,
-				parent_id: 1,
-			},
-		},
-		{
 			$lookup: {
 				from: 'classes',
-				let: {
-					classId: '$class',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$classId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							sequence_number: 1,
-						},
-					},
-				],
+				localField: 'class',
+				foreignField: '_id',
 				as: 'class',
 			},
 		},
 		{
 			$lookup: {
 				from: 'sections',
-				let: {
-					sectionId: '$section',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$sectionId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							className: 1,
-						},
-					},
-				],
+				localField: 'section',
+				foreignField: '_id',
 				as: 'section',
 			},
 		},
 		{
 			$lookup: {
 				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$parentId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-						},
-					},
-				],
+				localField: 'parent_id',
+				foreignField: '_id',
 				as: 'parent',
 			},
 		},
 		{
 			$project: {
 				_id: 1,
-				className: {
-					$arrayElemAt: ['$class.name', 0],
-				},
-				section: {
-					$arrayElemAt: ['$section.name', 0],
-				},
 				name: 1,
-				parent: {
-					$arrayElemAt: ['$parent.name', 0],
-				},
-				sequence_number: {
-					$arrayElemAt: ['$class.sequence_number', 0],
-				},
+				className: { $arrayElemAt: ['$class.name', 0] },
+				sectionName: { $arrayElemAt: ['$section.name', 0] },
+				parentName: { $arrayElemAt: ['$parent.name', 0] },
 			},
 		},
 		{
 			$sort: {
-				sequence_number: 1,
+				'class.sequence_number': 1,
 			},
 		},
 	]).toArray();
+
 	let row = 2;
-	let col = 1;
-	students.forEach(async stud => {
-		const { _id, name, className, section, parent } = stud;
-		worksheet.cell(row, col).string(_id.toString());
-		worksheet.cell(row, col + 1).string(name);
-		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
-		worksheet.cell(row, col + 3).string(parent);
-		worksheet.cell(row, col + 4).string(academicYearName);
-		worksheet.cell(row, col + 5).number(0);
+	students.forEach(stud => {
+		const { _id, name, className, sectionName, parentName } = stud;
+		worksheet.cell(row, 1).string(_id.toString());
+		worksheet.cell(row, 2).string(name);
+		worksheet.cell(row, 3).string(`${className} - ${sectionName}`);
+		worksheet.cell(row, 4).string(parentName);
+		worksheet.cell(row, 5).string(academicYearName);
+		worksheet.cell(row, 6).number(0);
 		row += 1;
-		col = 1;
 	});
 
-	// Locking the cells
-	lockCell(worksheet, `A1:E${students.length + 1}`);
-
-	// workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
-	// Previous Balance - (2020-2021).xlsx
+	const fileName = `${school.schoolName}.xlsx`;
+	await workbook.write(fileName);
 
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
-	res
-		.status(200)
-		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
 });
 
 module.exports = {
