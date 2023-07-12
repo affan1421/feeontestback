@@ -3,6 +3,7 @@ const moment = require('moment');
 
 const XLSX = require('xlsx');
 const excel = require('excel4node');
+const PreviousBalance = require('../models/previousFeesBalance');
 const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
@@ -462,10 +463,10 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 	const { categoryId = null, studentId = null } = req.query;
 
 	if (!categoryId || !studentId) {
-		return next(new ErrorResponse('Categoryid & studentid is required', 400));
+		return next(new ErrorResponse('Please Provide All Inputs', 400));
 	}
 
-	const foundStudent = await Student.aggregate([
+	const pipeline = [
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
@@ -476,15 +477,11 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'sections',
-				let: {
-					sectionId: '$section',
-				},
+				let: { sectionId: '$section' },
 				pipeline: [
 					{
 						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
+							$expr: { $eq: ['$_id', '$$sectionId'] },
 						},
 					},
 					{
@@ -499,27 +496,17 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-					studname: '$name',
-				},
+				let: { parentId: '$parent_id', studname: '$name' },
 				pipeline: [
 					{
 						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
+							$expr: { $eq: ['$_id', '$$parentId'] },
 						},
 					},
 					{
 						$project: {
 							name: {
-								$ifNull: [
-									'$name',
-									{
-										$concat: ['$$studname', ' (Parent)'],
-									},
-								],
+								$ifNull: ['$name', { $concat: ['$$studname', ' (Parent)'] }],
 							},
 						},
 					},
@@ -530,25 +517,22 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$project: {
 				studentName: '$name',
-				parentName: {
-					$first: '$parent.name',
-				},
-				class: {
-					$first: '$section.className',
-				},
+				parentName: { $first: '$parent.name' },
+				class: { $first: '$section.className' },
 				admission_no: 1,
 			},
 		},
-	]).toArray();
+	];
+
+	const foundStudent = await Student.aggregate(pipeline).toArray();
 
 	if (foundStudent.length < 1) {
-		return next(new ErrorResponse('Student not found', 404));
+		return next(new ErrorResponse('Student Not Found', 404));
 	}
 
-	const foundFeeInstallments = await FeeInstallment.find({
-		categoryId,
-		studentId,
-	})
+	const response = foundStudent[0];
+
+	const feeDetailsPromise = FeeInstallment.find({ categoryId, studentId })
 		.populate('feeTypeId', 'feeType')
 		.select({
 			feeTypeId: 1,
@@ -563,14 +547,19 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		})
 		.lean();
 
+	const previousBalancePromise = PreviousBalance.findOne({ studentId });
+
+	const [feeDetails, isPreviousExist] = await Promise.all([
+		feeDetailsPromise,
+		previousBalancePromise,
+	]);
+
+	response.feeDetails = feeDetails;
+	if (isPreviousExist) response.previousBalance = isPreviousExist;
+
 	return res
 		.status(200)
-		.json(
-			SuccessResponse(
-				{ ...foundStudent[0], feeDetails: foundFeeInstallments },
-				foundFeeInstallments.length
-			)
-		);
+		.json(SuccessResponse(response, 1, 'Fetched Successfully'));
 });
 
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
