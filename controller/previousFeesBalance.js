@@ -383,6 +383,15 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 
 	// Fetch student, parent, username and gender from studentId
 	if (studentId) {
+		const isPreviousExist = await PreviousBalance.findOne({
+			studentId,
+			academicYearId,
+		});
+
+		if (isPreviousExist) {
+			return next(new ErrorResponse('Previous Balance Already Exists', 409));
+		}
+
 		const student = await Student.aggregate([
 			{
 				$match: {
