@@ -426,18 +426,37 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
+				filterSummary: [
+					{
+						$match: payload,
+					},
+					{
+						$group: {
+							_id: null,
+							totalAmount: {
+								$sum: '$paidAmount',
+							},
+						},
+					},
+				],
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
 	]);
-	const { data, count } = feeReceipts[0];
+	const { data, count, filterSummary } = feeReceipts[0];
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+		.json(
+			SuccessResponse(
+				{ data, totalAmount: filterSummary[0].totalAmount },
+				count[0].count,
+				'Fetched Successfully'
+			)
+		);
 });
 
 const createReceipt = async (req, res, next) => {
