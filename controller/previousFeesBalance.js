@@ -1,14 +1,18 @@
 /* eslint-disable no-unused-expressions */
 /* eslint-disable prefer-destructuring */
 const mongoose = require('mongoose');
-const moment = require('moment');
 const excel = require('excel4node');
+const moment = require('moment');
 const XLSX = require('xlsx');
 
+const FeeReceipt = require('../models/feeReceipt');
 const PreviousBalance = require('../models/previousFeesBalance');
+
+const Sections = mongoose.connection.db.collection('sections');
 
 const Schools = mongoose.connection.db.collection('schools');
 const AcademicYears = require('../models/academicYear');
+const FeeType = require('../models/feeType');
 
 const Students = mongoose.connection.db.collection('students');
 const SuccessResponse = require('../utils/successResponse');
@@ -34,6 +38,7 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		isEnrolled = false,
 		page,
 		limit,
+		searchTerm = null,
 		sectionId,
 	} = req.query;
 	const payload = {};
@@ -52,8 +57,43 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	if (sectionId) {
 		payload.sectionId = mongoose.Types.ObjectId(sectionId);
 	}
+	if (searchTerm) {
+		payload.studentName = { $regex: searchTerm, $options: 'i' };
+	}
 	// Optional Pagination
-	const dataFacet = [{ $match: payload }];
+	const dataFacet = [
+		{ $match: payload },
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$$sectionId', '$_id'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							className: 1,
+						},
+					},
+				],
+				as: 'sectionId',
+			},
+		},
+		{
+			$unwind: {
+				path: '$sectionId',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+	];
 	if (page && limit) {
 		page = +page;
 		limit = +limit;
@@ -77,6 +117,177 @@ const GetAllByFilter = CatchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+const MakePayment = CatchAsync(async (req, res, next) => {
+	const {
+		prevBalId,
+		paidAmount,
+		paymentMode,
+		bankName,
+		chequeDate,
+		chequeNumber,
+		transactionDate,
+		transactionId,
+		upiId,
+		payerName,
+		ddNumber,
+		ddDate,
+	} = req.body;
+	let student;
+	let admission_no;
+	const receipt_id = mongoose.Types.ObjectId();
+
+	const previousBalance = await PreviousBalance.findOne({ _id: prevBalId });
+
+	const {
+		schoolId,
+		studentId,
+		studentName,
+		parentName,
+		parentId,
+		totalAmount,
+		dueAmount,
+		sectionId,
+		username,
+	} = previousBalance;
+
+	if (studentId) {
+		student = await Student.findOne({
+			_id: mongoose.Types.ObjectId(studentId),
+		});
+		({ admission_no = '' } = student);
+	}
+
+	const feeTypePromise = FeeType.findOne({ schoolId, feeCategory: 'PREVIOUS' });
+
+	const lastReceiptPromise = FeeReceipt.findOne({ 'school.schoolId': schoolId })
+		.sort({ createdAt: -1 })
+		.lean();
+
+	const sectionPromise = Sections.findOne(
+		{ _id: mongoose.Types.ObjectId(sectionId) },
+		'name className class_id'
+	);
+
+	const schoolPromise = Schools.findOne(
+		{ _id: mongoose.Types.ObjectId(schoolId) },
+		'schoolName address'
+	);
+
+	let [feeType, lastReceipt, section, school] = await Promise.all([
+		feeTypePromise,
+		lastReceiptPromise,
+		sectionPromise,
+		schoolPromise,
+	]);
+
+	if (!feeType) {
+		// Create Fee Type
+		const feeTypePayload = {
+			_id: mongoose.Types.ObjectId(),
+			feeType: 'Previous Balance',
+			accountType: 'Revenue',
+			schoolId,
+			description: 'Previous Balance Fee',
+			isMisc: false,
+			feeCategory: 'PREVIOUS',
+		};
+
+		feeType = await FeeType.create(feeTypePayload);
+	}
+
+	const formattedDate = moment().format('DDMMYY');
+	const newCount = lastReceipt
+		? (parseInt(lastReceipt.receiptId.slice(-5)) + 1)
+				.toString()
+				.padStart(5, '0')
+		: '00001';
+	const receiptId = `PY${formattedDate}${newCount}`;
+
+	const receiptPayload = {
+		_id: receipt_id,
+		student: {
+			name: studentName,
+			studentId,
+			admission_no,
+			class: {
+				classId: section.class_id,
+				name: section.className.split(' - ')[0],
+			},
+			section: {
+				sectionId,
+				name: section.name,
+			},
+		},
+		parent: {
+			name: parentName,
+			mobile: username,
+			parentId,
+		},
+		school: {
+			name: school.schoolName,
+			address: school.address,
+			schoolId,
+		},
+		receiptType: 'PREVIOUS_BALANCE',
+		academicYear: lastReceipt.academicYear,
+		totalAmount,
+		paidAmount,
+		dueAmount: dueAmount - paidAmount,
+		receiptId,
+		issueDate: new Date(),
+		payment: {
+			method: paymentMode,
+			bankName,
+			chequeDate,
+			chequeNumber,
+			transactionDate,
+			transactionId,
+			upiId,
+			payerName,
+			ddNumber,
+			ddDate,
+		},
+		items: {
+			feeTypeId: feeType._id,
+			netAmount: totalAmount,
+			paidAmount,
+		},
+	};
+
+	const updatePayload = {
+		lastPaidDate: new Date(),
+		$push: {
+			receiptId: receipt_id,
+		},
+	};
+
+	if (dueAmount - paidAmount === 0) {
+		updatePayload.status = 'Paid';
+	}
+
+	const updateBalancePromise = PreviousBalance.updateOne(
+		{ _id: prevBalId },
+		{
+			$set: { ...updatePayload },
+			$inc: {
+				paidAmount,
+				dueAmount: -paidAmount,
+			},
+			$push: {
+				receiptId: receipt_id,
+			},
+		}
+	);
+
+	const createReceiptPromise = FeeReceipt.create(receiptPayload);
+
+	await Promise.all([updateBalancePromise, createReceiptPromise]);
+
+	res
+		.status(200)
+		.json(SuccessResponse(receiptPayload, 1, 'Payment Successful'));
+});
+
 const GetStudents = CatchAsync(async (req, res, next) => {
 	const { sectionId, academicYearId } = req.query;
 
@@ -88,6 +299,8 @@ const GetStudents = CatchAsync(async (req, res, next) => {
 		{
 			$match: {
 				section: mongoose.Types.ObjectId(sectionId),
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
@@ -146,7 +359,6 @@ const GetStudents = CatchAsync(async (req, res, next) => {
 const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 	let {
 		studentId = null,
-		dueDate = moment().subtract(1, 'days').format('MM-DD-YYYY'),
 		studentName, // Left
 		parentName, // Left
 		username, // Left
@@ -156,7 +368,9 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 		academicYearId,
 		pendingAmount,
 	} = req.body;
+	let secondaryParentName = null;
 	const isEnrolled = !!studentId;
+	let parentId = null;
 	if (
 		(!studentId && (!studentName || !parentName || !username || !gender)) ||
 		!academicYearId ||
@@ -169,6 +383,15 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 
 	// Fetch student, parent, username and gender from studentId
 	if (studentId) {
+		const isPreviousExist = await PreviousBalance.findOne({
+			studentId,
+			academicYearId,
+		});
+
+		if (isPreviousExist) {
+			return next(new ErrorResponse('Previous Balance Already Exists', 409));
+		}
+
 		const student = await Student.aggregate([
 			{
 				$match: {
@@ -190,32 +413,46 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 					parentName: {
 						$first: '$parent.name',
 					},
+					secondaryParentName: {
+						$first: '$parent.father_name',
+					},
+					parentId: {
+						$first: '$parent._id',
+					},
 					username: 1,
 					gender: 1,
 				},
 			},
 		]).toArray();
-		({ studentName, parentName, username, gender } = student[0]);
+		({
+			studentName,
+			parentName,
+			username,
+			gender,
+			parentId,
+			secondaryParentName,
+		} = student[0]);
 	}
 
-	// Status
-	// TODO: Configure the cron job to update the status of previous balance
-	const status = moment(dueDate, 'MM-DD-YYYY').isBefore(moment())
-		? 'Due'
-		: 'Upcoming';
+	parentName =
+		(parentName === '' || !parentName) && !secondaryParentName
+			? `${studentName} Parent`
+			: parentName ?? secondaryParentName;
 
 	const creationPayload = {
-		dueDate: new Date(dueDate),
 		isEnrolled,
 		studentName,
 		parentName,
 		username,
-		status,
+		status: 'Due',
 		gender,
+		parentId,
 		schoolId,
 		sectionId,
 		academicYearId,
-		pendingAmount,
+		totalAmount: pendingAmount,
+		paidAmount: 0,
+		dueAmount: pendingAmount,
 	};
 	studentId ? (creationPayload.studentId = studentId) : null;
 
@@ -232,55 +469,73 @@ const CreatePreviousBalance = CatchAsync(async (req, res, next) => {
 
 const BulkCreatePreviousBalance = async (req, res, next) => {
 	const { schoolId, isExisting = true } = req.query;
-	let notUpdatedCount = 0;
-	let updatedCount = 0;
-	const bulkOps = [];
 	const { file } = req.files;
-
-	const fileName = file.name;
-
-	const academicYearName = fileName.match(/\((.*?)\)/)[1];
-
-	const { _id: academicYearId } = await AcademicYears.findOne({
-		name: academicYearName,
-		schoolId: mongoose.Types.ObjectId(schoolId),
-	});
-
 	const workbook = XLSX.read(file.data, { type: 'buffer' });
 	const sheetName = workbook.SheetNames[0];
 	const worksheet = workbook.Sheets[sheetName];
-
 	const rows = XLSX.utils.sheet_to_json(worksheet);
 
 	if (rows.length === 0) {
 		return next(new ErrorResponse('No Data Found', 404));
 	}
 
-	if (isExisting) {
-		for (const { STUDENTID, BALANCE, PARENT } of rows) {
-			const previousBalanceExists = await PreviousBalance.exists({
-				studentId: STUDENTID,
-				academicYearId,
-			});
+	const [academicYear] = rows;
+	const academicYearName = academicYear.ACADEMIC_YEAR.trim();
 
-			if (previousBalanceExists) {
-				notUpdatedCount += 1;
+	const academicYearObj = await AcademicYears.findOne({
+		name: academicYearName,
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	});
+
+	if (!academicYearObj) {
+		return next(new ErrorResponse('Academic Year not found', 404));
+	}
+
+	const academicYearId = academicYearObj._id;
+
+	let bulkOps = [];
+
+	if (isExisting === 'true' || isExisting === true) {
+		const studentIds = rows.map(({ STUDENTID }) =>
+			mongoose.Types.ObjectId(STUDENTID)
+		);
+		const existingBalances = await PreviousBalance.find({
+			studentId: { $in: studentIds },
+			academicYearId,
+		}).select('studentId');
+
+		const existingStudentIds = existingBalances.map(({ studentId }) =>
+			studentId.toString()
+		);
+		const notUpdatedStudents = [];
+
+		const existingStudents = await Student.find(
+			{
+				_id: { $in: studentIds },
+			},
+			'gender username section parent_id'
+		).toArray();
+
+		for (const { STUDENTID, BALANCE, PARENT, NAME } of rows) {
+			if (existingStudentIds.includes(STUDENTID)) {
+				notUpdatedStudents.push(STUDENTID);
 				// eslint-disable-next-line no-continue
 				continue;
 			}
 
-			const { name, gender, username, section } = await Student.findOne({
-				_id: mongoose.Types.ObjectId(STUDENTID),
-			});
+			const { gender, username, section, parent_id } = existingStudents.find(
+				({ _id }) => _id.toString() === STUDENTID
+			);
 
 			const previousBalance = {
 				isEnrolled: true,
 				studentId: STUDENTID,
-				studentName: name,
-				parentName: PARENT,
+				studentName: NAME,
+				parentName: PARENT === '' ? `${NAME} Parent` : PARENT,
 				status: 'Due',
 				username,
 				gender,
+				parentId: parent_id,
 				sectionId: section,
 				academicYearId,
 				totalAmount: BALANCE,
@@ -289,33 +544,80 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				schoolId,
 			};
 
-			bulkOps.push({
-				insertOne: {
-					document: previousBalance,
-				},
-			});
-
-			updatedCount += 1;
+			bulkOps.push({ insertOne: { document: previousBalance } });
 		}
+
+		const updatedCount = rows.length - notUpdatedStudents.length;
 
 		if (bulkOps.length > 0) {
 			await PreviousBalance.bulkWrite(bulkOps);
 		}
-	}
 
-	if (notUpdatedCount === rows.length) {
-		return next(new ErrorResponse('All Students Are Mapped', 404));
-	}
+		if (updatedCount === 0) {
+			return next(new ErrorResponse('All Students Are Mapped', 404));
+		}
 
-	res
-		.status(200)
-		.json(
-			SuccessResponse(
-				{ notUpdatedCount, updatedCount },
-				1,
-				'Fetched Successfully'
-			)
-		);
+		res
+			.status(200)
+			.json(
+				SuccessResponse(
+					{ notUpdatedCount: notUpdatedStudents.length, updatedCount },
+					1,
+					'Created Successfully'
+				)
+			);
+	} else {
+		let sectionList = await Sections.find({
+			school: mongoose.Types.ObjectId(schoolId),
+		})
+			.project({ name: 1, className: 1 })
+			.toArray();
+		sectionList = sectionList.reduce((acc, curr) => {
+			acc[curr.className] = curr;
+			return acc;
+		}, {});
+
+		bulkOps = rows
+			.map(({ NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER }) => {
+				if (!sectionList[CLASS]) {
+					return null;
+				}
+
+				return {
+					insertOne: {
+						document: {
+							isEnrolled: false,
+							studentName: NAME,
+							parentName: PARENT,
+							status: 'Due',
+							username: USERNAME,
+							gender: GENDER,
+							sectionId: sectionList[CLASS]._id,
+							academicYearId,
+							totalAmount: BALANCE,
+							paidAmount: 0,
+							dueAmount: BALANCE,
+							schoolId,
+						},
+					},
+				};
+			})
+			.filter(Boolean);
+
+		if (bulkOps.length === 0) {
+			return next(
+				new ErrorResponse('No Students To Create Previous Balance', 404)
+			);
+		}
+
+		await PreviousBalance.bulkWrite(bulkOps);
+
+		res
+			.status(200)
+			.json(
+				SuccessResponse({ count: bulkOps.length }, 1, 'Created Successfully')
+			);
+	}
 };
 
 const GetById = async (req, res) => {};
@@ -325,15 +627,10 @@ const UpdatePreviousBalance = async (req, res) => {};
 const DeletePreviousBalance = async (req, res) => {};
 
 const existingStudentExcel = CatchAsync(async (req, res, next) => {
-	let { schoolId, studentList, academicYearName } = req.body;
-	studentList = studentList.map(student => mongoose.Types.ObjectId(student));
+	const { studentList, academicYearName } = req.body;
 	const workbook = new excel.Workbook();
 
-	const school = await Schools.findOne({
-		_id: mongoose.Types.ObjectId(schoolId),
-	});
-
-	const worksheet = workbook.addWorksheet(`${school.schoolName}`);
+	const worksheet = workbook.addWorksheet('Previous Balances');
 	const style = workbook.createStyle({
 		font: {
 			bold: true,
@@ -342,148 +639,91 @@ const existingStudentExcel = CatchAsync(async (req, res, next) => {
 		},
 		numberFormat: '$#,##0.00; ($#,##0.00); -',
 	});
+
 	worksheet.cell(1, 1).string('STUDENTID').style(style);
 	worksheet.cell(1, 2).string('NAME').style(style);
 	worksheet.cell(1, 3).string('CLASS').style(style);
 	worksheet.cell(1, 4).string('PARENT').style(style);
-	worksheet.cell(1, 5).string('BALANCE').style(style);
+	worksheet.cell(1, 5).string('ACADEMIC_YEAR').style(style);
+	worksheet.cell(1, 6).string('BALANCE').style(style);
+
 	const students = await Students.aggregate([
 		{
 			$match: {
 				_id: {
-					$in: studentList,
+					$in: studentList.map(student => mongoose.Types.ObjectId(student)),
 				},
-			},
-		},
-		{
-			$project: {
-				_id: 1,
-				name: 1,
-				section: 1,
-				class: 1,
-				parent_id: 1,
+				deleted: false,
+				profileStatus: 'APPROVED',
 			},
 		},
 		{
 			$lookup: {
 				from: 'classes',
-				let: {
-					classId: '$class',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$classId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							sequence_number: 1,
-						},
-					},
-				],
+				localField: 'class',
+				foreignField: '_id',
 				as: 'class',
 			},
 		},
 		{
 			$lookup: {
 				from: 'sections',
-				let: {
-					sectionId: '$section',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$sectionId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							className: 1,
-						},
-					},
-				],
+				localField: 'section',
+				foreignField: '_id',
 				as: 'section',
 			},
 		},
 		{
 			$lookup: {
 				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$$parentId', '$_id'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-						},
-					},
-				],
+				localField: 'parent_id',
+				foreignField: '_id',
 				as: 'parent',
 			},
 		},
 		{
 			$project: {
 				_id: 1,
-				className: {
-					$arrayElemAt: ['$class.name', 0],
-				},
-				section: {
-					$arrayElemAt: ['$section.name', 0],
-				},
 				name: 1,
-				parent: {
-					$arrayElemAt: ['$parent.name', 0],
-				},
-				sequence_number: {
-					$arrayElemAt: ['$class.sequence_number', 0],
-				},
+				className: { $arrayElemAt: ['$class.name', 0] },
+				sectionName: { $arrayElemAt: ['$section.name', 0] },
+				parentName: { $arrayElemAt: ['$parent.name', 0] },
+				secondaryParentName: { $arrayElemAt: ['$parent.father_name', 0] },
 			},
 		},
 		{
 			$sort: {
-				sequence_number: 1,
+				'class.sequence_number': 1,
 			},
 		},
 	]).toArray();
+
 	let row = 2;
-	let col = 1;
-	students.forEach(async stud => {
-		const { _id, name, className, section, parent } = stud;
-		worksheet.cell(row, col).string(_id.toString());
-		worksheet.cell(row, col + 1).string(name);
-		worksheet.cell(row, col + 2).string(`${className} - ${section}`);
-		worksheet.cell(row, col + 3).string(parent);
-		worksheet.cell(row, col + 4).number(0);
+	students.forEach(stud => {
+		const {
+			_id,
+			name,
+			className,
+			sectionName,
+			parentName,
+			secondaryParentName,
+		} = stud;
+		worksheet.cell(row, 1).string(_id.toString());
+		worksheet.cell(row, 2).string(name);
+		worksheet.cell(row, 3).string(`${className} - ${sectionName}`);
+		worksheet.cell(row, 4).string(parentName ?? secondaryParentName);
+		worksheet.cell(row, 5).string(academicYearName);
+		worksheet.cell(row, 6).number(0);
 		row += 1;
-		col = 1;
 	});
 
-	// Locking the cells
-	lockCell(worksheet, `A1:D${students.length + 1}`);
-
-	workbook.write(`Previous Balance - (${academicYearName}).xlsx`);
-	// Previous Balance - (2020-2021).xlsx
+	// const fileName = `${school.schoolName}.xlsx`;
+	// await workbook.write(fileName);
 
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
-	res
-		.status(200)
-		.json(SuccessResponse(data, data.length, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
 });
 
 module.exports = {
@@ -495,4 +735,5 @@ module.exports = {
 	UpdatePreviousBalance,
 	DeletePreviousBalance,
 	BulkCreatePreviousBalance,
+	MakePayment,
 };

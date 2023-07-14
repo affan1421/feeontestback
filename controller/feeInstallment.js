@@ -3,6 +3,7 @@ const moment = require('moment');
 
 const XLSX = require('xlsx');
 const excel = require('excel4node');
+const PreviousBalance = require('../models/previousFeesBalance');
 const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
@@ -349,7 +350,14 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					{
 						$match: {
 							$expr: {
-								$eq: ['$studentId', '$$studentId'],
+								$and: [
+									{
+										$eq: ['$studentId', '$$studentId'],
+									},
+									{
+										$eq: ['$deleted', false],
+									},
+								],
 							},
 						},
 					},
@@ -362,6 +370,30 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 							netAmount: {
 								$sum: '$netAmount',
 							},
+						},
+					},
+				],
+			},
+		},
+		// Look up previous fees
+		{
+			$lookup: {
+				from: 'previousfeesbalances',
+				let: {
+					studentId: '$_id',
+				},
+				as: 'previousfees',
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$studentId', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							dueAmount: 1,
 						},
 					},
 				],
@@ -401,9 +433,22 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					$first: '$parentId.name',
 				},
 				pendingAmount: {
-					$subtract: [
-						{ $first: '$feeinstallments.netAmount' },
-						{ $first: '$feeinstallments.paidAmount' },
+					// add the previous fees and feeinstallments
+					$add: [
+						{
+							$ifNull: [
+								{
+									$first: '$previousfees.dueAmount',
+								},
+								0,
+							],
+						},
+						{
+							$subtract: [
+								{ $first: '$feeinstallments.netAmount' },
+								{ $first: '$feeinstallments.paidAmount' },
+							],
+						},
 					],
 				},
 				admission_no: 1,
@@ -418,10 +463,10 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 	const { categoryId = null, studentId = null } = req.query;
 
 	if (!categoryId || !studentId) {
-		return next(new ErrorResponse('Categoryid & studentid is required', 400));
+		return next(new ErrorResponse('Please Provide All Inputs', 400));
 	}
 
-	const foundStudent = await Student.aggregate([
+	const pipeline = [
 		{
 			$match: {
 				_id: mongoose.Types.ObjectId(studentId),
@@ -432,15 +477,11 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'sections',
-				let: {
-					sectionId: '$section',
-				},
+				let: { sectionId: '$section' },
 				pipeline: [
 					{
 						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
+							$expr: { $eq: ['$_id', '$$sectionId'] },
 						},
 					},
 					{
@@ -455,27 +496,17 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-					studname: '$name',
-				},
+				let: { parentId: '$parent_id', studname: '$name' },
 				pipeline: [
 					{
 						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
+							$expr: { $eq: ['$_id', '$$parentId'] },
 						},
 					},
 					{
 						$project: {
 							name: {
-								$ifNull: [
-									'$name',
-									{
-										$concat: ['$$studname', ' (Parent)'],
-									},
-								],
+								$ifNull: ['$name', { $concat: ['$$studname', ' (Parent)'] }],
 							},
 						},
 					},
@@ -486,25 +517,22 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		{
 			$project: {
 				studentName: '$name',
-				parentName: {
-					$first: '$parent.name',
-				},
-				class: {
-					$first: '$section.className',
-				},
+				parentName: { $first: '$parent.name' },
+				class: { $first: '$section.className' },
 				admission_no: 1,
 			},
 		},
-	]).toArray();
+	];
+
+	const foundStudent = await Student.aggregate(pipeline).toArray();
 
 	if (foundStudent.length < 1) {
-		return next(new ErrorResponse('Student not found', 404));
+		return next(new ErrorResponse('Student Not Found', 404));
 	}
 
-	const foundFeeInstallments = await FeeInstallment.find({
-		categoryId,
-		studentId,
-	})
+	const response = foundStudent[0];
+
+	const feeDetailsPromise = FeeInstallment.find({ categoryId, studentId })
 		.populate('feeTypeId', 'feeType')
 		.select({
 			feeTypeId: 1,
@@ -519,14 +547,19 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		})
 		.lean();
 
+	const previousBalancePromise = PreviousBalance.findOne({ studentId });
+
+	const [feeDetails, isPreviousExist] = await Promise.all([
+		feeDetailsPromise,
+		previousBalancePromise,
+	]);
+
+	response.feeDetails = feeDetails;
+	if (isPreviousExist) response.previousBalance = isPreviousExist;
+
 	return res
 		.status(200)
-		.json(
-			SuccessResponse(
-				{ ...foundStudent[0], feeDetails: foundFeeInstallments },
-				foundFeeInstallments.length
-			)
-		);
+		.json(SuccessResponse(response, 1, 'Fetched Successfully'));
 });
 
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
@@ -1228,6 +1261,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				studentId: '$_id',
 				username: 1,
 				studentName: '$name',
+				admission_no: 1,
 				classId: {
 					$first: '$class._id',
 				},
@@ -1294,6 +1328,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		sectionId = '',
 		sectionName = '',
 		parentName,
+		admission_no = '',
 		parentMobile,
 		parentId,
 		academicYear = '',
@@ -1371,11 +1406,11 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	}
 
 	await FeeInstallment.bulkWrite(bulkWriteOps);
-
-	const createdReceipt = await FeeReceipt.create({
+	const receiptPayload = {
 		student: {
 			name: studentName,
 			studentId,
+			admission_no,
 			class: {
 				name: className,
 				classId,
@@ -1409,6 +1444,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		paidAmount: currentPaidAmount,
 		totalAmount: totalFeeAmount,
 		dueAmount: dueAmount - currentPaidAmount,
+		academicPaidAmount: currentPaidAmount,
 		payment: {
 			method: paymentMethod,
 			bankName,
@@ -1423,7 +1459,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		},
 		issueDate,
 		items,
-	});
+	};
+
+	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
 	return res.status(201).json(
 		SuccessResponse(
@@ -1607,8 +1645,9 @@ exports.IncomeDashboard = async (req, res, next) => {
 								class: {
 									$first: '$class',
 								},
+								// TODO: Separate field "AcademicPaidAmount" to be summed.
 								totalAmount: {
-									$sum: '$paidAmount',
+									$sum: '$academicPaidAmount',
 								},
 							},
 						},

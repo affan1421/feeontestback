@@ -326,6 +326,8 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		paymentMethod,
 		sort,
 		date, // single date
+		startDate, // date range
+		endDate, // date range
 		page = 0,
 		limit = 10,
 		searchTerm,
@@ -340,9 +342,15 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 
 	if (date) {
-		const startDate = moment(date).startOf('day').toDate();
-		const endDate = moment(date).endOf('day').toDate();
-		match.expenseDate = { $gte: startDate, $lte: endDate };
+		const fromDate = moment(date).startOf('day').toDate();
+		const tillDate = moment(date).endOf('day').toDate();
+		match.expenseDate = { $gte: fromDate, $lte: tillDate };
+	}
+	if (startDate && endDate) {
+		match.expenseDate = {
+			$gte: moment(startDate).startOf('day').toDate(),
+			$lte: moment(endDate).endOf('day').toDate(),
+		};
 	}
 
 	// check if the search term is having number
@@ -842,6 +850,11 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 				expenseType: {
 					$first: '$expenseType.name',
 				},
+			},
+		},
+		{
+			$sort: {
+				expenseDate: 1,
 			},
 		},
 	]);

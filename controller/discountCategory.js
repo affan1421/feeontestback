@@ -750,7 +750,6 @@ const approveStudentDiscount = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-
 	let attachments = null;
 	let updatedAmount = 0;
 	let amountToSub = 0;

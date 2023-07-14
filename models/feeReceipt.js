@@ -174,6 +174,10 @@ const feeReceiptSchema = new Schema(
 				},
 			],
 		},
+		academicPaidAmount: {
+			type: Number,
+			default: 0,
+		},
 		isPreviousBalance: {
 			type: Boolean,
 			default: false,

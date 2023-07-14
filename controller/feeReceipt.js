@@ -140,9 +140,21 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 });
 
 const receiptByStudentId = catchAsync(async (req, res, next) => {
-	const { studentId } = req.params;
 	const { school_id } = req.user;
-	const { date, status, paymentMethod, categoryId } = req.query;
+	const {
+		date,
+		status,
+		paymentMethod,
+		categoryId,
+		studentId = null,
+		username,
+		sectionId,
+		isPrev = false,
+	} = req.body;
+
+	if (!studentId && !username) {
+		return next(new ErrorResponse('Please Provide All Fields', 422));
+	}
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
 		isActive: true,
@@ -150,10 +162,19 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	});
 
 	const payload = {
-		'student.studentId': mongoose.Types.ObjectId(studentId),
 		'academicYear.academicYearId': mongoose.Types.ObjectId(academicYearId),
 	};
 
+	if (studentId) {
+		payload['student.studentId'] = mongoose.Types.ObjectId(studentId);
+	} else {
+		payload['student.username'] = username;
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
+	}
+
+	if (isPrev && isPrev === 'true') {
+		payload.receiptType = 'PREVIOUS';
+	}
 	if (date) {
 		payload.issueDate = {
 			$gte: moment(date, 'DD/MM/YYYY').startOf('day').toDate(),
@@ -213,6 +234,8 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		receiptType,
 		status,
 		date, // single day
+		startDate, // range
+		endDate, // range
 		page = 0,
 		limit = 5,
 		search,
@@ -242,9 +265,15 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	}
 	if (status) payload.status = status;
 	if (date) {
-		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
-		payload.issueDate = { $gte: startDate, $lte: endDate };
+		const fromDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const tillDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
+		payload.issueDate = { $gte: fromDate, $lte: tillDate };
+	}
+	if (startDate && endDate) {
+		payload.issueDate = {
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
 	}
 
 	if (search) {
@@ -397,18 +426,37 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
+				filterSummary: [
+					{
+						$match: payload,
+					},
+					{
+						$group: {
+							_id: null,
+							totalAmount: {
+								$sum: '$paidAmount',
+							},
+						},
+					},
+				],
 				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
 	]);
-	const { data, count } = feeReceipts[0];
+	const { data, count, filterSummary } = feeReceipts[0];
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));
 	}
 	res
 		.status(200)
-		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+		.json(
+			SuccessResponse(
+				{ data, totalAmount: filterSummary[0].totalAmount },
+				count[0].count,
+				'Fetched Successfully'
+			)
+		);
 });
 
 const createReceipt = async (req, res, next) => {
@@ -831,6 +879,11 @@ const getExcel = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+		{
+			$sort: {
+				issueDate: 1,
+			},
+		},
 	]);
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
@@ -875,125 +928,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, receiptDetails.length, 'Fetched Successfully'));
 });
 
-/*
-export interface Dashboard {
-    totalStudents: {
-        boysCount: number
-        girlsCount: number
-    },
-    incomeData: {
-		totalIncome: number
-        percentage: number
-    },
-    expenseData: {
-		totalExpense: number
-        percentage: number
-    }
-    totalDiscounts: {
-        totalDiscount: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            } 
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    totalReceivable: {
-        totalReceivable: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    feeCollection: {
-        totalFeeCollection: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-    totalPending: {
-        totalPending: number
-        maxClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-        minClass?: {
-            amount: number;
-            sectionId?: {
-                className: string
-                sectionName: string
-                _id: string
-            }
-        }
-    }
-
-    paymentMethods: {
-        typeName: string
-        items: item[]
-    },
-
-    studentPerformance: {
-        percentage: number
-        onTime: number
-        late: number
-        outstanding: number
-        notPaid: number
-    },
-	
-
-    financialFlows: {
-        income: item[],
-        expense: item[]
-    }
-}
-
-interface item {
-    amount: number,
-    feeTypeId: {
-        feeType: string
-    },
-}
-*/
-// ALL DATA IS FETCHED NEED TO REFACTOR AND RECONSTRUCT THE RESPONSE OBJECT
 const getDashboardData = catchAsync(async (req, res, next) => {
 	// get expense dashboard data
 
@@ -1063,6 +997,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				'school.schoolId': mongoose.Types.ObjectId(school_id),
+				status: { $ne: 'CANCELLED' },
 			},
 		},
 	];
@@ -1429,6 +1364,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 							'school.schoolId': mongoose.Types.ObjectId(school_id),
 							receiptType: 'ACADEMIC',
 							issueDate: dateObj,
+							status: { $ne: 'CANCELLED' },
 						},
 					},
 					{
@@ -1444,7 +1380,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 								$first: '$class',
 							},
 							totalAmount: {
-								$sum: '$paidAmount',
+								$sum: '$academicPaidAmount',
 							},
 						},
 					},
@@ -1505,6 +1441,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 								$in: ['APPLICATION', 'MISCELLANEOUS'],
 							},
 							issueDate: dateObj,
+							status: { $ne: 'CANCELLED' },
 						},
 					},
 					{
