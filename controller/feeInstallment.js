@@ -779,7 +779,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 11).number(studPrevBal);
 	});
 
-	workbook.write(`${schoolName}.xlsx`);
+	// workbook.write(`${schoolName}.xlsx`);
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
