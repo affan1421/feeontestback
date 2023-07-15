@@ -1377,7 +1377,6 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		});
 	}
 
-	await FeeInstallment.bulkWrite(bulkWriteOps);
 	const receiptPayload = {
 		student: {
 			name: studentName,
@@ -1432,8 +1431,11 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		items,
 	};
-
-	const createdReceipt = await FeeReceipt.create(receiptPayload);
+	// Promise all to resolve all the bulkwrite queries
+	const [updateFeeInstallments, createdReceipt] = await Promise.all([
+		FeeInstallment.bulkWrite(bulkWriteOps),
+		FeeReceipt.create(receiptPayload),
+	]);
 
 	return res.status(201).json(
 		SuccessResponse(
@@ -1441,7 +1443,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				...JSON.parse(JSON.stringify(createdReceipt)),
 				items: feeDetails,
 			},
-			1
+			1,
+			'Payment Successful'
 		)
 	);
 });
