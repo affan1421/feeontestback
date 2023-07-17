@@ -127,7 +127,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 					$sum: '$totalDiscountAmount',
 				},
 				totalFees: {
-					$sum: '$netAmount',
+					$sum: '$totalAmount',
 				},
 				discounts: {
 					$push: {
