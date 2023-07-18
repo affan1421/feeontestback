@@ -396,7 +396,6 @@ Payload:
 */
 const mapDiscountCategory = async (req, res, next) => {
 	try {
-		// TODO: StudentList should be array of objects with studentId and attachment
 		const {
 			sectionId,
 			categoryId,
@@ -407,32 +406,20 @@ const mapDiscountCategory = async (req, res, next) => {
 		} = req.body;
 		const { discountId } = req.params;
 		const { school_id } = req.user;
-		let discountAmount = 0;
-		if (!sectionId || !categoryId || !rows || !studentList.length) {
+
+		if (!sectionId || !categoryId || !rows || studentList.length === 0) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
+
+		let discountAmount = 0;
+		const studentMap = {};
+		const studentMapDup = { ...studentMap };
 		const uniqueStudList = [
 			...new Set(studentList.map(({ studentId }) => studentId)),
 		];
-
-		// filter the attachmentObj from the studentList, if they have attachment.
-		const attachmentObj = studentList.reduce(
-			(acc, { studentId, attachment }) => {
-				if (attachment && attachment.length > 0) {
-					acc[studentId] = attachment;
-				}
-				return acc;
-			},
-			{}
-		);
-
-		// TODO: filter the student objects with the attachment - filteredStudentList
-
-		// Fetch fee details from database
+		const attachmentObj = {};
 		const feeStructure = await FeeStructure.findOne(
-			{
-				_id: feeStructureId,
-			},
+			{ _id: feeStructureId },
 			'feeDetails'
 		).lean();
 		const feeDetails = feeStructure.feeDetails.reduce(
@@ -443,89 +430,97 @@ const mapDiscountCategory = async (req, res, next) => {
 			{}
 		);
 
-		// Process each row in parallel
-		const classList = await Promise.all(
-			rows.map(async ({ rowId, feeTypeId, isPercentage, value, breakdown }) => {
-				if (!rowId || isPercentage === undefined || !value) {
-					return next(
-						new ErrorResponse('Please Provide All Required Fields', 422)
-					);
-				}
+		const classList = [];
+		for (const { rowId, feeTypeId, isPercentage, value, breakdown } of rows) {
+			const tempStudMap = { ...studentMapDup };
 
-				const { totalAmount, scheduledDates } = feeDetails[feeTypeId];
-				const tempDiscountAmount = isPercentage
-					? (totalAmount * value) / 100
-					: value;
-				const calPercentage = isPercentage
-					? value
-					: (value * 100) / totalAmount;
+			if (!rowId || isPercentage === undefined || !value) {
+				return next(
+					new ErrorResponse('Please Provide All Required Fields', 422)
+				);
+			}
 
-				const bulkOps = [];
-				const filter = {
-					studentId: { $in: uniqueStudList }, // need to reduce the studentList
-					rowId,
-				};
-				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
+			const { totalAmount, scheduledDates } = feeDetails[feeTypeId];
+			const tempDiscountAmount = isPercentage
+				? (totalAmount * value) / 100
+				: value;
+			const calPercentage = isPercentage ? value : (value * 100) / totalAmount;
+			const bulkOps = [];
+			const filter = { studentId: { $in: uniqueStudList }, rowId };
+			const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
 
-				for (const { amount, date } of scheduledDates) {
-					const discountToPush = {
-						discountId,
-						isPercentage,
-						value,
-						discountAmount: 0,
-						status: 'Pending',
-					};
-					const calAmount = isPercentage
-						? (amount * value) / 100
-						: (amount * calPercentage) / 100;
-					discountToPush.discountAmount += calAmount;
-
-					const feeInstallments = await FeeInstallment.find(
-						{ ...filter, date: new Date(date) },
-						projections
-					).lean();
-
-					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
-						if (calAmount <= netAmount - paidAmount) {
-							discountAmount += calAmount;
-							bulkOps.push({
-								updateOne: {
-									filter: { studentId, date: new Date(date), rowId },
-									update: { $push: { discounts: discountToPush } },
-								},
-							});
-						}
-					}
-				}
-
-				if (bulkOps.length > 0) {
-					await FeeInstallment.bulkWrite(bulkOps);
-				}
-
-				return {
+			for (const { amount, date } of scheduledDates) {
+				const discountToPush = {
 					discountId,
-					sectionId,
-					sectionName,
-					feeTypeId,
-					categoryId,
-					feeStructureId: feeStructure._id,
-					totalStudents: uniqueStudList.length,
-					totalPending: uniqueStudList.length,
-					schoolId: school_id,
-					totalAmount,
-					discountAmount: tempDiscountAmount,
-					breakdown,
 					isPercentage,
 					value,
+					discountAmount: 0,
+					status: 'Pending',
 				};
-			})
-			// TODO: Need to add the attachment in the discount document
-			// loop through the filteredStudentList and update the attachment
+
+				const calAmount = isPercentage
+					? (amount * value) / 100
+					: (amount * calPercentage) / 100;
+				discountToPush.discountAmount += calAmount;
+
+				const feeInstallments = await FeeInstallment.find(
+					{ ...filter, date: new Date(date) },
+					projections
+				).lean();
+
+				for (const { studentId, netAmount, paidAmount } of feeInstallments) {
+					if (calAmount <= netAmount - paidAmount) {
+						studentMap[studentId] = (studentMap[studentId] || 0) + 1;
+						tempStudMap[studentId] = (tempStudMap[studentId] || 0) + 1;
+						discountAmount += calAmount;
+						bulkOps.push({
+							updateOne: {
+								filter: { studentId, date: new Date(date), rowId },
+								update: { $push: { discounts: discountToPush } },
+							},
+						});
+					}
+				}
+			}
+
+			if (bulkOps.length > 0) {
+				await FeeInstallment.bulkWrite(bulkOps);
+			}
+
+			const reducedStudentList = studentList.filter(
+				({ studentId }) => tempStudMap[studentId] > 0
+			);
+
+			classList.push({
+				discountId,
+				sectionId,
+				sectionName,
+				feeTypeId,
+				categoryId,
+				feeStructureId: feeStructure._id,
+				totalStudents: reducedStudentList.length,
+				totalPending: reducedStudentList.length,
+				schoolId: school_id,
+				totalAmount,
+				discountAmount: tempDiscountAmount,
+				breakdown,
+				isPercentage,
+				value,
+			});
+		}
+
+		const filteredStudentList = studentList.filter(
+			({ studentId }) => studentMap[studentId] > 0
 		);
 
-		//  Create multiple new document in the sectionDiscount model.
+		if (!filteredStudentList.length) {
+			return next(
+				new ErrorResponse('Cannot Apply Discount, Insufficient Fees', 404)
+			);
+		}
+
 		await SectionDiscount.insertMany(classList);
-		// Update the total students and total pending of the discount category
+
 		await DiscountCategory.updateOne(
 			{
 				_id: discountId,
@@ -533,8 +528,8 @@ const mapDiscountCategory = async (req, res, next) => {
 			{
 				$inc: {
 					budgetAlloted: discountAmount,
-					totalStudents: uniqueStudList.length,
-					totalPending: uniqueStudList.length,
+					totalStudents: filteredStudentList.length,
+					totalPending: filteredStudentList.length,
 					classesAssociated: 1,
 				},
 				$set: {
@@ -917,28 +912,21 @@ const addStudentToDiscount = async (req, res, next) => {
 		const { sectionId, categoryId, rows, studentList, feeStructureId } =
 			req.body;
 		const { discountId } = req.params;
-		let discountAmount = 0;
-		let discountCategory = null;
-		const uniqueStudList = [
-			...new Set(studentList.map(({ studentId }) => studentId)),
-		];
 
-		if (!sectionId || !categoryId || !rows || !studentList.length) {
+		if (!sectionId || !categoryId || !rows || studentList.length === 0) {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
 
-		let attachmentObj = studentList.reduce((acc, { studentId, attachment }) => {
-			if (attachment && attachment.length > 0) {
-				acc[studentId] = attachment;
-			}
-			return acc;
-		}, {});
+		let discountAmount = 0;
+		let discountCategory = null;
+		const studentMap = {};
+		const uniqueStudList = [
+			...new Set(studentList.map(({ studentId }) => studentId)),
+		];
+		let attachmentObj = {};
 
-		// Fetch fee details from database
 		const feeStructure = await FeeStructure.findOne(
-			{
-				_id: feeStructureId,
-			},
+			{ _id: feeStructureId },
 			'feeDetails'
 		).lean();
 		const feeDetails = feeStructure.feeDetails.reduce(
@@ -949,7 +937,6 @@ const addStudentToDiscount = async (req, res, next) => {
 			{}
 		);
 
-		// Process each row in parallel
 		await Promise.all(
 			rows.map(async ({ feeTypeId, isPercentage, value }) => {
 				if (isPercentage === undefined || !value) {
@@ -963,18 +950,12 @@ const addStudentToDiscount = async (req, res, next) => {
 					scheduledDates,
 					_id: rowId,
 				} = feeDetails[feeTypeId];
-				const tempDiscountAmount = isPercentage
-					? (totalAmount * value) / 100
-					: value;
 				const calPercentage = isPercentage
 					? value
 					: (value * 100) / totalAmount;
 
 				const bulkOps = [];
-				const filter = {
-					studentId: { $in: uniqueStudList },
-					rowId,
-				};
+				const filter = { studentId: { $in: uniqueStudList }, rowId };
 				const projections = { netAmount: 1, paidAmount: 1, studentId: 1 };
 
 				for (const { amount, date } of scheduledDates) {
@@ -982,14 +963,15 @@ const addStudentToDiscount = async (req, res, next) => {
 						$gte: moment(date).startOf('day').toDate(),
 						$lte: moment(date).endOf('day').toDate(),
 					};
+
 					const discountToPush = {
 						discountId,
 						isPercentage,
 						value,
-						// attachment: url,
 						discountAmount: 0,
 						status: 'Pending',
 					};
+
 					const calAmount = isPercentage
 						? (amount * value) / 100
 						: (amount * calPercentage) / 100;
@@ -1002,8 +984,8 @@ const addStudentToDiscount = async (req, res, next) => {
 
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
 						if (calAmount <= netAmount - paidAmount) {
+							studentMap[studentId] = (studentMap[studentId] || 0) + 1;
 							discountAmount += calAmount;
-							// accept attachment and update in that object
 							bulkOps.push({
 								updateOne: {
 									filter: { studentId, date: new Date(date), rowId },
@@ -1019,52 +1001,55 @@ const addStudentToDiscount = async (req, res, next) => {
 				}
 			})
 		);
+
+		const filteredStudentList = studentList.filter(
+			({ studentId }) => studentMap[studentId] > 0
+		);
+
+		if (!filteredStudentList.length) {
+			return next(
+				new ErrorResponse('Cannot Apply Discount, Insufficient Fees', 404)
+			);
+		}
+
 		const update = {
 			$inc: {
 				budgetAlloted: discountAmount,
-				totalStudents: uniqueStudList.length,
-				totalPending: uniqueStudList.length,
+				totalStudents: filteredStudentList.length,
+				totalPending: filteredStudentList.length,
 			},
 		};
+
 		if (Object.keys(attachmentObj).length > 0) {
-			discountCategory = await DiscountCategory.findOne({
-				_id: discountId,
-			});
+			discountCategory = await DiscountCategory.findOne({ _id: discountId });
 			if (!discountCategory) {
 				return next(new ErrorResponse('Discount Not Found', 404));
 			}
+
 			if (discountCategory.attachments) {
-				attachmentObj = {
-					...discountCategory.attachments,
-					...attachmentObj,
-				};
+				attachmentObj = { ...discountCategory.attachments, ...attachmentObj };
 			}
+
 			update.$set = {
 				attachments: attachmentObj,
 			};
 		}
-		//  Update the totalPending and totalApproved in SectionDiscount
+
 		await SectionDiscount.updateMany(
-			{
-				discountId: mongoose.Types.ObjectId(discountId),
-				sectionId,
-			},
+			{ discountId: mongoose.Types.ObjectId(discountId), sectionId },
 			{
 				$inc: {
-					totalPending: uniqueStudList.length,
-					totalStudents: uniqueStudList.length,
+					totalPending: filteredStudentList.length,
+					totalStudents: filteredStudentList.length,
 				},
 			}
 		);
-		// Update the total students and total pending of the discount category
-		await DiscountCategory.updateOne(
-			{
-				_id: discountId,
-			},
-			update
-		);
 
-		res.json(SuccessResponse(null, 1, 'Mapped Successfully'));
+		await DiscountCategory.updateOne({ _id: discountId }, update);
+
+		res.json(
+			SuccessResponse(null, filteredStudentList.length, 'Mapped Successfully')
+		);
 	} catch (error) {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
