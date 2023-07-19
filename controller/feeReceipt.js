@@ -6,6 +6,7 @@ const FeeType = require('../models/feeType');
 const SectionDiscount = require('../models/sectionDiscount');
 const SuccessResponse = require('../utils/successResponse');
 const FeeInstallment = require('../models/feeInstallment');
+const PreviousBalance = require('../models/previousFeesBalance');
 const Expense = require('../models/expense');
 
 const Sections = mongoose.connection.db.collection('sections');
@@ -1910,33 +1911,138 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Receipt Not Found', 400));
 	}
 
-	if (status === 'CANCELLED') {
-		// Update the feeInstallment
-		const installmentIds = updatedReceipt.items.map(
-			({ installmentId }) => installmentId
-		);
-		const installments = await FeeInstallment.find({
-			_id: { $in: installmentIds },
-		});
+	const {
+		receiptType,
+		paidAmount: prevPaidAmount,
+		student,
+		isPreviousBalance,
+		items,
+	} = updatedReceipt;
 
-		for (const installment of installments) {
-			const { _id, date, paidAmount } = installment;
-			const newPaidAmount =
-				paidAmount -
-				updatedReceipt.items.find(
-					({ installmentId }) => installmentId.toString() === _id.toString()
-				).paidAmount;
-			const newStatus = moment(date).isAfter(moment()) ? 'Upcoming' : 'Due';
-			const newUpdate = {
-				$set: { status: newStatus, paidAmount: newPaidAmount },
+	// Need to convert this into switch case
+
+	let installmentIds;
+	let installments;
+	let PrevUpdate;
+
+	let switchVar = null;
+
+	if (status === 'CANCELLED') {
+		if (receiptType !== 'PREVIOUS_BALANCE') {
+			switchVar = isPreviousBalance ? 'COMBINED' : 'ACADEMIC';
+		} else {
+			switchVar = 'PREVIOUS_BALANCE';
+		}
+	}
+
+	switch (switchVar) {
+		case 'ACADEMIC':
+			installmentIds = updatedReceipt.items.map(
+				({ installmentId }) => installmentId
+			);
+			installments = await FeeInstallment.find({
+				_id: { $in: installmentIds },
+			});
+
+			for (const installment of installments) {
+				const { _id, date, paidAmount } = installment;
+				const newPaidAmount =
+					paidAmount -
+					updatedReceipt.items.find(
+						({ installmentId }) => installmentId.toString() === _id.toString()
+					).paidAmount;
+				const newStatus = moment(date).isAfter(moment()) ? 'Upcoming' : 'Due';
+				const newUpdate = {
+					$set: { status: newStatus, paidAmount: newPaidAmount },
+				};
+
+				if (newPaidAmount === 0) {
+					newUpdate.$unset = { paidDate: null };
+				}
+
+				await FeeInstallment.findOneAndUpdate(
+					{ _id, deleted: false },
+					newUpdate
+				);
+			}
+			break;
+
+		case 'COMBINED':
+			installmentIds = items.map(({ installmentId }) => installmentId);
+			installments = await FeeInstallment.find({
+				_id: { $in: installmentIds },
+			}).lean();
+
+			for (const installment of installments) {
+				const { _id, date, paidAmount: insPaidAmount } = installment;
+				const newPaidAmount =
+					insPaidAmount -
+					items.find(
+						({ installmentId }) => installmentId.toString() === _id.toString()
+					).paidAmount;
+				const newStatus = moment(date).isAfter(moment()) ? 'Upcoming' : 'Due';
+				const newUpdate = {
+					$set: { status: newStatus, paidAmount: newPaidAmount },
+				};
+
+				if (newPaidAmount === 0) {
+					newUpdate.$unset = { paidDate: null };
+				}
+
+				await FeeInstallment.findOneAndUpdate(
+					{ _id, deleted: false },
+					newUpdate
+				);
+			}
+			// This is the previous balance object
+			// eslint-disable-next-line no-case-declarations
+			const { paidAmount: insPrevAmount } = items[0];
+			PrevUpdate = {
+				$inc: {
+					paidAmount: -insPrevAmount,
+					dueAmount: insPrevAmount,
+				},
 			};
 
-			if (newPaidAmount === 0) {
-				newUpdate.$unset = { paidDate: null };
+			if (insPrevAmount) {
+				PrevUpdate.$set = { status: 'Due' };
 			}
 
-			await FeeInstallment.findOneAndUpdate({ _id }, newUpdate);
-		}
+			// Pre - Release run the migration script for existing data to add receiptIds
+			await PreviousBalance.findOneAndUpdate(
+				{
+					studentId: student.studentId,
+					receiptIds: id,
+				},
+				PrevUpdate
+			);
+
+			break;
+
+		case 'PREVIOUS_BALANCE':
+			PrevUpdate = {
+				$inc: {
+					paidAmount: -prevPaidAmount,
+					dueAmount: prevPaidAmount,
+				},
+			};
+
+			if (prevPaidAmount) {
+				PrevUpdate.$set = { status: 'Due' };
+			}
+
+			// Pre - Release run the migration script for existing data
+			await PreviousBalance.findOneAndUpdate(
+				{
+					studentId: student.studentId,
+					receiptIds: id,
+				},
+				PrevUpdate
+			);
+			break;
+
+		default:
+			break;
 	}
 
 	res

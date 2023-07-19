@@ -274,7 +274,7 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 				dueAmount: -paidAmount,
 			},
 			$push: {
-				receiptId: receipt_id,
+				receiptIds: receipt_id,
 			},
 		}
 	);
