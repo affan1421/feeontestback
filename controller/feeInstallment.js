@@ -1680,7 +1680,7 @@ exports.IncomeDashboard = async (req, res, next) => {
 							$match: {
 								'school.schoolId': mongoose.Types.ObjectId(schoolId),
 								receiptType: {
-									$in: ['APPLICATION', 'MISCELLANEOUS'],
+									$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS_BALANCE'],
 								},
 								issueDate: dateObj,
 								status: { $ne: 'CANCELLED' },
@@ -1881,7 +1881,9 @@ exports.IncomeDashboard = async (req, res, next) => {
 			const foundMiscTypes = await FeeType.find(
 				{
 					schoolId: mongoose.Types.ObjectId(schoolId),
-					isMisc: true,
+					feeCategory: {
+						$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS'],
+					},
 				},
 				{
 					feeType: 1,
