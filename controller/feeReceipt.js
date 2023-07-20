@@ -1432,7 +1432,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 						$match: {
 							'school.schoolId': mongoose.Types.ObjectId(school_id),
 							receiptType: {
-								$in: ['APPLICATION', 'MISCELLANEOUS'],
+								$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS_BALANCE'],
 							},
 							issueDate: dateObj,
 							status: { $ne: 'CANCELLED' },
