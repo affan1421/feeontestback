@@ -1893,6 +1893,8 @@ exports.IncomeDashboard = async (req, res, next) => {
 				acc[curr._id] = curr.feeType;
 				return acc;
 			}, {});
+			// TODO: To make miscellaneous as object with the data array and summary amount
+			// TODO: incomeData.academicCollection = totalIncomeCollected[0].totalAmount with fee type grouped amount.
 			incomeData.miscellaneous = miscCollected.map(misc => {
 				const miscType = miscTypes[misc._id];
 				return {
@@ -1981,4 +1983,249 @@ exports.AddPreviousFee = async (req, res, next) => {
 	} catch (error) {
 		console.log(error.stack);
 	}
+};
+
+exports.reportBySchedules = async (req, res, next) => {
+	// TODO: Accept schoolId from req.user
+	const { scheduleId = null, scheduleDate = null } = req.query;
+	const { school_id } = req.user;
+
+	let sectionList = await Sections.find({
+		school: mongoose.Types.ObjectId(school_id),
+	})
+		.project({ name: 1, className: 1 })
+		.toArray();
+	sectionList = sectionList.reduce((acc, curr) => {
+		acc[curr._id] = curr;
+		return acc;
+	}, {});
+
+	const sortAndGroup = [
+		{
+			$sort: {
+				totalAmount: -1,
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				totalAmount: {
+					$sum: '$totalAmount',
+				},
+				maxClass: {
+					$max: {
+						amount: '$totalAmount',
+						sectionId: '$_id',
+					},
+				},
+				minClass: {
+					$min: {
+						amount: '$totalAmount',
+						sectionId: '$_id',
+					},
+				},
+			},
+		},
+	];
+
+	const match = {
+		schoolId: mongoose.Types.ObjectId(school_id),
+	};
+
+	if (scheduleId) match.scheduleTypeId = mongoose.Types.ObjectId(scheduleId);
+
+	if (scheduleDate) {
+		match.date = {
+			$gte: moment(scheduleDate, 'MM/DD/YYYY').startOf('day').toDate(),
+			$lte: moment(scheduleDate, 'MM/DD/YYYY').endOf('day').toDate(),
+		};
+	}
+
+	/*
+		res = {
+			totalReceivables: {
+				totalAmount: 0,
+				maxClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+				minClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+			},
+			totalCollected: {
+				totalAmount: 0,
+				maxClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+				minClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+			},
+			totalPending: {
+				totalAmount: 0,
+				maxClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+				minClass: {
+					amount: 0,
+					sectionId: {
+						sectionName: '',
+						className: '',
+						_id: '',
+					},
+				},
+			}
+
+		}
+	*/
+	const aggregate = [
+		{
+			$facet: {
+				totalReceivables: [
+					{
+						$match: match,
+					},
+					{
+						$group: {
+							_id: '$sectionId',
+							totalAmount: {
+								$sum: '$netAmount',
+							},
+						},
+					},
+					...sortAndGroup,
+				],
+				totalDues: [
+					{
+						$match: {
+							...match,
+							status: {
+								$in: ['Due', 'Upcoming'],
+							},
+						},
+					},
+					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
+						$group: {
+							_id: '$sectionId',
+							totalAmount: {
+								$sum: '$dueAmount',
+							},
+						},
+					},
+					...sortAndGroup,
+				],
+				totalCollected: [
+					{
+						$match: match,
+					},
+					{
+						$group: {
+							_id: '$sectionId',
+							totalAmount: {
+								$sum: '$paidAmount',
+							},
+						},
+					},
+					...sortAndGroup,
+				],
+			},
+		},
+	];
+
+	const feesReport = await FeeInstallment.aggregate(aggregate);
+
+	const { totalReceivables, totalDues, totalCollected } = feesReport[0];
+
+	const setDefaultValues = data => {
+		const defaultData = {
+			totalAmount: 0,
+			maxClass: { amount: 0, sectionId: null },
+			minClass: { amount: 0, sectionId: null },
+		};
+		return { ...defaultData, ...data };
+	};
+
+	const updateSectionInfo = (sectionObj, info) => {
+		const section = sectionObj[info.sectionId];
+		return section
+			? {
+					amount: info.amount,
+					sectionId: {
+						_id: section._id,
+						sectionName: section.name,
+						className: section.className,
+					},
+			  }
+			: null;
+	};
+
+	const setDefaultValuesAndUpdateSectionInfo = (data, sectionObj) => {
+		const defaultData = setDefaultValues(data);
+		const maxClass = updateSectionInfo(sectionObj, defaultData.maxClass);
+		const minClass = updateSectionInfo(sectionObj, defaultData.minClass);
+		return {
+			totalAmount: defaultData.totalAmount,
+			maxClass: maxClass || defaultData.maxClass,
+			minClass: minClass || defaultData.minClass,
+		};
+	};
+
+	const totalReceivable = setDefaultValuesAndUpdateSectionInfo(
+		totalReceivables[0],
+		sectionList
+	);
+
+	const totalPending = setDefaultValuesAndUpdateSectionInfo(
+		totalDues[0],
+		sectionList
+	);
+
+	const totalCollectedData = setDefaultValuesAndUpdateSectionInfo(
+		totalCollected[0],
+		sectionList
+	);
+
+	res.status(200).json(
+		SuccessResponse(
+			{
+				totalReceivable,
+				totalPending,
+				totalCollectedData,
+			},
+			1,
+			'Fetched SuccessFully'
+		)
+	);
 };

@@ -12,6 +12,8 @@ router.get(
 	feeInstallmentController.SectionWiseTransaction
 );
 
+router.get('/reportBySchedules', feeInstallmentController.reportBySchedules);
+
 router.post('/:id', feeInstallmentController.update);
 
 router.get(
