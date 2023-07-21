@@ -1524,16 +1524,6 @@ exports.IncomeDashboard = async (req, res, next) => {
 				break;
 		}
 
-		let sectionList = await Sections.find({
-			school: mongoose.Types.ObjectId(schoolId),
-		})
-			.project({ name: 1, className: 1 })
-			.toArray();
-		sectionList = sectionList.reduce((acc, curr) => {
-			acc[curr._id] = curr;
-			return acc;
-		}, {});
-
 		const totalIncomeAggregation = [
 			{
 				$match: {
@@ -1609,68 +1599,48 @@ exports.IncomeDashboard = async (req, res, next) => {
 							},
 						},
 						{
-							$addFields: {
-								section: '$student.section',
-								class: '$student.class',
+							$unwind: {
+								path: '$items',
+								preserveNullAndEmptyArrays: true,
 							},
 						},
 						{
 							$group: {
-								_id: '$section',
-								class: {
-									$first: '$class',
-								},
-								// TODO: Separate field "AcademicPaidAmount" to be summed.
+								_id: '$items.feeTypeId',
 								totalAmount: {
-									$sum: '$academicPaidAmount',
+									$sum: '$items.paidAmount',
 								},
 							},
 						},
 						{
-							$sort: {
-								totalAmount: -1,
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								totalAmount: {
-									$sum: '$totalAmount',
+							$lookup: {
+								from: 'feetypes',
+								let: {
+									feeTypeId: '$_id',
 								},
-								maxClass: {
-									$max: {
-										amount: '$totalAmount',
-										section: '$_id',
-										class: '$class',
+								pipeline: [
+									{
+										$match: {
+											$expr: {
+												$eq: ['$_id', '$$feeTypeId'],
+											},
+										},
 									},
-								},
-								minClass: {
-									$min: {
-										amount: '$totalAmount',
-										section: '$_id',
-										class: '$class',
+									{
+										$project: {
+											feeType: 1,
+										},
 									},
-								},
+								],
+								as: '_id',
 							},
 						},
 						{
 							$project: {
-								totalAmount: 1,
-								maxClass: {
-									amount: 1,
-									sectionId: {
-										sectionName: '$maxClass.section.name',
-										className: '$maxClass.class.name',
-										_id: '$maxClass.section.sectionId',
-									},
-								},
-								minClass: {
-									amount: 1,
-									sectionId: {
-										sectionName: '$minClass.section.name',
-										className: '$minClass.class.name',
-										_id: '$minClass.section.sectionId',
-									},
+								_id: 0,
+								amount: '$totalAmount',
+								feeTypeId: {
+									$first: '$_id',
 								},
 							},
 						},
@@ -1679,11 +1649,13 @@ exports.IncomeDashboard = async (req, res, next) => {
 						{
 							$match: {
 								'school.schoolId': mongoose.Types.ObjectId(schoolId),
-								receiptType: {
-									$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS_BALANCE'],
+								status: {
+									$ne: 'CANCELLED',
 								},
 								issueDate: dateObj,
-								status: { $ne: 'CANCELLED' },
+								receiptType: {
+									$in: ['MISCELLANEOUS', 'PREVIOUS_BALANCE', 'APPLICATION'],
+								},
 							},
 						},
 						{
@@ -1700,13 +1672,43 @@ exports.IncomeDashboard = async (req, res, next) => {
 								},
 							},
 						},
+						{
+							$lookup: {
+								from: 'feetypes',
+								let: {
+									feeTypeId: '$_id',
+								},
+								pipeline: [
+									{
+										$match: {
+											$expr: {
+												$eq: ['$_id', '$$feeTypeId'],
+											},
+										},
+									},
+									{
+										$project: {
+											feeType: 1,
+										},
+									},
+								],
+								as: '_id',
+							},
+						},
+						{
+							$project: {
+								_id: 0,
+								amount: '$totalAmount',
+								feeTypeId: {
+									$first: '$_id',
+								},
+							},
+						},
 					],
-					// totalIncomeCollected[0].totalAmount
 					totalIncomeCollected: totalIncomeAggregation,
 				},
 			},
 		];
-		// prevIncomeCollected[0].totalAmount
 		if (dateRange) {
 			miscAggregate[0].$facet.prevIncomeCollected = [
 				{
@@ -1725,186 +1727,28 @@ exports.IncomeDashboard = async (req, res, next) => {
 				},
 			];
 		}
-		const incomeAggregate = [
-			{
-				$facet: {
-					totalReceivable: [
-						{
-							$match: {
-								schoolId: mongoose.Types.ObjectId(schoolId),
-							},
-						},
-						{
-							$group: {
-								_id: '$sectionId',
-								totalAmount: { $sum: '$netAmount' },
-							},
-						},
-						{ $sort: { totalAmount: -1 } },
-						{
-							$group: {
-								_id: null,
-								totalAmount: { $sum: '$totalAmount' },
-								maxClass: {
-									$max: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-								minClass: {
-									$min: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-							},
-						},
-					],
-					totalPending: [
-						{
-							$match: {
-								schoolId: mongoose.Types.ObjectId(schoolId),
-								status: {
-									$in: ['Due', 'Upcoming'],
-								},
-								date: dateObj,
-							},
-						},
-						{
-							$group: {
-								_id: '$sectionId',
-								totalAmount: {
-									$sum: '$netAmount',
-								},
-							},
-						},
-						{
-							$sort: {
-								totalAmount: -1,
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								totalAmount: {
-									$sum: '$totalAmount',
-								},
-								maxClass: {
-									$max: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-								minClass: {
-									$min: {
-										amount: '$totalAmount',
-										sectionId: '$_id',
-									},
-								},
-							},
-						},
-					],
-				},
-			},
-			{
-				$project: {
-					totalReceivable: {
-						$first: '$totalReceivable',
-					},
-					totalPending: {
-						$first: '$totalPending',
-					},
-				},
-			},
-		];
+
 		const totalIncomeData = await FeeReceipt.aggregate(miscAggregate);
-		const feesReport = await FeeInstallment.aggregate(incomeAggregate);
-		if (!feesReport.length) {
-			return next(new ErrorResponse('No Data Found', 404));
-		}
-		const incomeData = feesReport[0];
+		const incomeData = {};
 		const {
-			totalCollected,
 			miscCollected,
 			totalIncomeCollected,
 			prevIncomeCollected = [],
+			totalCollected,
 		} = totalIncomeData[0];
 		incomeData.miscellaneous = [];
-		const setDefaultValues = data => {
-			const defaultData = {
-				totalAmount: 0,
-				maxClass: { amount: 0, sectionId: null },
-				minClass: { amount: 0, sectionId: null },
-			};
-			return { ...defaultData, ...data };
-		};
-
-		const updateSectionInfo = (sectionObj, info) => {
-			const section = sectionObj[info.sectionId];
-			return section
-				? {
-						amount: info.amount,
-						sectionId: {
-							_id: section._id,
-							sectionName: section.name,
-							className: section.className,
-						},
-				  }
-				: null;
-		};
-
-		const setDefaultValuesAndUpdateSectionInfo = (data, sectionObj) => {
-			const defaultData = setDefaultValues(data);
-			const maxClass = updateSectionInfo(sectionObj, defaultData.maxClass);
-			const minClass = updateSectionInfo(sectionObj, defaultData.minClass);
-			return {
-				totalAmount: defaultData.totalAmount,
-				maxClass: maxClass || defaultData.maxClass,
-				minClass: minClass || defaultData.minClass,
-			};
-		};
-
-		incomeData.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
-			incomeData.totalReceivable,
-			sectionList
-		);
-		incomeData.totalCollected = setDefaultValuesAndUpdateSectionInfo(
-			totalCollected[0],
-			sectionList
-		);
-		incomeData.totalPending = setDefaultValuesAndUpdateSectionInfo(
-			incomeData.totalPending,
-			sectionList
-		);
 
 		if (miscCollected.length) {
-			const foundMiscTypes = await FeeType.find(
-				{
-					schoolId: mongoose.Types.ObjectId(schoolId),
-					feeCategory: {
-						$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS'],
-					},
-				},
-				{
-					feeType: 1,
-				}
-			).lean();
-			const miscTypes = foundMiscTypes.reduce((acc, curr) => {
-				acc[curr._id] = curr.feeType;
-				return acc;
-			}, {});
-			// TODO: To make miscellaneous as object with the data array and summary amount
-			// TODO: incomeData.academicCollection = totalIncomeCollected[0].totalAmount with fee type grouped amount.
-			incomeData.miscellaneous = miscCollected.map(misc => {
-				const miscType = miscTypes[misc._id];
-				return {
-					amount: misc.totalAmount,
-					feeTypeId: {
-						_id: misc._id,
-						feeType: miscType,
-					},
-				};
-			});
+			incomeData.miscellaneous = {
+				totalAmount: miscCollected.reduce((acc, curr) => acc + curr.amount, 0),
+				miscList: miscCollected,
+			};
+		}
+		if (totalCollected.length) {
+			incomeData.totalCollected = {
+				totalAmount: totalCollected.reduce((acc, curr) => acc + curr.amount, 0),
+				feeList: totalCollected,
+			};
 		}
 		const prevAmount = prevIncomeCollected[0]?.totalAmount || 0;
 		const currentPaidAmount = totalIncomeCollected[0]?.totalAmount || 0;
