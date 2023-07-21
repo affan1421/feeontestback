@@ -930,17 +930,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const { dateRange = null, startDate = null, endDate = null } = req.query;
 	let dateObj = null;
 
-	// Section Data
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(school_id),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
-
 	// get Student data total students, boys and girls count
 	const studentData = await Student.aggregate([
 		{
@@ -1352,88 +1341,10 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	const incomeAggregate = [
 		{
 			$facet: {
-				totalCollected: [
-					{
-						$match: {
-							'school.schoolId': mongoose.Types.ObjectId(school_id),
-							receiptType: 'ACADEMIC',
-							issueDate: dateObj,
-							status: { $ne: 'CANCELLED' },
-						},
-					},
-					{
-						$addFields: {
-							section: '$student.section',
-							class: '$student.class',
-						},
-					},
-					{
-						$group: {
-							_id: '$section',
-							class: {
-								$first: '$class',
-							},
-							totalAmount: {
-								$sum: '$academicPaidAmount',
-							},
-						},
-					},
-					{
-						$sort: {
-							totalAmount: -1,
-						},
-					},
-					{
-						$group: {
-							_id: null,
-							totalAmount: {
-								$sum: '$totalAmount',
-							},
-							maxClass: {
-								$max: {
-									amount: '$totalAmount',
-									section: '$_id',
-									class: '$class',
-								},
-							},
-							minClass: {
-								$min: {
-									amount: '$totalAmount',
-									section: '$_id',
-									class: '$class',
-								},
-							},
-						},
-					},
-					{
-						$project: {
-							totalAmount: 1,
-							maxClass: {
-								amount: 1,
-								sectionId: {
-									sectionName: '$maxClass.section.name',
-									className: '$maxClass.class.name',
-									_id: '$maxClass.section.sectionId',
-								},
-							},
-							minClass: {
-								amount: 1,
-								sectionId: {
-									sectionName: '$minClass.section.name',
-									className: '$minClass.class.name',
-									_id: '$minClass.section.sectionId',
-								},
-							},
-						},
-					},
-				],
 				miscCollected: [
 					{
 						$match: {
 							'school.schoolId': mongoose.Types.ObjectId(school_id),
-							receiptType: {
-								$in: ['APPLICATION', 'MISCELLANEOUS', 'PREVIOUS_BALANCE'],
-							},
 							issueDate: dateObj,
 							status: { $ne: 'CANCELLED' },
 						},
@@ -1448,7 +1359,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 						$group: {
 							_id: '$items.feeTypeId',
 							totalAmount: {
-								$sum: '$paidAmount',
+								$sum: '$items.paidAmount',
 							},
 						},
 					},
@@ -1483,7 +1394,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
-				// totalIncomeCollected[0].totalAmount
 				totalIncomeCollected: totalIncomeAggregation,
 				// method method wise data
 
@@ -1520,12 +1430,8 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	];
 	const incomeData = await FeeReceipt.aggregate(incomeAggregate);
 
-	const {
-		totalCollected,
-		miscCollected,
-		totalIncomeCollected,
-		paymentTypeData,
-	} = incomeData[0];
+	const { miscCollected, totalIncomeCollected, paymentTypeData } =
+		incomeData[0];
 
 	resObj.paymentMethods = paymentTypeData;
 	resObj.financialFlows = { income: miscCollected };
@@ -1560,163 +1466,67 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 
 	/// /////////////////////////////////////////////////////////////////
 
-	// FeeInstallment Detailed Data
-	// totalReceivable, totalPending, feePerformance
-	const installmentAggregation = [
+	// FeeInstallment Detailed Data feePerformance
+	const feePerformanceAggregation = [
 		{
-			$facet: {
-				totalReceivable: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(school_id),
-						},
-					},
-					{
-						$group: {
-							_id: '$sectionId',
-							totalAmount: { $sum: '$netAmount' },
-						},
-					},
-					{ $sort: { totalAmount: -1 } },
-					{
-						$group: {
-							_id: null,
-							totalAmount: { $sum: '$totalAmount' },
-							maxClass: {
-								$max: {
-									amount: '$totalAmount',
-									sectionId: '$_id',
-								},
-							},
-							minClass: {
-								$min: {
-									amount: '$totalAmount',
-									sectionId: '$_id',
-								},
-							},
-						},
-					},
-				],
-				totalPending: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(school_id),
-							status: {
-								$in: ['Due', 'Upcoming'],
-							},
-							date: dateObj,
-						},
-					},
-					{
-						$group: {
-							_id: '$sectionId',
-							totalAmount: {
-								$sum: '$netAmount',
-							},
-						},
-					},
-					{
-						$sort: {
-							totalAmount: -1,
-						},
-					},
-					{
-						$group: {
-							_id: null,
-							totalAmount: {
-								$sum: '$totalAmount',
-							},
-							maxClass: {
-								$max: {
-									amount: '$totalAmount',
-									sectionId: '$_id',
-								},
-							},
-							minClass: {
-								$min: {
-									amount: '$totalAmount',
-									sectionId: '$_id',
-								},
-							},
-						},
-					},
-				],
-				feePerformance: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(school_id),
-						},
-					},
-					{
-						$group: {
-							_id: '$schoolId',
-							paidCount: {
-								$sum: {
-									$cond: [
-										{
-											$eq: ['$status', 'Paid'],
-										},
-										1,
-										0,
-									],
-								},
-							},
-							lateCount: {
-								$sum: {
-									$cond: [
-										{
-											$eq: ['$status', 'Late'],
-										},
-										1,
-										0,
-									],
-								},
-							},
-							dueCount: {
-								$sum: {
-									$cond: [
-										{
-											$eq: ['$status', 'Due'],
-										},
-										1,
-										0,
-									],
-								},
-							},
-							upcomingCount: {
-								$sum: {
-									$cond: [
-										{
-											$eq: ['$status', 'Upcoming'],
-										},
-										1,
-										0,
-									],
-								},
-							},
-						},
-					},
-				],
+			$match: {
+				schoolId: mongoose.Types.ObjectId(school_id),
 			},
 		},
 		{
-			$project: {
-				totalReceivable: {
-					$first: '$totalReceivable',
+			$group: {
+				_id: '$schoolId',
+				paidCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Paid'],
+							},
+							1,
+							0,
+						],
+					},
 				},
-				totalPending: {
-					$first: '$totalPending',
+				lateCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Late'],
+							},
+							1,
+							0,
+						],
+					},
 				},
-				feePerformance: {
-					$first: '$feePerformance',
+				dueCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Due'],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				upcomingCount: {
+					$sum: {
+						$cond: [
+							{
+								$eq: ['$status', 'Upcoming'],
+							},
+							1,
+							0,
+						],
+					},
 				},
 			},
 		},
 	];
 
 	// Fee performance Data
-	const feesReport = await FeeInstallment.aggregate(installmentAggregation);
-	const { totalReceivable, totalPending, feePerformance } = feesReport[0];
+	const feesReport = await FeeInstallment.aggregate(feePerformanceAggregation);
+	const feePerformance = feesReport[0];
 
 	resObj.studentPerformance = feePerformance ?? {
 		dueCount: 0,
@@ -1825,54 +1635,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		},
 	};
 
-	/// /////////////////////////////////////////////////////////////////////
-
-	const setDefaultValues = data => {
-		const defaultData = {
-			totalAmount: 0,
-			maxClass: { amount: 0, sectionId: null },
-			minClass: { amount: 0, sectionId: null },
-		};
-		return { ...defaultData, ...data };
-	};
-
-	const updateSectionInfo = (sectionObj, info) => {
-		const section = sectionObj[info.sectionId];
-		return section
-			? {
-					amount: info.amount,
-					sectionId: {
-						_id: section._id,
-						sectionName: section.name,
-						className: section.className,
-					},
-			  }
-			: null;
-	};
-
-	const setDefaultValuesAndUpdateSectionInfo = (data, sectionObj) => {
-		const defaultData = setDefaultValues(data);
-		const maxClass = updateSectionInfo(sectionObj, defaultData.maxClass);
-		const minClass = updateSectionInfo(sectionObj, defaultData.minClass);
-		return {
-			totalAmount: defaultData.totalAmount,
-			maxClass: maxClass || defaultData.maxClass,
-			minClass: minClass || defaultData.minClass,
-		};
-	};
-
-	resObj.totalReceivable = setDefaultValuesAndUpdateSectionInfo(
-		totalReceivable,
-		sectionList
-	);
-	resObj.feeCollection = setDefaultValuesAndUpdateSectionInfo(
-		totalCollected,
-		sectionList
-	);
-	resObj.totalPending = setDefaultValuesAndUpdateSectionInfo(
-		totalPending,
-		sectionList
-	);
 	const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
 
 	resObj.incomeData = {
