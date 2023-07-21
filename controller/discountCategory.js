@@ -74,13 +74,13 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					$first: '$sectionName',
 				},
 				totalStudents: {
-					$first: '$totalStudents',
+					$sum: '$totalStudents',
 				},
 				totalApproved: {
-					$first: '$totalApproved',
+					$sum: '$totalApproved',
 				},
 				totalPending: {
-					$first: '$totalPending',
+					$sum: '$totalPending',
 				},
 				totalAmount: {
 					$sum: '$discountAmount',
