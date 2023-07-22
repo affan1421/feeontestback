@@ -34,6 +34,7 @@ exports.create = async (req, res, next) => {
 	if (categoryId != null) {
 		payload.categoryId = categoryId;
 	}
+	if (isMisc) payload.feeCategory = 'MISCELLANEOUS';
 
 	let newFeeType;
 	try {
