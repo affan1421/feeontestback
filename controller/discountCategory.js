@@ -74,13 +74,13 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					$first: '$sectionName',
 				},
 				totalStudents: {
-					$first: '$totalStudents',
+					$sum: '$totalStudents',
 				},
 				totalApproved: {
-					$first: '$totalApproved',
+					$sum: '$totalApproved',
 				},
 				totalPending: {
-					$first: '$totalPending',
+					$sum: '$totalPending',
 				},
 				totalAmount: {
 					$sum: '$discountAmount',
@@ -487,8 +487,8 @@ const mapDiscountCategory = async (req, res, next) => {
 				await FeeInstallment.bulkWrite(bulkOps);
 			}
 
-			const reducedStudentList = studentList.filter(
-				({ studentId }) => tempStudMap[studentId] > 0
+			const reducedStudentList = uniqueStudList.filter(
+				studentId => tempStudMap[studentId] > 0
 			);
 
 			classList.push({
@@ -509,8 +509,8 @@ const mapDiscountCategory = async (req, res, next) => {
 			});
 		}
 
-		const filteredStudentList = studentList.filter(
-			({ studentId }) => studentMap[studentId] > 0
+		const filteredStudentList = uniqueStudList.filter(
+			studentId => studentMap[studentId] > 0
 		);
 
 		if (!filteredStudentList.length) {
@@ -920,6 +920,7 @@ const addStudentToDiscount = async (req, res, next) => {
 		let discountAmount = 0;
 		let discountCategory = null;
 		const studentMap = {};
+		const studentMapDup = { ...studentMap };
 		const uniqueStudList = [
 			...new Set(studentList.map(({ studentId }) => studentId)),
 		];
@@ -939,6 +940,8 @@ const addStudentToDiscount = async (req, res, next) => {
 
 		await Promise.all(
 			rows.map(async ({ feeTypeId, isPercentage, value }) => {
+				const tempStudMap = { ...studentMapDup };
+
 				if (isPercentage === undefined || !value) {
 					return next(
 						new ErrorResponse('Please Provide All Required Fields', 422)
@@ -985,6 +988,7 @@ const addStudentToDiscount = async (req, res, next) => {
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
 						if (calAmount <= netAmount - paidAmount) {
 							studentMap[studentId] = (studentMap[studentId] || 0) + 1;
+							tempStudMap[studentId] = (tempStudMap[studentId] || 0) + 1;
 							discountAmount += calAmount;
 							bulkOps.push({
 								updateOne: {
@@ -999,11 +1003,30 @@ const addStudentToDiscount = async (req, res, next) => {
 				if (bulkOps.length > 0) {
 					await FeeInstallment.bulkWrite(bulkOps);
 				}
+
+				const reducedStudentList = uniqueStudList.filter(
+					studentId => tempStudMap[studentId] > 0
+				);
+
+				await SectionDiscount.updateOne(
+					{
+						discountId: mongoose.Types.ObjectId(discountId),
+						sectionId,
+						feeStructureId,
+						feeTypeId,
+					},
+					{
+						$inc: {
+							totalPending: reducedStudentList.length,
+							totalStudents: reducedStudentList.length,
+						},
+					}
+				);
 			})
 		);
 
-		const filteredStudentList = studentList.filter(
-			({ studentId }) => studentMap[studentId] > 0
+		const filteredStudentList = uniqueStudList.filter(
+			studentId => studentMap[studentId] > 0
 		);
 
 		if (!filteredStudentList.length) {
@@ -1034,16 +1057,6 @@ const addStudentToDiscount = async (req, res, next) => {
 				attachments: attachmentObj,
 			};
 		}
-
-		await SectionDiscount.updateMany(
-			{ discountId: mongoose.Types.ObjectId(discountId), sectionId },
-			{
-				$inc: {
-					totalPending: filteredStudentList.length,
-					totalStudents: filteredStudentList.length,
-				},
-			}
-		);
 
 		await DiscountCategory.updateOne({ _id: discountId }, update);
 
