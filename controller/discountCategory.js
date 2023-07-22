@@ -988,6 +988,7 @@ const addStudentToDiscount = async (req, res, next) => {
 					for (const { studentId, netAmount, paidAmount } of feeInstallments) {
 						if (calAmount <= netAmount - paidAmount) {
 							studentMap[studentId] = (studentMap[studentId] || 0) + 1;
+							tempStudMap[studentId] = (tempStudMap[studentId] || 0) + 1;
 							discountAmount += calAmount;
 							bulkOps.push({
 								updateOne: {
