@@ -1829,7 +1829,7 @@ exports.AddPreviousFee = async (req, res, next) => {
 };
 
 exports.reportBySchedules = async (req, res, next) => {
-	const { scheduleId = null, scheduleDates = [] } = req.body;
+	const { scheduleId = null, scheduleDates = [], withDisc = false } = req.body;
 	const { school_id } = req.user;
 
 	// For fee performance
@@ -1906,7 +1906,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: '$netAmount',
+								$sum: withDisc ? '$netAmount' : '$totalAmount',
 							},
 						},
 					},
@@ -1932,7 +1932,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: '$dueAmount',
+								$sum: withDisc ? '$netAmount' : '$totalAmount',
 							},
 						},
 					},

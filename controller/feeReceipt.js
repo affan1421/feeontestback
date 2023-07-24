@@ -801,7 +801,7 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
-	const { schoolId, classId, paymentMode, receiptType } = req.query;
+	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
 	const payload = {};
 	// find the active academic year
 
@@ -814,14 +814,17 @@ const getExcel = catchAsync(async (req, res, next) => {
 	if (schoolId) {
 		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
 	}
-	if (classId) {
-		payload['student.class.classId'] = mongoose.Types.ObjectId(classId);
+	if (sectionId) {
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
 	}
 	if (paymentMode) {
 		payload['payment.method'] = paymentMode;
 	}
-	if (receiptType) {
-		payload.receiptType = receiptType;
+	if (startDate && endDate) {
+		payload.issueDate = {
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
 	}
 
 	const receiptDetails = await FeeReceipt.aggregate([
@@ -913,7 +916,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 7).string(receipt.method);
 	});
 
-	workbook.write('income.xlsx');
+	// workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
