@@ -8,7 +8,6 @@ const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
 
-const FeeType = require('../models/feeType');
 const FeeStructure = require('../models/feeStructure');
 const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
@@ -1830,9 +1829,14 @@ exports.AddPreviousFee = async (req, res, next) => {
 };
 
 exports.reportBySchedules = async (req, res, next) => {
-	// TODO: Accept schoolId from req.user
-	const { scheduleId = null, scheduleDate = null } = req.query;
+	const { scheduleId = null, scheduleDates = [], withDisc = false } = req.body;
 	const { school_id } = req.user;
+
+	// For fee performance
+	// Full Paid - On Time, Late
+	// Partial Paid - On Time, Late
+	// Not Paid
+	// We cant show on time / late for multiple schedules, cause 1 can be on time and other can be late and viceversa.
 
 	let sectionList = await Sections.find({
 		school: mongoose.Types.ObjectId(school_id),
@@ -1878,75 +1882,19 @@ exports.reportBySchedules = async (req, res, next) => {
 
 	if (scheduleId) match.scheduleTypeId = mongoose.Types.ObjectId(scheduleId);
 
-	if (scheduleDate) {
-		match.date = {
-			$gte: moment(scheduleDate, 'MM/DD/YYYY').startOf('day').toDate(),
-			$lte: moment(scheduleDate, 'MM/DD/YYYY').endOf('day').toDate(),
-		};
+	if (scheduleDates.length) {
+		match.$or = scheduleDates.map(date => {
+			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			return {
+				date: {
+					$gte: startDate,
+					$lte: endDate,
+				},
+			};
+		});
 	}
 
-	/*
-		res = {
-			totalReceivables: {
-				totalAmount: 0,
-				maxClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-				minClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-			},
-			totalCollected: {
-				totalAmount: 0,
-				maxClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-				minClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-			},
-			totalPending: {
-				totalAmount: 0,
-				maxClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-				minClass: {
-					amount: 0,
-					sectionId: {
-						sectionName: '',
-						className: '',
-						_id: '',
-					},
-				},
-			}
-
-		}
-	*/
 	const aggregate = [
 		{
 			$facet: {
@@ -1958,7 +1906,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: '$netAmount',
+								$sum: withDisc ? '$netAmount' : '$totalAmount',
 							},
 						},
 					},
@@ -1984,7 +1932,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: '$dueAmount',
+								$sum: withDisc ? '$netAmount' : '$totalAmount',
 							},
 						},
 					},
@@ -2004,13 +1952,68 @@ exports.reportBySchedules = async (req, res, next) => {
 					},
 					...sortAndGroup,
 				],
+				feePerformance: [
+					{
+						$match: match,
+					},
+					{
+						$group: {
+							_id: '$schoolId',
+							paidCount: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$status', 'Paid'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+							lateCount: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$status', 'Late'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+							dueCount: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$status', 'Due'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+							upcomingCount: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$status', 'Upcoming'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+						},
+					},
+				],
 			},
 		},
 	];
 
 	const feesReport = await FeeInstallment.aggregate(aggregate);
 
-	const { totalReceivables, totalDues, totalCollected } = feesReport[0];
+	const { totalReceivables, totalDues, totalCollected, feePerformance } =
+		feesReport[0];
 
 	const setDefaultValues = data => {
 		const defaultData = {
@@ -2061,15 +2064,18 @@ exports.reportBySchedules = async (req, res, next) => {
 		sectionList
 	);
 
-	res.status(200).json(
-		SuccessResponse(
-			{
-				totalReceivable,
-				totalPending,
-				totalCollectedData,
-			},
-			1,
-			'Fetched SuccessFully'
-		)
-	);
+	const response = {
+		totalReceivable,
+		totalPending,
+		totalCollectedData,
+	};
+
+	response.feePerformance = feePerformance[0] ?? {
+		paidCount: 0,
+		lateCount: 0,
+		dueCount: 0,
+		upcomingCount: 0,
+	};
+
+	res.status(200).json(SuccessResponse(response, 1, 'Fetched SuccessFully'));
 };
