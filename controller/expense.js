@@ -823,7 +823,13 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 });
 
 exports.getExcel = catchAsync(async (req, res, next) => {
-	const { schoolId, paymentMethod } = req.query;
+	const {
+		schoolId,
+		paymentMethod,
+		sort,
+		startDate, // date range
+		endDate,
+	} = req.query;
 	let match = {};
 	if (!schoolId) {
 		return next(new ErrorResponse('schoolId is required', 422));
@@ -833,9 +839,21 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 	};
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 
-	const expenseDetails = await ExpenseModel.aggregate([
+	if (startDate && endDate) {
+		match.expenseDate = {
+			$gte: moment(startDate, 'MM/DD/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'MM/DD/YYYY').endOf('day').toDate(),
+		};
+	}
+
+	const aggregate = [
 		{
 			$match: match,
+		},
+		{
+			$sort: {
+				expenseDate: -1,
+			},
 		},
 		{
 			$lookup: {
@@ -852,12 +870,15 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
-		{
-			$sort: {
-				expenseDate: 1,
-			},
-		},
-	]);
+	];
+
+	if (sort) {
+		aggregate[1].$sort = {
+			amount: sort === '-1' ? -1 : 1,
+		};
+	}
+
+	const expenseDetails = await ExpenseModel.aggregate(aggregate);
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Expense Details');

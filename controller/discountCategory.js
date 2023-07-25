@@ -774,7 +774,13 @@ const approveStudentDiscount = async (req, res, next) => {
 		if (!feeInstallments.length) {
 			return next(new ErrorResponse('No Fee Installment Found', 404));
 		}
-		for (const { _id, discounts, paidAmount, netAmount } of feeInstallments) {
+		for (const {
+			_id,
+			discounts,
+			paidAmount,
+			netAmount,
+			status: installmentStatus,
+		} of feeInstallments) {
 			// find the discount amount in the discounts array
 			const discount = discounts.find(
 				d => d.discountId.toString() === discountId.toString()
@@ -783,9 +789,23 @@ const approveStudentDiscount = async (req, res, next) => {
 				return next(new ErrorResponse('No Discount Found', 404));
 			}
 			const { discountAmount } = discount;
-			if (status === 'Approved' && discountAmount <= netAmount - paidAmount) {
+			const dueAmount = netAmount - paidAmount;
+			if (status === 'Approved' && discountAmount <= dueAmount) {
 				installmentLoopCount += 1;
 				updatedAmount += discountAmount;
+				const updateObj = {
+					$set: {
+						'discounts.$.status': 'Approved',
+					},
+					$inc: {
+						totalDiscountAmount: discountAmount,
+						netAmount: -discountAmount,
+					},
+				};
+
+				if (dueAmount === discountAmount) {
+					updateObj.$set.status = installmentStatus === 'Due' ? 'Late' : 'Paid';
+				}
 
 				await FeeInstallment.findOneAndUpdate(
 					{
@@ -797,15 +817,7 @@ const approveStudentDiscount = async (req, res, next) => {
 							},
 						},
 					},
-					{
-						$set: {
-							'discounts.$.status': 'Approved',
-						},
-						$inc: {
-							totalDiscountAmount: discountAmount,
-							netAmount: -discountAmount,
-						},
-					}
+					updateObj
 				);
 			} else {
 				amountToSub += discountAmount; // to be subtracted from the budget alloted

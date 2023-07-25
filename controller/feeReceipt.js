@@ -808,7 +808,7 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
-	const { schoolId, classId, paymentMode, receiptType } = req.query;
+	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
 	const payload = {};
 	// find the active academic year
 
@@ -821,14 +821,17 @@ const getExcel = catchAsync(async (req, res, next) => {
 	if (schoolId) {
 		payload['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
 	}
-	if (classId) {
-		payload['student.class.classId'] = mongoose.Types.ObjectId(classId);
+	if (sectionId) {
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
 	}
 	if (paymentMode) {
 		payload['payment.method'] = paymentMode;
 	}
-	if (receiptType) {
-		payload.receiptType = receiptType;
+	if (startDate && endDate) {
+		payload.issueDate = {
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
 	}
 
 	const receiptDetails = await FeeReceipt.aggregate([
@@ -920,7 +923,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 7).string(receipt.method);
 	});
 
-	workbook.write('income.xlsx');
+	// workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
@@ -1470,77 +1473,6 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		},
 	};
 	resObj.financialFlows.expense = expenseTypeData;
-
-	/// /////////////////////////////////////////////////////////////////
-
-	// FeeInstallment Detailed Data feePerformance
-	const feePerformanceAggregation = [
-		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(school_id),
-			},
-		},
-		{
-			$group: {
-				_id: '$schoolId',
-				paidCount: {
-					$sum: {
-						$cond: [
-							{
-								$eq: ['$status', 'Paid'],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				lateCount: {
-					$sum: {
-						$cond: [
-							{
-								$eq: ['$status', 'Late'],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				dueCount: {
-					$sum: {
-						$cond: [
-							{
-								$eq: ['$status', 'Due'],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				upcomingCount: {
-					$sum: {
-						$cond: [
-							{
-								$eq: ['$status', 'Upcoming'],
-							},
-							1,
-							0,
-						],
-					},
-				},
-			},
-		},
-	];
-
-	// Fee performance Data
-	const feesReport = await FeeInstallment.aggregate(feePerformanceAggregation);
-	const feePerformance = feesReport[0];
-
-	resObj.studentPerformance = feePerformance ?? {
-		dueCount: 0,
-		lateCount: 0,
-		paidCount: 0,
-		upcomingCount: 0,
-	};
 
 	/// ////////////////////////////////////////////////////////////////////
 
