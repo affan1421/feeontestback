@@ -111,6 +111,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 
 const getStudentsByStructure = catchAsync(async (req, res, next) => {
 	const { id, structureId } = req.params;
+	const { sectionId } = req.query;
 	// Fetch attachments object from discount
 	const { attachments = {} } = await DiscountCategory.findOne({
 		_id: id,
@@ -119,6 +120,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				feeStructureId: mongoose.Types.ObjectId(structureId),
+				sectionId: mongoose.Types.ObjectId(sectionId),
 			},
 		},
 		{

@@ -677,7 +677,7 @@ exports.assignFeeStructure = async (req, res, next) => {
 // TODO: Fetch the feeDetails with the students data from feeInstallments
 exports.getFeeCategory = async (req, res, next) => {
 	try {
-		const { id } = req.params;
+		const { id, sectionId } = req.params;
 		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
 		const feeStructure = await FeeStructure.findOne(
 			{
@@ -709,6 +709,7 @@ exports.getFeeCategory = async (req, res, next) => {
 				$match: {
 					schoolId,
 					feeStructureId: mongoose.Types.ObjectId(feeStructure._id),
+					sectionId: mongoose.Types.ObjectId(sectionId),
 				},
 			},
 			{
