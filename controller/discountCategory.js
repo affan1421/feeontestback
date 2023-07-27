@@ -73,7 +73,33 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		},
 		{
 			$group: {
-				_id: '$sectionId',
+				_id: {
+					sectionId: '$sectionId',
+					feeStructureId: '$feeStructureId',
+				},
+				sectionName: {
+					$first: '$sectionName',
+				},
+				totalStudents: {
+					$first: '$totalStudents',
+				},
+				totalApproved: {
+					$first: '$totalApproved',
+				},
+				totalPending: {
+					$first: '$totalPending',
+				},
+				totalAmount: {
+					$sum: '$discountAmount',
+				},
+				totalFees: {
+					$sum: '$totalAmount',
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$_id.sectionId',
 				sectionName: {
 					$first: '$sectionName',
 				},
@@ -87,10 +113,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					$sum: '$totalPending',
 				},
 				totalAmount: {
-					$sum: '$discountAmount',
+					$sum: '$totalAmount',
 				},
 				totalFees: {
-					$sum: '$totalAmount',
+					$sum: '$totalFees',
 				},
 			},
 		},
