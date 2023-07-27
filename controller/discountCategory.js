@@ -496,7 +496,7 @@ const mapDiscountCategory = async (req, res, next) => {
 
 						const insDiscountValue = isPercentage
 							? (minAmount / insTotalAmount) * 100
-							: dueAmount;
+							: minAmount;
 						const insDiscountAmount = isPercentage
 							? (insDiscountValue / 100) * insTotalAmount
 							: insDiscountValue;
@@ -611,7 +611,7 @@ const mapDiscountCategory = async (req, res, next) => {
 			},
 			{
 				$inc: {
-					budgetAlloted: discountAmount * filteredStudentList.length,
+					budgetAlloted: discountAmount,
 					totalStudents: filteredStudentList.length,
 					totalPending: filteredStudentList.length,
 					classesAssociated: 1,
@@ -855,9 +855,17 @@ const approveStudentDiscount = async (req, res, next) => {
 				},
 			},
 		}).lean();
+
 		if (!feeInstallments.length) {
 			return next(new ErrorResponse('No Fee Installment Found', 404));
 		}
+		const { feeStructureId } = feeInstallments[0];
+
+		// find the unique feeTypeId
+		const feeTypeIds = [
+			...new Set(feeInstallments.map(({ feeTypeId }) => feeTypeId)),
+		];
+
 		for (const {
 			_id,
 			discounts,
@@ -959,15 +967,13 @@ const approveStudentDiscount = async (req, res, next) => {
 			{
 				discountId: mongoose.Types.ObjectId(discountId),
 				sectionName,
+				feeStructureId,
+				feeTypeId: { $in: feeTypeIds },
 			},
 			{
 				$inc: {
 					...sectionUpdate,
 				},
-			},
-			{
-				new: true,
-				multi: true,
 			}
 		);
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
@@ -1013,7 +1019,7 @@ const addStudentToDiscount = async (req, res, next) => {
 			return next(new ErrorResponse('Please Provide All Required Fields', 422));
 		}
 
-		const discountAmount = 0;
+		let discountAmount = 0;
 		let discountCategory = null;
 		const studentMap = {};
 		const studentMapDup = { ...studentMap };
@@ -1094,7 +1100,7 @@ const addStudentToDiscount = async (req, res, next) => {
 
 							const insDiscountValue = isPercentage
 								? (minAmount / insTotalAmount) * 100
-								: dueAmount;
+								: minAmount;
 							const insDiscountAmount = isPercentage
 								? (insDiscountValue / 100) * insTotalAmount
 								: insDiscountValue;
@@ -1140,6 +1146,8 @@ const addStudentToDiscount = async (req, res, next) => {
 				const reducedStudentList = uniqueStudList.filter(
 					studentId => tempStudMap[studentId] > 0
 				);
+
+				discountAmount += tempDiscountAmount * reducedStudentList.length;
 
 				await SectionDiscount.updateOne(
 					{
