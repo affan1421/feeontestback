@@ -72,6 +72,13 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$match: query,
 		},
 		{
+			$addFields: {
+				approvedAmount: {
+					$multiply: ['$discountAmount', '$totalApproved'],
+				},
+			},
+		},
+		{
 			$group: {
 				_id: {
 					sectionId: '$sectionId',
@@ -681,7 +688,10 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		},
 		{
 			$group: {
-				_id: '$studentId',
+				_id: {
+					feeStructureId: '$feeStructureId',
+					studentId: '$studentId',
+				},
 				sectionId: {
 					$first: '$sectionId',
 				},
@@ -795,6 +805,30 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
+			$lookup: {
+				from: 'feestructures',
+				let: {
+					structureId: '$_id.feeStructureId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$structureId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							totalAmount: 1,
+						},
+					},
+				],
+				as: 'feeStructure',
+			},
+		},
+		{
 			$project: {
 				_id: 0,
 				studentId: '$_id',
@@ -819,7 +853,9 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 				totalPendingAmount: 1,
 				totalDiscountAmount: 1,
 				totalApprovedAmount: 1,
-				totalFees: 1,
+				totalFees: {
+					$first: '$feeStructure.totalAmount',
+				},
 			},
 		},
 	]);
@@ -1266,9 +1302,11 @@ const addStudentToDiscount = async (req, res, next) => {
 
 const getSectionDiscount = catchAsync(async (req, res, next) => {
 	const { id, feeStructureId } = req.params;
+	const { sectionId } = req.query;
 	const filter = {
 		discountId: mongoose.Types.ObjectId(id),
 		feeStructureId: mongoose.Types.ObjectId(feeStructureId),
+		sectionId: mongoose.Types.ObjectId(sectionId),
 	};
 	const projections = {
 		_id: 0,
