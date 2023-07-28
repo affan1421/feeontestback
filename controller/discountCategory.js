@@ -831,7 +831,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		{
 			$project: {
 				_id: 0,
-				studentId: '$_id',
+				studentId: '$_id.studentId',
 				studentName: {
 					$first: '$student.name',
 				},
