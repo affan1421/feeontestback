@@ -620,7 +620,7 @@ const mapDiscountCategory = async (req, res, next) => {
 
 							$push: {
 								'refund.history': {
-									id: discountId,
+									id: mongoose.Types.ObjectId(discountId),
 									amount: refundAmount,
 									date: new Date(),
 									reason: 'Discount Refund',
@@ -1251,7 +1251,7 @@ const addStudentToDiscount = async (req, res, next) => {
 
 							$push: {
 								'refund.history': {
-									id: discountId,
+									id: mongoose.Types.ObjectId(discountId),
 									amount: refundAmount,
 									date: new Date(),
 									reason: 'Discount Refund',
@@ -1417,9 +1417,11 @@ const discountReport = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(sectionDiscounts, 1, 'Fetched Successfully'));
 });
 
+// TODO: while revoking check for the refund amount of this discount and remove it from the refund amount of the student
 const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { studentId } = req.body;
+	const promises = [];
 	let totalDiscountAmount = 0;
 	// Fetch all feeInstallments of the student
 
@@ -1444,6 +1446,17 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 			new ErrorResponse('Cannot Revoke Discount, Receipts Are Generated', 400)
 		);
 	}
+
+	// find if there is refund for that discount of this student
+	const studentDoc = await Students.findOne({
+		_id: mongoose.Types.ObjectId(studentId),
+		'refund.history': {
+			$elemMatch: {
+				id: mongoose.Types.ObjectId(id),
+				status: 'PENDING',
+			},
+		},
+	});
 
 	const { sectionId, feeStructureId } = feeInstallments[0];
 	// Update the feeInstallments
@@ -1481,9 +1494,11 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 			}
 		);
 	}
+
 	// Update the totalApproved and totalPending in sectionDiscount
-	await Promise.all([
-		await SectionDiscount.updateMany(
+
+	promises.push(
+		SectionDiscount.updateMany(
 			{
 				discountId: mongoose.Types.ObjectId(id),
 				sectionId: mongoose.Types.ObjectId(sectionId),
@@ -1496,7 +1511,7 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 				},
 			}
 		),
-		await DiscountCategory.updateOne(
+		DiscountCategory.updateOne(
 			{
 				_id: id,
 			},
@@ -1508,8 +1523,32 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 					budgetAlloted: -totalDiscountAmount,
 				},
 			}
-		),
-	]);
+		)
+	);
+
+	if (studentDoc) {
+		const { history } = studentDoc.refund;
+		const { amount } = history.find(h => h.id.toString() === id.toString());
+		promises.push(
+			Students.updateOne(
+				{
+					_id: mongoose.Types.ObjectId(studentId),
+				},
+				{
+					$pull: {
+						'refund.history': {
+							id: mongoose.Types.ObjectId(id),
+						},
+					},
+					$inc: {
+						'refund.totalAmount': -amount,
+					},
+				}
+			)
+		);
+	}
+
+	await Promise.allSettled(promises);
 	res.status(200).json(SuccessResponse(null, 1, 'Revoked Successfully'));
 });
 
