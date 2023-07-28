@@ -276,53 +276,54 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		let { studentList, feeStructureName, classes, feeDetails, ...rest } =
+		const { studentList, feeStructureName, classes, feeDetails, ...rest } =
 			req.body;
-		const foundStructure = await FeeStructure.findOne({
-			_id: id,
-		});
-		const { existingStudents, studentsToUpdate, studentsToRemove } =
-			studentList.reduce(
-				(acc, student) => {
-					const { isNew, isRemoved, isSelected } = student;
-					if (!isNew && !isRemoved && isSelected) {
-						acc.existingStudents.push(student);
-					} else if (isNew) {
-						acc.studentsToUpdate.push(student);
-					} else if (isRemoved) {
-						acc.studentsToRemove.push(student);
-					}
-					return acc;
-				},
-				{
-					existingStudents: [],
-					studentsToUpdate: [],
-					studentsToRemove: [],
+
+		// Dependent on isRowAdded
+		// const foundStructure = await FeeStructure.findOne({
+		// 	_id: id,
+		// });
+
+		const { studentsToUpdate, studentsToRemove } = studentList.reduce(
+			(acc, student) => {
+				const { isNew, isRemoved } = student;
+				if (isNew) {
+					acc.studentsToUpdate.push(student);
+				} else if (isRemoved) {
+					acc.studentsToRemove.push(student);
 				}
-			);
+				return acc;
+			},
+			{
+				studentsToUpdate: [],
+				studentsToRemove: [],
+			}
+		);
 
-		if (rest.isRowAdded) {
-			feeDetails = feeDetails.map(fee =>
-				fee.isNewFieldinEdit ? { ...fee, _id: mongoose.Types.ObjectId() } : fee
-			);
-			const existingTypes = foundStructure.feeDetails.map(fee =>
-				fee.feeTypeId.toString()
-			);
-			// extract new rows from the fedetails
-			const newRows = feeDetails.filter(
-				fee => !existingTypes.includes(fee.feeTypeId)
-			);
+		// TODO: Due to existing heavy payload of existing (250+) students. the ADD ROW is disabled ,
+		// TODO: need to make new API for exclusively adding the row to existing students without getting them in payload.
+		// if (rest.isRowAdded) {
+		// 	feeDetails = feeDetails.map(fee =>
+		// 		fee.isNewFieldinEdit ? { ...fee, _id: mongoose.Types.ObjectId() } : fee
+		// 	);
+		// 	const existingTypes = foundStructure.feeDetails.map(fee =>
+		// 		fee.feeTypeId.toString()
+		// 	);
+		// 	// extract new rows from the fedetails
+		// 	const newRows = feeDetails.filter(
+		// 		fee => !existingTypes.includes(fee.feeTypeId)
+		// 	);
 
-			await runChildProcess(
-				newRows,
-				existingStudents,
-				id,
-				rest.schoolId,
-				rest.academicYearId,
-				rest.categoryId,
-				true
-			);
-		}
+		// 	await runChildProcess(
+		// 		newRows,
+		// 		existingStudents,
+		// 		id,
+		// 		rest.schoolId,
+		// 		rest.academicYearId,
+		// 		rest.categoryId,
+		// 		true
+		// 	);
+		// }
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
 			{ _id: id },
@@ -335,40 +336,57 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				},
 			}
 		);
+		// Create arrays of ObjectId directly during the mapping process
 		const studMappedList = studentsToUpdate.map(s =>
 			mongoose.Types.ObjectId(s._id)
 		);
 		const unMapStudList = studentsToRemove.map(s =>
 			mongoose.Types.ObjectId(s._id)
 		);
+
 		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
-			await Promise.all([
-				Students.updateMany(
-					{
-						_id: { $in: studMappedList },
-					},
-					{
-						$addToSet: {
-							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+			// Use bulkWrite for better performance by combining update and delete operations
+			const bulkOperations = [];
+			const promises = [];
+
+			// Update students in studMappedList and add the feeCategoryIds
+			if (studMappedList.length > 0) {
+				bulkOperations.push({
+					updateMany: {
+						filter: { _id: { $in: studMappedList } },
+						update: {
+							$addToSet: {
+								feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+							},
 						},
-					}
-				),
-				Students.updateMany(
-					{
-						_id: { $in: unMapStudList },
 					},
-					{
-						$pull: {
-							feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+				});
+			}
+
+			// Update students in unMapStudList and pull the feeCategoryIds
+			if (unMapStudList.length > 0) {
+				bulkOperations.push({
+					updateMany: {
+						filter: { _id: { $in: unMapStudList } },
+						update: {
+							$pull: {
+								feeCategoryIds: mongoose.Types.ObjectId(rest.categoryId),
+							},
 						},
-					}
-				),
-				FeeInstallment.deleteMany(
-					{
+					},
+				});
+
+				// Delete feeInstallments for students in unMapStudList
+				promises.push(
+					FeeInstallment.deleteMany({
 						studentId: { $in: unMapStudList },
-					},
-					{ deletedBy: req.user._id }
-				),
+						feeStructureId: id,
+					})
+				);
+			}
+
+			promises.push(
+				Students.bulkWrite(bulkOperations),
 				runChildProcess(
 					feeDetails,
 					studentsToUpdate,
@@ -377,8 +395,11 @@ exports.updatedFeeStructure = async (req, res, next) => {
 					rest.academicYearId,
 					rest.categoryId,
 					true
-				),
-			]);
+				)
+			);
+
+			// Use Promise.allSettled to handle both successful and rejected promises
+			await Promise.allSettled(promises);
 		}
 
 		res
@@ -677,7 +698,7 @@ exports.assignFeeStructure = async (req, res, next) => {
 // TODO: Fetch the feeDetails with the students data from feeInstallments
 exports.getFeeCategory = async (req, res, next) => {
 	try {
-		const { id } = req.params;
+		const { id, sectionId } = req.params;
 		const schoolId = mongoose.Types.ObjectId(req.user.school_id);
 		const feeStructure = await FeeStructure.findOne(
 			{
@@ -709,6 +730,7 @@ exports.getFeeCategory = async (req, res, next) => {
 				$match: {
 					schoolId,
 					feeStructureId: mongoose.Types.ObjectId(feeStructure._id),
+					sectionId: mongoose.Types.ObjectId(sectionId),
 				},
 			},
 			{

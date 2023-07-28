@@ -712,6 +712,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	// Find the previous balances from previousfeesbalance collection and make object
 	const previousBalance = await PreviousBalance.find({
 		schoolId,
+		isEnrolled: true,
 	}).lean();
 
 	const finalStudentMap = previousBalance.reduce((acc, curr) => {
