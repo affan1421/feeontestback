@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const moment = require('moment');
 const DiscountCategory = require('../models/discountCategory');
 const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
@@ -1460,7 +1461,7 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 
 	const { sectionId, feeStructureId } = feeInstallments[0];
 	// Update the feeInstallments
-	for (const { _id, discounts } of feeInstallments) {
+	for (const { _id, discounts, date, status } of feeInstallments) {
 		const discount = discounts.find(
 			d => d.discountId.toString() === id.toString()
 		);
@@ -1469,6 +1470,28 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 		}
 		const { discountAmount } = discount;
 		totalDiscountAmount += discountAmount;
+		const updateObj = {
+			// remove that discount object
+			$pull: {
+				discounts: {
+					discountId: mongoose.Types.ObjectId(id),
+				},
+			},
+			// update the totalDiscountAmount and netAmount
+			$inc: {
+				totalDiscountAmount: -discountAmount,
+				netAmount: discountAmount,
+			},
+		};
+
+		// update the feeinstallment status
+		if ((status === 'Late' || status === 'Paid') && discountAmount) {
+			const insStatus = moment(date).isBefore(moment()) ? 'Due' : 'Upcoming';
+			updateObj.$set = {
+				status: insStatus,
+			};
+		}
+
 		await FeeInstallment.findOneAndUpdate(
 			{
 				_id,
@@ -1479,19 +1502,7 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 					},
 				},
 			},
-			{
-				// remove that discount object
-				$pull: {
-					discounts: {
-						discountId: mongoose.Types.ObjectId(id),
-					},
-				},
-				// update the totalDiscountAmount and netAmount
-				$inc: {
-					totalDiscountAmount: -discountAmount,
-					netAmount: discountAmount,
-				},
-			}
+			updateObj
 		);
 	}
 
