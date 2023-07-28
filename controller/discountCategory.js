@@ -761,7 +761,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 			$lookup: {
 				from: 'students',
 				let: {
-					studentId: '$_id',
+					studentId: '$_id.studentId',
 				},
 				pipeline: [
 					{
