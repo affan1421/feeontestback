@@ -8,6 +8,11 @@ router.get('/unmapped', feeStructureController.getUnmappedClassList);
 // CREATE
 router.post('/', feeStructureController.create);
 
+router.get(
+	'/section/:sectionId/category/:categoryId',
+	feeStructureController.getFeeStructureBySectionId
+);
+
 // READ
 router.get('/:id', feeStructureController.read);
 
@@ -22,10 +27,7 @@ router.get('/', feeStructureController.getByFilter);
 
 router.post('/assign', feeStructureController.assignFeeStructure);
 
-router.get(
-	'/category/:categoryId/section/:sectionId',
-	feeStructureController.getFeeCategory
-);
+router.get('/:id/feedetails/:sectionId', feeStructureController.getFeeCategory);
 
 // // ADD FEE DETAIL
 // router.post('/:id/fee-details', feeStructureController.addFeeDetail);

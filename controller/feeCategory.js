@@ -5,6 +5,8 @@ const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
 const FeeStructure = require('../models/feeStructure');
 
+const Student = mongoose.connection.db.collection('students');
+
 // @desc    Create Fee Category
 // @route   POST /api/v1/feecategory
 // @access  Private
@@ -38,12 +40,9 @@ const createFeeCategory = async (req, res, next) => {
 // @route   GET /api/v1/feecategory/:id
 // @access  Private
 const getFeeCategory = catchAsync(async (req, res, next) => {
-	const { school_id: schoolId } = req.user;
-
 	const { id } = req.params;
 	const feeCategory = await FeeCategory.findOne({
 		_id: id,
-		schoolId,
 	});
 	if (!feeCategory) {
 		return next(new ErrorResponse('Fee Category Not Found', 404));
@@ -100,7 +99,7 @@ const updateFeeCategory = async (req, res, next) => {
 		const { id } = req.params;
 		const { name, description, schoolId } = req.body;
 		const feeCategory = await FeeCategory.findOneAndUpdate(
-			{ _id: id, schoolId },
+			{ _id: id },
 			{
 				name,
 				description,
@@ -171,11 +170,9 @@ const getFeeCategoryBySectionId = catchAsync(async (req, res, next) => {
 const deleteFeeCategory = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { school_id: schoolId } = req.user;
 
 		const feeCategory = await FeeCategory.findOneAndDelete({
 			_id: id,
-			schoolId,
 		});
 		if (!feeCategory) {
 			return res
@@ -187,31 +184,72 @@ const deleteFeeCategory = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
-const getByList = catchAsync(async (req, res, next) => {
-	const { categoryList } = req.body;
-	if (categoryList.length === 0) {
-		return next(new ErrorResponse('Category Is Required', 422));
-	}
-	const categories = await FeeCategory.find(
+
+const getAllStudentCategories = catchAsync(async (req, res, next) => {
+	const { studentId } = req.params;
+
+	const feeCategories = await Student.aggregate([
 		{
-			_id: { $in: categoryList },
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+			},
 		},
-		{ name: 1 }
-	);
-	if (categories.length === 0) {
-		return next(new ErrorResponse('Fee Category Not Found', 404));
-	}
+		{
+			$unwind: {
+				path: '$feeCategoryIds',
+			},
+		},
+		{
+			$lookup: {
+				from: 'feecategories',
+				let: {
+					feeCategory: '$feeCategoryIds',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$feeCategory'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							name: 1,
+						},
+					},
+				],
+				as: 'feeCategoryIds',
+			},
+		},
+		{
+			$project: {
+				_id: {
+					$first: '$feeCategoryIds._id',
+				},
+				name: {
+					$first: '$feeCategoryIds.name',
+				},
+			},
+		},
+	]).toArray();
+
 	res
 		.status(200)
 		.json(
-			SuccessResponse(categories, categories.length, 'Fetched Successfully')
+			SuccessResponse(
+				feeCategories,
+				feeCategories.length,
+				'Fetched Successfully'
+			)
 		);
 });
 
 module.exports = {
 	createFeeCategory,
 	getFeeCategory,
-	getByList,
+	getAllStudentCategories,
 	updateFeeCategory,
 	deleteFeeCategory,
 	getFeeCategoryBySectionId,

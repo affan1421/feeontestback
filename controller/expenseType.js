@@ -69,6 +69,37 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+// GET
+exports.getExpenseTypesBySchool = catchAsync(async (req, res, next) => {
+	const { schoolId = null } = req.query;
+
+	if (!schoolId) {
+		return next(new ErrorResponse('SchoolId is requried', 400));
+	}
+
+	const payload = {
+		schoolId: mongoose.Types.ObjectId(schoolId),
+	};
+
+	const expenseTypes = await ExpenseType.aggregate([
+		{
+			$facet: {
+				data: [{ $match: payload }],
+				count: [{ $match: payload }, { $count: 'count' }],
+			},
+		},
+	]);
+
+	const { data, count } = expenseTypes[0];
+
+	if (count.length === 0) {
+		return next(new ErrorResponse('No Expense Type Found', 404));
+	}
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
 // READ
 exports.read = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
@@ -88,9 +119,25 @@ exports.read = catchAsync(async (req, res, next) => {
 exports.update = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 
+	const { budget, remainingBudget } = req.body;
+
+	const { budget: oldBudget, remainingBudget: oldRemainingBudget } =
+		await ExpenseType.findOne({ _id: id });
+
+	const spent = oldBudget - oldRemainingBudget;
+	const diff = budget - oldBudget;
+
+	if (budget < spent) {
+		return next(
+			new ErrorResponse('Cannot Update Budget, Enter Greater Amount', 400)
+		);
+	}
+	req.body.remainingBudget += diff;
 	const expensetype = await ExpenseType.findOneAndUpdate(
-		{ _id: id, schoolId: req.body.schoolId },
-		req.body
+		{ _id: id },
+		{
+			...req.body,
+		}
 	);
 	if (expensetype === null) {
 		return next(new ErrorResponse('Expense Type Not Found', 404));

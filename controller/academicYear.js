@@ -96,6 +96,32 @@ const getAll = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, docCount[0].count, 'Fetched Successfully'));
 });
 
+// Get Previous Academic Year
+const getPreviousAcademicYear = catchAsync(async (req, res, next) => {
+	const { school_id } = req.user;
+
+	const academicYears = await AcademicYear.find({
+		schoolId: school_id,
+	})
+		.sort({ startDate: -1 })
+		.skip(1)
+		.lean();
+
+	if (academicYears.length === 0) {
+		return next(new ErrorResponse('Previous Academic Years Not Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(
+				academicYears,
+				academicYears.length,
+				'Fetched Successfully'
+			)
+		);
+});
+
 // Get an AcademicYear by ID
 const getAcademicYear = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
@@ -238,5 +264,6 @@ module.exports = {
 	getAcademicYear,
 	update,
 	changeState,
+	getPreviousAcademicYear,
 	deleteAcademicYear,
 };

@@ -3,6 +3,9 @@ const NODE_ENV = 'development';
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config({ path: `.${NODE_ENV}.env` });
+require('./jobs/installmentDue');
+const fileUpload = require('express-fileupload');
+
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
@@ -11,8 +14,28 @@ const morganMiddleware = require('./middleware/morgan');
 
 const app = express();
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(
+	bodyParser.urlencoded({
+		limit: '3mb',
+		extended: false,
+	})
+);
+app.use(bodyParser.json({ limit: '3mb' }));
+app.use(fileUpload());
+
+app.use((req, res, next) => {
+	res.header('Access-Control-Allow-Origin', '*');
+	res.header(
+		'Access-Control-Allow-Headers',
+		'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+	);
+	if (req.method === 'OPTIONS') {
+		res.header('Access-Control-Allow-Methods', 'PUT, POST, PATCH, DELETE, GET');
+		return res.status(200).json({});
+	}
+	next();
+});
+app.use(express.json());
 app.use(cors());
 
 const options = {
@@ -43,6 +66,7 @@ mongoose
 			res.send('Server is up and Running👨‍💻👩‍💻');
 		});
 
+		//
 		app.use(authenticateUser);
 
 		app.use('/api/v1/config', require('./router/academicYear'));
@@ -55,11 +79,14 @@ mongoose
 		app.use('/api/v1/feestructure', require('./router/feeStructure'));
 		app.use('/api/v1/feeinstallment', require('./router/feeInstallment'));
 		app.use('/api/v1/discount', require('./router/discountCategory'));
+		app.use('/api/v1/applicationfee', require('./router/applicationFee'));
+		app.use('/api/v1/feereceipt', require('./router/feeReceipt'));
+		app.use('/api/v1/previousfees', require('./router/previousFeesBalance'));
 
 		app.use((err, req, res, next) => {
 			res.status(err.statusCode || 500).json({
 				status: err.status || 'error',
-				message: err.message,
+				message: err.message || 'Something went wrong',
 			});
 		});
 

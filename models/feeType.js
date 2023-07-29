@@ -50,10 +50,14 @@ const feetypeSchema = new Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		feeCategory: {
+			type: String,
+			enum: ['APPLICATION', 'ACADEMIC', 'MISCELLANEOUS', 'PREVIOUS'],
+		},
 		categoryId: {
 			type: Schema.Types.ObjectId,
 			ref: 'FeeCategory',
-			required: [true, 'Please enter category id'],
+			required: [false, 'Please enter category id'],
 		},
 		academicYearId: {
 			type: Schema.Types.ObjectId,
@@ -64,6 +68,10 @@ const feetypeSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			ref: 'School',
 			required: [true, 'Please enter school id'],
+		},
+		isMisc: {
+			type: Boolean,
+			default: false,
 		},
 	},
 	{ timestamps: true }

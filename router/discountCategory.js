@@ -6,14 +6,20 @@ const {
 	getDiscountCategoryById,
 	updateDiscountCategory,
 	deleteDiscountCategory,
+	discountReport,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
 	approveStudentDiscount,
+	addAttachment,
+	getSectionDiscount,
 	getStudentsByFilter,
 	addStudentToDiscount,
 	getStudentForApproval,
 	getStudentsByStructure,
+	revokeStudentDiscount,
 } = require('../controller/discountCategory');
+
+router.post('/:id/revoke', revokeStudentDiscount);
 
 router.route('/').get(getDiscountCategory).post(createDiscountCategory);
 
@@ -27,10 +33,18 @@ router.get('/:id/studentFilter', getStudentsByFilter);
 
 router.post('/:discountId/addStudent', addStudentToDiscount);
 
+// Fetch only the section Discount.
+router.get('/:id/mappedStructure/:feeStructureId', getSectionDiscount);
+
+// discount analytics
+router.get('/report', discountReport);
+
 router
 	.route('/:discountId/approval')
 	.get(getStudentForApproval)
 	.post(approveStudentDiscount);
+
+router.post('/addAttachment', addAttachment);
 
 router
 	.route('/:id')

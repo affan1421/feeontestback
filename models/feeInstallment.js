@@ -79,7 +79,7 @@ const FeeInstallmentSchema = new Schema(
 		netAmount: { type: Number, required: true }, // totalAmount - totalDiscountAmount
 		status: {
 			type: String,
-			enum: ['Paid', 'Upcoming', 'Due'],
+			enum: ['Paid', 'Late', 'Upcoming', 'Due'],
 			default: 'Upcoming',
 		},
 		categoryId: {
@@ -91,6 +91,18 @@ const FeeInstallmentSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
+// make index
+FeeInstallmentSchema.index({ schoolId: 1, status: 1 });
+FeeInstallmentSchema.index({
+	studentId: 1,
+	rowId: 1,
+	date: 1,
+});
+FeeInstallmentSchema.index({
+	'discounts.discountId': 1,
+	'discounts.status': 1,
+});
 
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,

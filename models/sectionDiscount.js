@@ -19,6 +19,11 @@ const sectionDiscountSchema = new Schema({
 		ref: 'Section',
 		required: true,
 	},
+	schoolId: {
+		type: Schema.Types.ObjectId,
+		ref: 'School',
+		required: true,
+	},
 	categoryId: {
 		type: Schema.Types.ObjectId,
 		ref: 'FeeCategory',
@@ -72,6 +77,13 @@ const sectionDiscountSchema = new Schema({
 		type: Number,
 		required: true,
 	},
+});
+
+sectionDiscountSchema.index({ discountId: 1 });
+
+sectionDiscountSchema.index({
+	discountId: 1,
+	sectionId: 1,
 });
 
 const SectionDiscount = mongoose.model(

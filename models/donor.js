@@ -12,6 +12,9 @@ const donorSchema = new Schema(
 		address: {
 			type: String,
 		},
+		profileImage: {
+			type: String,
+		},
 		contactNumber: {
 			type: Number,
 		},
@@ -43,28 +46,19 @@ const donorSchema = new Schema(
 			],
 			required: [true, 'Please enter account type'],
 		},
+		totalAmount: {
+			type: Number,
+			default: 0,
+		},
 		donorType: {
 			type: String,
-			enum: ['Individual', 'Organisation', 'Company'],
+			enum: ['INDIVIDUAL', 'TRUST', 'COMPANY'],
 			required: [true, 'Please enter donor type'],
 		},
-		studentList: {
-			type: [
-				{
-					amount: Number,
-					date: Date,
-					paymentType: String,
-					studentId: {
-						type: Schema.Types.ObjectId,
-						ref: 'Student',
-					},
-					classId: {
-						type: Schema.Types.ObjectId,
-						ref: 'Class',
-					},
-				},
-			],
-			default: [],
+		schoolId: {
+			type: Schema.Types.ObjectId,
+			ref: 'School',
+			required: [true, 'Please Enter SchoolId'],
 		},
 	},
 	{ timestamps: true }
