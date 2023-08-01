@@ -802,7 +802,9 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
 	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
-	const payload = {};
+	const payload = {
+		status: { $ne: 'CANCELLED' },
+	};
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
