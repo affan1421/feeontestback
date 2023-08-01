@@ -194,6 +194,7 @@ exports.read = catchAsync(async (req, res, next) => {
 		name: 1,
 		profile_image: 1,
 		section: 1,
+		gender: 1,
 	};
 
 	const query = {
