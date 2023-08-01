@@ -7,6 +7,15 @@ const SuccessResponse = require('../utils/successResponse');
 
 const Sections = mongoose.connection.db.collection('sections');
 
+/**
+ * @desc    Get Summary
+ * @route   POST /api/v1/dueList/summary
+ * @param   {Object} req - Request Object (scheduleId, scheduleDates)
+ * @description This method is used to get summary of due list
+ * @throws  {Error}  If scheduleId or scheduleDates is not provided
+ * @response {Object} res - Response Object (totalClassesDue, duesAmount, dueStudents)
+ */
+
 const getSummary = CatchAsync(async (req, res, next) => {
 	const { scheduleId = null, scheduleDates = [] } = req.body;
 	const { school_id } = req.user;
@@ -206,7 +215,31 @@ const getSummary = CatchAsync(async (req, res, next) => {
 	res.status(200).json(SuccessResponse(response, 1, 'Fetched SuccessFully'));
 });
 
-const getStudentList = async (req, res, next) => {};
+const getStudentList = CatchAsync(async (req, res, next) => {
+	const { scheduleId = null, scheduleDates = [] } = req.body;
+	// const { school_id } = req.user;
+
+	if (!scheduleId || !scheduleDates.length) {
+		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
+	}
+
+	const match = {
+		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
+	};
+
+	if (scheduleDates.length) {
+		match.$or = scheduleDates.map(date => {
+			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			return {
+				date: {
+					$gte: startDate,
+					$lte: endDate,
+				},
+			};
+		});
+	}
+});
 
 const getStudentListExcel = async (req, res, next) => {};
 
