@@ -25,8 +25,6 @@ router.delete('/:id', feeStructureController.deleteFeeStructure);
 // LIST
 router.get('/', feeStructureController.getByFilter);
 
-router.post('/assign', feeStructureController.assignFeeStructure);
-
 router.get('/:id/feedetails/:sectionId', feeStructureController.getFeeCategory);
 
 // // ADD FEE DETAIL
