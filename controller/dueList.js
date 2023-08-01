@@ -48,22 +48,22 @@ const getSummary = CatchAsync(async (req, res, next) => {
 			$match: match,
 		},
 		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$match: {
+				dueAmount: {
+					$gt: 0,
+				},
+			},
+		},
+		{
 			$facet: {
 				classes: [
-					{
-						$addFields: {
-							dueAmount: {
-								$subtract: ['$netAmount', '$paidAmount'],
-							},
-						},
-					},
-					{
-						$match: {
-							dueAmount: {
-								$gt: 0,
-							},
-						},
-					},
 					{
 						$group: {
 							_id: '$sectionId',
@@ -100,13 +100,6 @@ const getSummary = CatchAsync(async (req, res, next) => {
 				],
 				duesAmount: [
 					{
-						$addFields: {
-							dueAmount: {
-								$subtract: ['$netAmount', '$paidAmount'],
-							},
-						},
-					},
-					{
 						$group: {
 							_id: null,
 							totalReceivables: {
@@ -118,13 +111,53 @@ const getSummary = CatchAsync(async (req, res, next) => {
 						},
 					},
 				],
+				dueStudents: [
+					{
+						$group: {
+							_id: '$studentId',
+							gender: {
+								$first: '$gender',
+							},
+						},
+					},
+					{
+						$group: {
+							_id: null,
+							totalStudents: {
+								$sum: 1,
+							},
+							boys: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$gender', 'Male'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+							girls: {
+								$sum: {
+									$cond: [
+										{
+											$eq: ['$gender', 'Female'],
+										},
+										1,
+										0,
+									],
+								},
+							},
+						},
+					},
+				],
 			},
 		},
 	];
 
 	const [result] = await FeeInstallment.aggregate(aggregate);
 
-	const { classes, duesAmount } = result;
+	const { classes, duesAmount, dueStudents } = result;
 
 	if (classes.length) {
 		const { maxClass, minClass, totalClassesDue } = classes[0];
@@ -162,6 +195,12 @@ const getSummary = CatchAsync(async (req, res, next) => {
 	response.duesAmount = duesAmount[0] || {
 		totalReceivables: 0,
 		dueAmount: 0,
+	};
+
+	response.dueStudents = dueStudents[0] || {
+		totalStudents: 0,
+		boys: 0,
+		girls: 0,
 	};
 
 	res.status(200).json(SuccessResponse(response, 1, 'Fetched SuccessFully'));
