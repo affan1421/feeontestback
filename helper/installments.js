@@ -45,6 +45,7 @@ async function insertFeeInstallments() {
 		const feeInstallmentsByStudent = studentList.map(student => {
 			const feeInstallmentsForStudent = feeInstallments.map(fee => ({
 				studentId: student._id,
+				gender: student.gender,
 				feeStructureId: feeStructure,
 				sectionId: student.section,
 				rowId: fee.rowId,
