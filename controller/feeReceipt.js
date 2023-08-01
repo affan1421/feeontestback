@@ -243,7 +243,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	} = req.query;
 	page = +page;
 	limit = +limit;
-	const payload = {};
+	const payload = {status: {$ne: 'CANCELLED'}};
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
