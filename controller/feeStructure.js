@@ -32,7 +32,7 @@ async function runChildProcess(
 				deleted: false,
 				profileStatus: 'APPROVED',
 			},
-			'_id section'
+			'_id section gender'
 		).toArray();
 	}
 	// Spawn child process to insert data into the database
@@ -662,38 +662,6 @@ exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 			)
 		);
 });
-
-exports.assignFeeStructure = async (req, res, next) => {
-	const { studentList, sectionId } = req.body;
-	// find the feestructure id for the section
-	const feeStructure = await FeeStructure.findOne({
-		classes: { $elemMatch: { sectionId } },
-	});
-	if (!feeStructure) {
-		return next(new ErrorResponse('Fee Structure Not Found', 404));
-	}
-	const {
-		_id: feeStructureId,
-		feeDetails,
-		schoolId,
-		academicYearId,
-	} = feeStructure;
-	try {
-		// Run the child process to assign the fee structure to the students
-		// await runChildProcess(
-		// 	feeDetails,
-		// 	studentList,
-		// 	feeStructureId,
-		// 	schoolId,
-		// 	academicYearId,
-		// categoryId,
-		// );
-		res.status(200).json(SuccessResponse(null, 1, 'Assigned Successfully'));
-	} catch (err) {
-		console.log('error while assigning fee structure', err.message);
-		return next(new ErrorResponse('Something Went Wrong', 500));
-	}
-};
 
 // TODO: Fetch the feeDetails with the students data from feeInstallments
 exports.getFeeCategory = async (req, res, next) => {
