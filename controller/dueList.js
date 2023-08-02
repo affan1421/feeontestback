@@ -216,7 +216,12 @@ const getSummary = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentList = CatchAsync(async (req, res, next) => {
-	const { scheduleId = null, scheduleDates = [] } = req.body;
+	const {
+		scheduleId = null,
+		scheduleDates = [],
+		page = 0,
+		limit = 6,
+	} = req.body;
 	// const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length) {
@@ -225,6 +230,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
 	const match = {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
+		// schoolId: mongoose.Types.ObjectId(school_id),
 	};
 
 	if (scheduleDates.length) {
@@ -239,6 +245,152 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 			};
 		});
 	}
+
+	const aggregate = [
+		{
+			$match: match,
+		},
+		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$match: {
+				dueAmount: {
+					$gt: 0,
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				sectionId: {
+					$first: '$sectionId',
+				},
+				totalAmount: {
+					$sum: '$totalAmount',
+				},
+				discountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
+				dueAmount: {
+					$sum: '$dueAmount',
+				},
+			},
+		},
+		{
+			$skip: page * limit,
+		},
+		{
+			$limit: limit,
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							parent_id: 1,
+						},
+					},
+				],
+				as: 'student',
+			},
+		},
+		{
+			$unwind: '$student',
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$unwind: '$section',
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$student.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$unwind: '$parent',
+		},
+		{
+			$project: {
+				studentName: '$student.name',
+				parentName: '$parent.name',
+				sectionName: '$section.className',
+				totalAmount: 1,
+				discountAmount: 1,
+				paidAmount: 1,
+				dueAmount: 1,
+			},
+		},
+	];
+
+	const result = await FeeInstallment.aggregate(aggregate);
+
+	if (!result.length) {
+		return next(new ErrorResponse('No Dues Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(result, result.length, 'Fetched SuccessFully'));
 });
 
 const getStudentListExcel = async (req, res, next) => {};

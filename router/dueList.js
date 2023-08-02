@@ -12,7 +12,7 @@ const {
 router.post('/summary', getSummary);
 
 // Student List
-router.get('/studentList', getStudentList);
+router.post('/studentList', getStudentList);
 
 // Student List Excel
 router.get('/studentListExcel', getStudentListExcel);
