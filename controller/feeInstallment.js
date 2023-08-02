@@ -1052,7 +1052,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		feeDetails,
 		studentId,
 		collectedFee,
-		comments,
+		comment,
 		totalFeeAmount,
 		dueAmount,
 		paymentMethod,
@@ -1391,7 +1391,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				sectionId,
 			},
 		},
-		comments,
+		comment,
 		receiptType,
 		receiptId,
 		category: {
