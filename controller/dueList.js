@@ -237,6 +237,9 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	const match = {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		// schoolId: mongoose.Types.ObjectId(school_id),
+		status: {
+			$in: ['Due', 'Upcoming'],
+		},
 	};
 
 	match.$or = scheduleDates.map(date => {
@@ -270,44 +273,24 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		};
 	}
 
-	const aggregate = [
-		{
-			$match: match,
-		},
-		{
-			$addFields: {
-				dueAmount: {
-					$subtract: ['$netAmount', '$paidAmount'],
-				},
-			},
-		},
-		{
-			$match: {
-				dueAmount: {
-					$gt: 0,
-				},
-			},
-		},
-		{
-			$group: {
-				_id: '$studentId',
-				sectionId: {
-					$first: '$sectionId',
-				},
-				totalAmount: {
-					$sum: '$totalAmount',
-				},
-				discountAmount: {
-					$sum: '$totalDiscountAmount',
-				},
-				paidAmount: {
-					$sum: '$paidAmount',
-				},
-				dueAmount: {
-					$sum: '$dueAmount',
-				},
-			},
-		},
+	if (paymentStatus) {
+		switch (paymentStatus) {
+			case 'FULL':
+				match.status = {
+					$in: ['Paid', 'Late'],
+				};
+				break;
+			case 'NOT':
+				match.status = {
+					$in: ['Due', 'Upcoming'],
+				};
+				break;
+			default:
+				break;
+		}
+	}
+	// 3 // general stages
+	const lookupAndProject = [
 		{
 			$lookup: {
 				from: 'students',
@@ -399,10 +382,62 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 			},
 		},
 	];
+	// 2 without payment Status filter
+	const addFieldStage = {
+		$addFields: {
+			dueAmount: {
+				$subtract: ['$netAmount', '$paidAmount'],
+			},
+		},
+	};
 
+	const groupByStudent = {
+		$group: {
+			_id: '$studentId',
+			recCount: {
+				$sum: 1,
+			},
+			sectionId: {
+				$first: '$sectionId',
+			},
+			totalAmount: {
+				$sum: '$totalAmount',
+			},
+			discountAmount: {
+				$sum: '$totalDiscountAmount',
+			},
+			paidAmount: {
+				$sum: '$paidAmount',
+			},
+			dueAmount: {
+				$sum: '$dueAmount',
+			},
+		},
+	};
+	const aggregate = [
+		{
+			$match: match,
+		},
+	];
+
+	if (paymentStatus) {
+		aggregate.push(
+			groupByStudent,
+			{
+				$match: {
+					recCount: scheduleDates.length,
+				},
+			},
+			...lookupAndProject
+		);
+	} else {
+		aggregate.push(addFieldStage, groupByStudent, ...lookupAndProject);
+	}
+
+	// need to rearrange the aggregate stages
 	if (!searchTerm) {
 		aggregate.splice(
-			4,
+			3,
 			0,
 			{
 				$skip: page * limit,
@@ -426,7 +461,182 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
 const getStudentListExcel = async (req, res, next) => {};
 
-const getClassList = async (req, res, next) => {};
+const getClassList = CatchAsync(async (req, res, next) => {
+	const {
+		scheduleId = null,
+		scheduleDates = [],
+		page = 0,
+		limit = 6,
+		// searchTerm = null,
+	} = req.body;
+	// const { school_id } = req.user;
+
+	if (!scheduleId || !scheduleDates.length) {
+		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
+	}
+
+	const match = {
+		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
+		// schoolId: mongoose.Types.ObjectId(school_id),
+		status: {
+			$in: ['Due', 'Upcoming'],
+		},
+	};
+
+	match.$or = scheduleDates.map(date => {
+		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		return {
+			date: {
+				$gte: startDate,
+				$lte: endDate,
+			},
+		};
+	});
+
+	const aggregate = [
+		{
+			$match: match,
+		},
+		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				sectionId: {
+					$first: '$sectionId',
+				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
+				netAmount: {
+					$sum: '$netAmount',
+				},
+				dueAmount: {
+					$sum: '$dueAmount',
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$sectionId',
+				dueStudents: {
+					$sum: 1,
+				},
+				totalPaidAmount: {
+					$sum: '$paidAmount',
+				},
+				totalNetAmount: {
+					$sum: '$netAmount',
+				},
+				totalDueAmount: {
+					$sum: '$dueAmount',
+				},
+			},
+		},
+		{
+			$skip: page * limit,
+		},
+		{
+			$limit: limit,
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 1,
+							className: 1,
+						},
+					},
+				],
+				as: '_id',
+			},
+		},
+		{
+			$unwind: {
+				path: '$_id',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					secId: '$_id._id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$section', '$$secId'],
+									},
+									{
+										$eq: ['$deleted', false],
+									},
+									{
+										$eq: ['$profileStatus', 'APPROVED'],
+									},
+								],
+							},
+						},
+					},
+					{
+						$group: {
+							_id: '$section',
+							count: {
+								$sum: 1,
+							},
+						},
+					},
+				],
+				as: 'students',
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				sectionId: '$_id._id',
+				className: '$_id.className',
+				totalStudents: {
+					$first: '$students.count',
+				},
+				dueStudents: 1,
+				totalPaidAmount: 1,
+				totalNetAmount: 1,
+				totalDueAmount: 1,
+			},
+		},
+	];
+
+	const result = await FeeInstallment.aggregate(aggregate);
+
+	if (!result.length) {
+		return next(new ErrorResponse('No Dues Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(result, result.length, 'Fetched SuccessFully'));
+});
 
 const getClassListExcel = async (req, res, next) => {};
 
