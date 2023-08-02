@@ -293,45 +293,91 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		{
 			$lookup: {
 				from: 'students',
-				localField: '_id',
-				foreignField: '_id',
-				as: 'studentName',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							parent_id: 1,
+						},
+					},
+				],
+				as: 'student',
 			},
 		},
 		{
-			$addFields: {
-				parentId: {
-					$first: '$studentName.parent_id',
-				},
-			},
+			$unwind: '$student',
 		},
 		{
 			$lookup: {
 				from: 'sections',
-				localField: 'sectionId',
-				foreignField: '_id',
-				as: 'sectionName',
+				let: {
+					sectionId: '$sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
 			},
+		},
+		{
+			$unwind: '$section',
 		},
 		{
 			$lookup: {
 				from: 'parents',
-				localField: 'parentId',
-				foreignField: '_id',
-				as: 'parentName',
+				let: {
+					parentId: '$student.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
 			},
 		},
 		{
-			$addFields: {
-				studentName: {
-					$first: '$studentName.name',
-				},
-				parentName: {
-					$first: '$parentName.name',
-				},
-				sectionName: {
-					$first: '$sectionName.className',
-				},
+			$unwind: '$parent',
+		},
+		{
+			$project: {
+				studentName: '$student.name',
+				parentName: '$parent.name',
+				sectionName: '$section.className',
+				totalAmount: 1,
+				discountAmount: 1,
+				paidAmount: 1,
+				dueAmount: 1,
 			},
 		},
 	];
