@@ -6,6 +6,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
 const Sections = mongoose.connection.db.collection('sections');
+const Students = mongoose.connection.db.collection('students');
 
 /**
  * @desc    Get Summary
@@ -221,29 +222,52 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		scheduleDates = [],
 		page = 0,
 		limit = 6,
+		searchTerm = null,
+		paymentStatus = null,
 	} = req.body;
-	// const { school_id } = req.user;
+	const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length) {
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
 	}
+
+	if (paymentStatus && !['FULL', 'PARTIAL', 'NOT'].includes(paymentStatus))
+		return next(new ErrorResponse('Invalid Payment Status', 422));
 
 	const match = {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		// schoolId: mongoose.Types.ObjectId(school_id),
 	};
 
-	if (scheduleDates.length) {
-		match.$or = scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
-			return {
-				date: {
-					$gte: startDate,
-					$lte: endDate,
-				},
-			};
-		});
+	match.$or = scheduleDates.map(date => {
+		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		return {
+			date: {
+				$gte: startDate,
+				$lte: endDate,
+			},
+		};
+	});
+
+	if (searchTerm) {
+		// find the studentIds from student collection
+		const searchPayload = {
+			school_id: mongoose.Types.ObjectId(school_id),
+			name: {
+				$regex: searchTerm,
+			},
+			deleted: false,
+			profileStatus: 'APPROVED',
+		};
+		const studentIds = await Students.find(searchPayload)
+			.project({ _id: 1 })
+			.skip(page * limit)
+			.limit(limit)
+			.toArray();
+		match.studentId = {
+			$in: studentIds.map(student => mongoose.Types.ObjectId(student._id)),
+		};
 	}
 
 	const aggregate = [
@@ -283,12 +307,6 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 					$sum: '$dueAmount',
 				},
 			},
-		},
-		{
-			$skip: page * limit,
-		},
-		{
-			$limit: limit,
 		},
 		{
 			$lookup: {
@@ -381,6 +399,19 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 			},
 		},
 	];
+
+	if (!searchTerm) {
+		aggregate.splice(
+			4,
+			0,
+			{
+				$skip: page * limit,
+			},
+			{
+				$limit: limit,
+			}
+		);
+	}
 
 	const result = await FeeInstallment.aggregate(aggregate);
 

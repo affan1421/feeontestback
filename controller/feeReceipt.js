@@ -466,7 +466,7 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
-		comments,
+		comment,
 		bankName,
 		chequeDate,
 		chequeNumber,
@@ -719,7 +719,7 @@ const createReceipt = async (req, res, next) => {
 				sectionId: section._id,
 			},
 		},
-		comments,
+		comment,
 		receiptType,
 		receiptId,
 		parent: {
