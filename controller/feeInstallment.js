@@ -806,22 +806,22 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const [statsResult, feeInstallmentsResult, miscFees, previousBalances] = await Promise.all([
+	const [statsResult, feeInstallmentsResult, miscFees, previousBalances, studentDetails] = await Promise.all([
 		aggregateWithPipeline(FeeInstallment, statsPipeline),
 		aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
 		aggregateWithPipeline(FeeReceipt, miscFeePipeline),
 		aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
+		findStudentDetails()
 	]);
 
 	async function findStudentDetails() {
-		const foundStudent = await Student.aggregate(studentPipeline);
+		const foundStudent = await Student.aggregate(studentPipeline).toArray();
 		if (foundStudent.length < 1) {
-			throw new ErrorResponse('Student Not Found', 404);
+			return next(new ErrorResponse('Student Not Found', 404));
 		}
-		return foundStudent[0];
+		const response = foundStudent[0];
+		return response
 	}
-
-	const studentDetails = await findStudentDetails();
 
 	const data = {
 		stats: statsResult[0].stats,
@@ -829,7 +829,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		feeInstallments: feeInstallmentsResult,
 		miscFees: miscFees,
 		previousBalance: previousBalances,
-		studentDetails: studentDetails,
+		studentDetails: studentDetails
 	};
 
 	return res.status(200).json(SuccessResponse(data));
