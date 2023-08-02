@@ -190,6 +190,7 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	const projection = {
 		amount: '$paidAmount',
 		receiptId: 1,
+		comment: 1,
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
@@ -343,6 +344,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							amount: '$paidAmount',
 							items: 1,
 							receiptId: 1,
+							comment: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
 							reason: {
