@@ -36,6 +36,11 @@ router.get(
 );
 
 router.get(
+	'/studentReport',
+	feeInstallmentController.studentReport
+);
+
+router.get(
 	'/studentFeeExcel/:schoolId',
 	feeInstallmentController.StudentFeeExcel
 );
