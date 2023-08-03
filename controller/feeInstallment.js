@@ -565,7 +565,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 
 	const { categoryId, studentId } = req.query;
 
-	const statsPipeline = [
+	const feeInstallmentsPipeline = [
 		{
 			$match: {
 				studentId: mongoose.Types.ObjectId(studentId),
@@ -618,10 +618,39 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 					},
 					{
 						$project: {
-							_id: 0,
+							id: '$_id.discountId',
 							name: '$discountDetails.name',
 							status: '$_id.status',
 							discountAmount: '$_id.discountAmount',
+						},
+					},
+				],
+				feeInstallments: [
+					{
+						$match: {
+							categoryId: mongoose.Types.ObjectId(categoryId),
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							localField: 'feeTypeId',
+							foreignField: '_id',
+							as: 'feeType',
+						},
+					},
+					{
+						$unwind: '$feeType',
+					},
+					{
+						$project: {
+							name: '$feeType.feeType',
+							date: 1,
+							totalAmount: 1,
+							totalDiscountAmount: 1,
+							paidAmount: 1,
+							netAmount: 1,
+							status: 1,
 						},
 					},
 				],
@@ -629,51 +658,21 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		},
 		{
 			$match: {
-				stats: {
-					$ne: [],
-				},
+				$or: [
+					{ 'stats.0': { $exists: true } },
+					{ 'feeInstallments.0': { $exists: true } },
+				],
 			},
 		},
 		{
 			$project: {
-				stats: {
-					$arrayElemAt: ['$stats', 0],
-				},
+				_id: 0,
+				stats: { $arrayElemAt: ['$stats', 0] },
 				discounts: 1,
+				feeInstallments: 1,
 			},
 		},
-	];
-
-	const feeInstallmentsPipeline = [
-		{
-			$match: {
-				studentId: mongoose.Types.ObjectId(studentId),
-				categoryId: mongoose.Types.ObjectId(categoryId),
-			},
-		},
-		{
-			$lookup: {
-				from: 'feetypes',
-				localField: 'feeTypeId',
-				foreignField: '_id',
-				as: 'feeType',
-			},
-		},
-		{
-			$unwind: '$feeType',
-		},
-		{
-			$project: {
-				name: '$feeType.feeType',
-				date: 1,
-				totalAmount: 1,
-				totalDiscountAmount: 1,
-				paidAmount: 1,
-				netAmount: 1,
-				status: 1,
-			},
-		},
-	];
+	]
 
 	const miscFeePipeline = [
 		{
@@ -806,8 +805,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const [statsResult, feeInstallmentsResult, miscFees, previousBalances, studentDetails] = await Promise.all([
-		aggregateWithPipeline(FeeInstallment, statsPipeline),
+	const [feeInstallments, miscFees, previousBalances, studentDetails] = await Promise.all([
 		aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
 		aggregateWithPipeline(FeeReceipt, miscFeePipeline),
 		aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
@@ -824,9 +822,9 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 	}
 
 	const data = {
-		stats: statsResult[0].stats,
-		discounts: statsResult[0].discounts,
-		feeInstallments: feeInstallmentsResult,
+		stats: feeInstallments[0].stats,
+		feeInstallments: feeInstallments[0].feeInstallments,
+		discounts: feeInstallments[0].discounts,
 		miscFees: miscFees,
 		previousBalance: previousBalances,
 		studentDetails: studentDetails
