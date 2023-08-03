@@ -21,9 +21,9 @@ router.get('/studentListExcel', getStudentListExcel);
 router.post('/classList', getClassList);
 
 // Class List Excel
-router.get('/classListExcel', getClassListExcel);
+router.post('/classListExcel', getClassListExcel);
 
 // Student List by Class
-router.get('/studentListByClass', getStudentListByClass);
+router.post('/studentListByClass', getStudentListByClass);
 
 module.exports = router;

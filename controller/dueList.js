@@ -680,7 +680,113 @@ const getClassList = CatchAsync(async (req, res, next) => {
 
 const getClassListExcel = async (req, res, next) => {};
 
-const getStudentListByClass = async (req, res, next) => {};
+const getStudentListByClass = CatchAsync(async (req, res, next) => {
+	// No pagination, No search
+	const { sectionId = null, scheduleDates = [], scheduleId = null } = req.body;
+	const { school_id } = req.user;
+
+	if (!sectionId || !scheduleDates.length || !scheduleId)
+		return next(new ErrorResponse('Please Provide SectionId And Dates', 422));
+
+	const match = {
+		schoolId: mongoose.Types.ObjectId(school_id),
+		sectionId: mongoose.Types.ObjectId(sectionId),
+	};
+
+	match.$or = scheduleDates.map(date => {
+		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		return {
+			date: {
+				$gte: startDate,
+				$lte: endDate,
+			},
+		};
+	});
+
+	const aggregate = [
+		{
+			$match: match,
+		},
+		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$match: {
+				dueAmount: {
+					$gt: 0,
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				sectionId: {
+					$first: '$sectionId',
+				},
+				totalAmount: {
+					$sum: '$totalAmount',
+				},
+				dueAmount: {
+					$sum: '$dueAmount',
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							username: 1,
+							profile_image: 1,
+							admission_no: 1,
+						},
+					},
+				],
+				as: 'student',
+			},
+		},
+		{
+			$unwind: '$student',
+		},
+		{
+			$project: {
+				studentName: '$student.name',
+				admission_no: '$student.admission_no',
+				username: '$student.username',
+				profileImage: '$student.profile_image',
+				totalAmount: 1,
+				dueAmount: 1,
+			},
+		},
+	];
+
+	const result = await FeeInstallment.aggregate(aggregate);
+
+	if (!result) {
+		return next(new ErrorResponse('No Dues Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(result, result.length, 'Fetched SuccessFully'));
+});
 
 module.exports = {
 	getSummary,
