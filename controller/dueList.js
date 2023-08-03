@@ -471,7 +471,7 @@ const getClassList = CatchAsync(async (req, res, next) => {
 	} = req.body;
 	const { school_id } = req.user;
 	const skip = page * limit;
-	let count = 0;
+	let sectionIds = null;
 
 	if (!scheduleId || !scheduleDates.length) {
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
@@ -497,207 +497,190 @@ const getClassList = CatchAsync(async (req, res, next) => {
 	});
 
 	if (searchTerm) {
-		// find the studentIds from student collection
 		const searchPayload = {
 			school: mongoose.Types.ObjectId(school_id),
 			className: {
 				$regex: searchTerm,
 			},
 		};
-		let sectionIds = await Sections.find(searchPayload)
+		sectionIds = await Sections.find(searchPayload)
 			.project({ _id: 1 })
 			.toArray();
-		count = sectionIds.length;
-		sectionIds = sectionIds.slice(skip, skip + limit);
 		match.sectionId = {
 			$in: sectionIds.map(section => mongoose.Types.ObjectId(section._id)),
 		};
 	}
 
-	const aggregate = [
-		{
-			$match: match,
-		},
-		{
-			$addFields: {
-				dueAmount: {
-					$subtract: ['$netAmount', '$paidAmount'],
-				},
-			},
-		},
-		{
-			$group: {
-				_id: '$studentId',
-				sectionId: {
-					$first: '$sectionId',
-				},
-				paidAmount: {
-					$sum: '$paidAmount',
-				},
-				netAmount: {
-					$sum: '$netAmount',
-				},
-				dueAmount: {
-					$sum: '$dueAmount',
-				},
-			},
-		},
-		{
-			$group: {
-				_id: '$sectionId',
-				dueStudents: {
-					$sum: 1,
-				},
-				totalPaidAmount: {
-					$sum: '$paidAmount',
-				},
-				totalNetAmount: {
-					$sum: '$netAmount',
-				},
-				totalDueAmount: {
-					$sum: '$dueAmount',
-				},
-			},
-		},
-		{
-			$sort: {
-				totalDueAmount: -1,
-			},
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					sectionId: '$_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							className: 1,
-						},
-					},
-				],
-				as: '_id',
-			},
-		},
-		{
-			$unwind: {
-				path: '$_id',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$lookup: {
-				from: 'students',
-				let: {
-					secId: '$_id._id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$and: [
-									{
-										$eq: ['$section', '$$secId'],
-									},
-									{
-										$eq: ['$deleted', false],
-									},
-									{
-										$eq: ['$profileStatus', 'APPROVED'],
-									},
-								],
-							},
-						},
-					},
-					{
-						$group: {
-							_id: '$section',
-							count: {
-								$sum: 1,
-							},
-						},
-					},
-				],
-				as: 'students',
-			},
-		},
-		{
-			$project: {
-				_id: 0,
-				sectionId: '$_id._id',
-				className: '$_id.className',
-				totalStudents: {
-					$first: '$students.count',
-				},
-				dueStudents: 1,
-				totalPaidAmount: 1,
-				totalNetAmount: 1,
-				totalDueAmount: 1,
-			},
-		},
-	];
-
-	if (!searchTerm) {
-		aggregate.splice(
-			5,
-			0,
+	const facetedStages = {
+		data: [
 			{
-				$skip: page * limit,
+				$match: match,
+			},
+			{
+				$addFields: {
+					dueAmount: {
+						$subtract: ['$netAmount', '$paidAmount'],
+					},
+				},
+			},
+			{
+				$group: {
+					_id: '$studentId',
+					sectionId: {
+						$first: '$sectionId',
+					},
+					paidAmount: {
+						$sum: '$paidAmount',
+					},
+					netAmount: {
+						$sum: '$netAmount',
+					},
+					dueAmount: {
+						$sum: '$dueAmount',
+					},
+				},
+			},
+			{
+				$group: {
+					_id: '$sectionId',
+					dueStudents: {
+						$sum: 1,
+					},
+					totalPaidAmount: {
+						$sum: '$paidAmount',
+					},
+					totalNetAmount: {
+						$sum: '$netAmount',
+					},
+					totalDueAmount: {
+						$sum: '$dueAmount',
+					},
+				},
+			},
+			{
+				$sort: {
+					totalDueAmount: -1,
+				},
+			},
+			{
+				$skip: skip,
 			},
 			{
 				$limit: limit,
-			}
-		);
-	}
-
-	const facetedAggregate = {
-		$facet: {
-			data: aggregate,
-		},
-	};
-
-	const countStages = [
-		{ $match: match },
-		{
-			$addFields: {
-				dueAmount: {
-					$subtract: ['$netAmount', '$paidAmount'],
+			},
+			{
+				$lookup: {
+					from: 'sections',
+					let: {
+						sectionId: '$_id',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ['$_id', '$$sectionId'],
+								},
+							},
+						},
+						{
+							$project: {
+								_id: 1,
+								className: 1,
+							},
+						},
+					],
+					as: '_id',
 				},
 			},
-		},
-		{
-			$group: {
-				_id: '$sectionId',
+			{
+				$unwind: {
+					path: '$_id',
+					preserveNullAndEmptyArrays: true,
+				},
 			},
+			{
+				$lookup: {
+					from: 'students',
+					let: {
+						secId: '$_id._id',
+					},
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$and: [
+										{
+											$eq: ['$section', '$$secId'],
+										},
+										{
+											$eq: ['$deleted', false],
+										},
+										{
+											$eq: ['$profileStatus', 'APPROVED'],
+										},
+									],
+								},
+							},
+						},
+						{
+							$group: {
+								_id: '$section',
+								count: {
+									$sum: 1,
+								},
+							},
+						},
+					],
+					as: 'students',
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					sectionId: '$_id._id',
+					className: '$_id.className',
+					totalStudents: {
+						$first: '$students.count',
+					},
+					dueStudents: 1,
+					totalPaidAmount: 1,
+					totalNetAmount: 1,
+					totalDueAmount: 1,
+				},
+			},
+		],
+		count: [
+			{ $match: match },
+			{
+				$addFields: {
+					dueAmount: {
+						$subtract: ['$netAmount', '$paidAmount'],
+					},
+				},
+			},
+			{
+				$group: {
+					_id: '$sectionId',
+				},
+			},
+			{ $count: 'count' },
+		],
+	};
+
+	const [result] = await FeeInstallment.aggregate([
+		{
+			$facet: facetedStages,
 		},
-		{ $count: 'count' },
-	];
+	]);
+	const { data, count } = result;
 
-	if (!searchTerm) {
-		facetedAggregate.$facet.count = countStages;
-	}
-
-	const [result] = await FeeInstallment.aggregate([facetedAggregate]);
-	const { data } = result;
-
-	if (!searchTerm) {
-		count = result.count[0].count;
-	}
-
-	if (count === 0) {
+	if (count.length === 0) {
 		return next(new ErrorResponse('No Dues Found', 404));
 	}
 
-	res.status(200).json(SuccessResponse(data, count, 'Fetched SuccessFully'));
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched SuccessFully'));
 });
 
 const getClassListExcel = async (req, res, next) => {};
