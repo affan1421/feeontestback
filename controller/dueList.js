@@ -467,17 +467,19 @@ const getClassList = CatchAsync(async (req, res, next) => {
 		scheduleDates = [],
 		page = 0,
 		limit = 6,
-		// searchTerm = null,
+		searchTerm = null,
 	} = req.body;
-	// const { school_id } = req.user;
+	const { school_id } = req.user;
+	const skip = page * limit;
+	let count = 0;
 
 	if (!scheduleId || !scheduleDates.length) {
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
 	}
 
 	const match = {
+		schoolId: mongoose.Types.ObjectId(school_id),
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
-		// schoolId: mongoose.Types.ObjectId(school_id),
 		status: {
 			$in: ['Due', 'Upcoming'],
 		},
@@ -493,6 +495,24 @@ const getClassList = CatchAsync(async (req, res, next) => {
 			},
 		};
 	});
+
+	if (searchTerm) {
+		// find the studentIds from student collection
+		const searchPayload = {
+			school: mongoose.Types.ObjectId(school_id),
+			className: {
+				$regex: searchTerm,
+			},
+		};
+		let sectionIds = await Sections.find(searchPayload)
+			.project({ _id: 1 })
+			.toArray();
+		count = sectionIds.length;
+		sectionIds = sectionIds.slice(skip, skip + limit);
+		match.sectionId = {
+			$in: sectionIds.map(section => mongoose.Types.ObjectId(section._id)),
+		};
+	}
 
 	const aggregate = [
 		{
@@ -540,10 +560,9 @@ const getClassList = CatchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$skip: page * limit,
-		},
-		{
-			$limit: limit,
+			$sort: {
+				totalDueAmount: -1,
+			},
 		},
 		{
 			$lookup: {
@@ -627,15 +646,58 @@ const getClassList = CatchAsync(async (req, res, next) => {
 		},
 	];
 
-	const result = await FeeInstallment.aggregate(aggregate);
+	if (!searchTerm) {
+		aggregate.splice(
+			5,
+			0,
+			{
+				$skip: page * limit,
+			},
+			{
+				$limit: limit,
+			}
+		);
+	}
 
-	if (!result.length) {
+	const facetedAggregate = {
+		$facet: {
+			data: aggregate,
+		},
+	};
+
+	const countStages = [
+		{ $match: match },
+		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$sectionId',
+			},
+		},
+		{ $count: 'count' },
+	];
+
+	if (!searchTerm) {
+		facetedAggregate.$facet.count = countStages;
+	}
+
+	const [result] = await FeeInstallment.aggregate([facetedAggregate]);
+	const { data } = result;
+
+	if (!searchTerm) {
+		count = result.count[0].count;
+	}
+
+	if (count === 0) {
 		return next(new ErrorResponse('No Dues Found', 404));
 	}
 
-	res
-		.status(200)
-		.json(SuccessResponse(result, result.length, 'Fetched SuccessFully'));
+	res.status(200).json(SuccessResponse(data, count, 'Fetched SuccessFully'));
 });
 
 const getClassListExcel = async (req, res, next) => {};
