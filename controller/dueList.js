@@ -416,20 +416,40 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		},
 	];
 
-	if (paymentStatus === 'FULL') {
-		aggregate.push(groupByStudent, {
-			$match: {
-				recCount: scheduleDates.length,
-			},
-		});
-	} else if (paymentStatus === 'PARTIAL') {
-		aggregate.push(addFieldStage, groupByStudent, {
-			$match: {
-				$expr: {
-					$lt: ['$dueAmount', '$totalAmount'],
-				},
-			},
-		});
+	if (paymentStatus) {
+		switch (paymentStatus) {
+			case 'FULL':
+				aggregate.push(groupByStudent, {
+					$match: {
+						recCount: scheduleDates.length,
+					},
+				});
+				break;
+			case 'PARTIAL':
+				aggregate.push(addFieldStage, groupByStudent, {
+					$match: {
+						$expr: {
+							$lt: ['$dueAmount', '$totalAmount'],
+						},
+					},
+				});
+				break;
+			case 'NOT':
+				aggregate.push(
+					addFieldStage,
+					{
+						$match: {
+							$expr: {
+								$eq: ['$dueAmount', '$totalAmount'],
+							},
+						},
+					},
+					groupByStudent
+				);
+				break;
+			default:
+				break;
+		}
 	} else {
 		aggregate.push(addFieldStage, groupByStudent);
 	}
