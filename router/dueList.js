@@ -15,7 +15,7 @@ router.post('/summary', getSummary);
 router.post('/studentList', getStudentList);
 
 // Student List Excel
-router.get('/studentListExcel', getStudentListExcel);
+router.post('/studentListExcel', getStudentListExcel);
 
 // Class List
 router.post('/classList', getClassList);
