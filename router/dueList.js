@@ -12,18 +12,18 @@ const {
 router.post('/summary', getSummary);
 
 // Student List
-router.get('/studentList', getStudentList);
+router.post('/studentList', getStudentList);
 
 // Student List Excel
-router.get('/studentListExcel', getStudentListExcel);
+router.post('/studentListExcel', getStudentListExcel);
 
 // Class List
-router.get('/classList', getClassList);
+router.post('/classList', getClassList);
 
 // Class List Excel
-router.get('/classListExcel', getClassListExcel);
+router.post('/classListExcel', getClassListExcel);
 
 // Student List by Class
-router.get('/studentListByClass', getStudentListByClass);
+router.post('/studentListByClass', getStudentListByClass);
 
 module.exports = router;

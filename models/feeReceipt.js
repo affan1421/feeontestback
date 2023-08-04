@@ -37,7 +37,7 @@ const feeReceiptSchema = new Schema(
 				},
 			},
 		},
-		comments: String,
+		comment: String,
 		category: {
 			feeCategoryId: {
 				type: Schema.Types.ObjectId,

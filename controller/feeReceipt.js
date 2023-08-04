@@ -5,6 +5,7 @@ const FeeReceipt = require('../models/feeReceipt');
 const FeeType = require('../models/feeType');
 const SectionDiscount = require('../models/sectionDiscount');
 const SuccessResponse = require('../utils/successResponse');
+const DiscountCategory = require('../models/discountCategory');
 const FeeInstallment = require('../models/feeInstallment');
 const PreviousBalance = require('../models/previousFeesBalance');
 const Expense = require('../models/expense');
@@ -190,6 +191,7 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	const projection = {
 		amount: '$paidAmount',
 		receiptId: 1,
+		comment: 1,
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
@@ -343,6 +345,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							amount: '$paidAmount',
 							items: 1,
 							receiptId: 1,
+							comment: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
 							reason: {
@@ -466,7 +469,7 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
-		comments,
+		comment,
 		bankName,
 		chequeDate,
 		chequeNumber,
@@ -719,7 +722,7 @@ const createReceipt = async (req, res, next) => {
 				sectionId: section._id,
 			},
 		},
-		comments,
+		comment,
 		receiptType,
 		receiptId,
 		parent: {
@@ -1440,10 +1443,9 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 			},
 		},
 	];
-	const incomeData = await FeeReceipt.aggregate(incomeAggregate);
+	const [incomeData] = await FeeReceipt.aggregate(incomeAggregate);
 
-	const { miscCollected, totalIncomeCollected, paymentTypeData } =
-		incomeData[0];
+	const { miscCollected, totalIncomeCollected, paymentTypeData } = incomeData;
 
 	resObj.paymentMethods = paymentTypeData;
 	resObj.financialFlows = { income: miscCollected };
@@ -1451,9 +1453,9 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	/// ////////////////////////////////////////////////////////////////////
 
 	// EXPENSE DATA
-	const expenseData = await Expense.aggregate(expenseAggregate);
+	const [expenseData] = await Expense.aggregate(expenseAggregate);
 
-	const { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData[0];
+	const { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData;
 	const totalExpenseData = totalExpense[0]
 		? totalExpense[0]
 		: {
@@ -1478,8 +1480,22 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 
 	/// ////////////////////////////////////////////////////////////////////
 
+	const discountCategories = await DiscountCategory.find({
+		schoolId: mongoose.Types.ObjectId(school_id),
+		totalStudents: {
+			$gt: 0,
+		},
+	}).lean();
+
+	// calculate the total discount amount
+	const totalDiscountAmount = discountCategories.reduce(
+		(acc, curr) => acc + (curr.totalBudget - curr.budgetRemaining),
+		0
+	);
+	console.log(totalDiscountAmount);
+
 	// DISCOUNT DATA
-	const discountReport = await SectionDiscount.aggregate([
+	const [discountReport] = await SectionDiscount.aggregate([
 		{
 			$match: {
 				schoolId: mongoose.Types.ObjectId(school_id),
@@ -1564,17 +1580,22 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 	]);
 
 	// eslint-disable-next-line prefer-destructuring
-	resObj.totalDiscounts = discountReport[0] ?? {
-		totalApprovedAmount: 0,
-		maxClass: {
-			amount: 0,
-			sectionId: null,
-		},
-		minClass: {
-			amount: 0,
-			sectionId: null,
-		},
-	};
+	resObj.totalDiscounts = discountReport
+		? {
+				...discountReport,
+				totalApprovedAmount: totalDiscountAmount,
+		  }
+		: {
+				totalApprovedAmount: 0,
+				maxClass: {
+					amount: 0,
+					sectionId: null,
+				},
+				minClass: {
+					amount: 0,
+					sectionId: null,
+				},
+		  };
 
 	const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
 
