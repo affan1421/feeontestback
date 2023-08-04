@@ -190,6 +190,7 @@ const receiptByStudentId = catchAsync(async (req, res, next) => {
 	const projection = {
 		amount: '$paidAmount',
 		receiptId: 1,
+		comment: 1,
 		issueDate: 1,
 		paymentMode: '$payment.method',
 		status: 1,
@@ -243,7 +244,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	} = req.query;
 	page = +page;
 	limit = +limit;
-	const payload = {};
+	const payload = { status: { $ne: 'CANCELLED' } };
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
@@ -343,6 +344,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 							amount: '$paidAmount',
 							items: 1,
 							receiptId: 1,
+							comment: 1,
 							issueDate: 1,
 							paymentMode: '$payment.method',
 							reason: {
@@ -466,7 +468,7 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
-		comments,
+		comment,
 		bankName,
 		chequeDate,
 		chequeNumber,
@@ -719,7 +721,7 @@ const createReceipt = async (req, res, next) => {
 				sectionId: section._id,
 			},
 		},
-		comments,
+		comment,
 		receiptType,
 		receiptId,
 		parent: {
@@ -802,7 +804,9 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
 	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
-	const payload = {};
+	const payload = {
+		status: { $ne: 'CANCELLED' },
+	};
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({

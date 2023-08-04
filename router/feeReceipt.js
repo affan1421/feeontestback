@@ -26,6 +26,7 @@ router.get('/:id', getFeeReceiptById);
 
 router.post('/:id/cancellation', cancelReceipt);
 
+// Miscelleneous Receipt
 router.post('/', createReceipt);
 
 module.exports = router;

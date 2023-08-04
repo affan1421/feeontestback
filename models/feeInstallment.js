@@ -17,6 +17,10 @@ const FeeInstallmentSchema = new Schema(
 			type: Schema.Types.ObjectId, // feeDetails _id
 			required: true,
 		}, // filter
+		gender: {
+			type: String,
+			required: false,
+		},
 		deleted: {
 			type: Boolean,
 			default: false,

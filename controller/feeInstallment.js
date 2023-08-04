@@ -1324,7 +1324,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		feeDetails,
 		studentId,
 		collectedFee,
-		comments,
+		comment,
 		totalFeeAmount,
 		dueAmount,
 		paymentMethod,
@@ -1663,7 +1663,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 				sectionId,
 			},
 		},
-		comments,
+		comment,
 		receiptType,
 		receiptId,
 		category: {
@@ -2103,7 +2103,12 @@ exports.AddPreviousFee = async (req, res, next) => {
 
 exports.reportBySchedules = async (req, res, next) => {
 	const { scheduleId = null, scheduleDates = [], withDisc = false } = req.body;
-	const { school_id } = req.user;
+	let school_id = null;
+
+	if (!req.user.school_id) {
+		return next(new ErrorResponse('Not Authorized', 500));
+	}
+	school_id = req.user.school_id;
 
 	// For fee performance
 	// Full Paid - On Time, Late
@@ -2168,6 +2173,8 @@ exports.reportBySchedules = async (req, res, next) => {
 		});
 	}
 
+	const amountProp = withDisc ? '$netAmount' : '$totalAmount';
+
 	const aggregate = [
 		{
 			$facet: {
@@ -2179,7 +2186,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: withDisc ? '$netAmount' : '$totalAmount',
+								$sum: amountProp,
 							},
 						},
 					},
@@ -2187,17 +2194,12 @@ exports.reportBySchedules = async (req, res, next) => {
 				],
 				totalDues: [
 					{
-						$match: {
-							...match,
-							status: {
-								$in: ['Due', 'Upcoming'],
-							},
-						},
+						$match: match,
 					},
 					{
 						$addFields: {
 							dueAmount: {
-								$subtract: ['$netAmount', '$paidAmount'],
+								$subtract: [amountProp, '$paidAmount'],
 							},
 						},
 					},
@@ -2205,7 +2207,7 @@ exports.reportBySchedules = async (req, res, next) => {
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {
-								$sum: withDisc ? '$netAmount' : '$totalAmount',
+								$sum: '$dueAmount',
 							},
 						},
 					},
