@@ -633,20 +633,40 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		},
 	];
 
-	if (paymentStatus === 'FULL') {
-		aggregate.push(groupByStudent, {
-			$match: {
-				recCount: scheduleDates.length,
-			},
-		});
-	} else if (paymentStatus === 'PARTIAL') {
-		aggregate.push(addFieldStage, groupByStudent, {
-			$match: {
-				$expr: {
-					$lt: ['$dueAmount', '$totalAmount'],
-				},
-			},
-		});
+	if (paymentStatus) {
+		switch (paymentStatus) {
+			case 'FULL':
+				aggregate.push(groupByStudent, {
+					$match: {
+						recCount: scheduleDates.length,
+					},
+				});
+				break;
+			case 'PARTIAL':
+				aggregate.push(addFieldStage, groupByStudent, {
+					$match: {
+						$expr: {
+							$lt: ['$dueAmount', '$totalAmount'],
+						},
+					},
+				});
+				break;
+			case 'NOT':
+				aggregate.push(
+					addFieldStage,
+					{
+						$match: {
+							$expr: {
+								$eq: ['$dueAmount', '$totalAmount'],
+							},
+						},
+					},
+					groupByStudent
+				);
+				break;
+			default:
+				break;
+		}
 	} else {
 		aggregate.push(addFieldStage, groupByStudent);
 	}
@@ -685,7 +705,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		const {
 			studentName,
 			parentName = '',
-			username = '',
+			username,
 			admission_no = '',
 			sectionName = '',
 			totalAmount,
@@ -695,7 +715,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		} = row;
 
 		worksheet.cell(index + 2, 1).string(studentName);
-		worksheet.cell(index + 2, 2).string(admission_no);
+		worksheet.cell(index + 2, 2).string(admission_no || '');
 		worksheet.cell(index + 2, 3).string(parentName);
 		worksheet.cell(index + 2, 4).string(username);
 		worksheet.cell(index + 2, 5).string(sectionName);
@@ -705,7 +725,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 9).number(dueAmount);
 	});
 
-	// workbook.write(`${schoolName}.xlsx`);
+	workbook.write(`student-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 
@@ -1112,10 +1132,10 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 
 	worksheet.cell(1, 1).string('Class Name').style(style);
 	worksheet.cell(1, 2).string('Total Students').style(style);
-	worksheet.cell(1, 6).string('Due Students').style(style);
-	worksheet.cell(1, 3).string('Total Fees').style(style);
-	worksheet.cell(1, 4).string('Paid Fees').style(style);
-	worksheet.cell(1, 5).string('Balance Fee').style(style);
+	worksheet.cell(1, 3).string('Due Students').style(style);
+	worksheet.cell(1, 4).string('Total Fees').style(style);
+	worksheet.cell(1, 5).string('Paid Fees').style(style);
+	worksheet.cell(1, 6).string('Balance Fees').style(style);
 
 	result.forEach((row, index) => {
 		const {
@@ -1135,7 +1155,7 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 6).number(totalDueAmount);
 	});
 
-	// workbook.write(`${schoolName}.xlsx`);
+	workbook.write(`Class-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 

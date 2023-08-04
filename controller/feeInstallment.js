@@ -561,6 +561,278 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(response, 1, 'Fetched Successfully'));
 });
 
+exports.studentReport = catchAsync(async (req, res, next) => {
+
+	const { categoryId, studentId } = req.query;
+
+	const feeInstallmentsPipeline = [
+		{
+			$match: {
+				studentId: mongoose.Types.ObjectId(studentId),
+			},
+		},
+		{
+			$facet: {
+				stats: [
+					{
+						$group: {
+							_id: null,
+							total: {
+								$sum: '$netAmount',
+							},
+							paid: {
+								$sum: '$paidAmount',
+							},
+						},
+					},
+					{
+						$project: {
+							_id: 0,
+							total: 1,
+							paid: 1,
+							pending: {
+								$subtract: ['$total', '$paid'],
+							},
+						},
+					},
+				],
+				discounts: [
+					{
+						$unwind: '$discounts',
+					},
+					{
+						$group: {
+							_id: '$discounts',
+						},
+					},
+					{
+						$lookup: {
+							from: 'discountcategories',
+							localField: '_id.discountId',
+							foreignField: '_id',
+							as: 'discountDetails',
+						},
+					},
+					{
+						$unwind: '$discountDetails',
+					},
+					{
+						$project: {
+							id: '$_id.discountId',
+							name: '$discountDetails.name',
+							status: '$_id.status',
+							discountAmount: '$_id.discountAmount',
+						},
+					},
+				],
+				feeInstallments: [
+					{
+						$match: {
+							categoryId: mongoose.Types.ObjectId(categoryId),
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							localField: 'feeTypeId',
+							foreignField: '_id',
+							as: 'feeType',
+						},
+					},
+					{
+						$unwind: '$feeType',
+					},
+					{
+						$project: {
+							name: '$feeType.feeType',
+							date: 1,
+							totalAmount: 1,
+							totalDiscountAmount: 1,
+							paidAmount: 1,
+							netAmount: 1,
+							status: 1,
+						},
+					},
+				],
+			},
+		},
+		{
+			$match: {
+				$or: [
+					{ 'stats.0': { $exists: true } },
+					{ 'feeInstallments.0': { $exists: true } },
+				],
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				stats: { $arrayElemAt: ['$stats', 0] },
+				discounts: 1,
+				feeInstallments: 1,
+			},
+		},
+	]
+
+	const miscFeePipeline = [
+		{
+			$match: {
+				'student.studentId': mongoose.Types.ObjectId(studentId),
+				receiptType: 'MISCELLANEOUS',
+			},
+		},
+		{
+			$unwind: '$items',
+		},
+		{
+			$lookup: {
+				from: 'feetypes',
+				localField: 'items.feeTypeId',
+				foreignField: '_id',
+				as: 'feetype',
+			},
+		},
+		{
+			$unwind: '$feetype',
+		},
+		{
+			$project: {
+				_id: 0,
+				amount: '$items.netAmount',
+				feetype: '$feetype.feeType',
+			},
+		},
+	];
+
+	const previousBalancesPipeline = [
+		{
+			$match: {
+				studentId: mongoose.Types.ObjectId(studentId),
+				isEnrolled: true,
+			},
+		},
+		{
+			$project: {
+				total: '$totalAmount',
+				paid: '$paidAmount',
+				due: '$dueAmount',
+			},
+		},
+	];
+
+	const studentPipeline = [
+		{
+			$match: {
+				_id: mongoose.Types.ObjectId(studentId),
+				deleted: false,
+				profileStatus: 'APPROVED',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$section',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$parent_id',
+					studname: '$name',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: {
+								$ifNull: [
+									'$name',
+									{
+										$concat: ['$$studname', ' (Parent)'],
+									},
+								],
+							},
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$project: {
+				studentName: '$name',
+				username: 1,
+				profile_image: 1,
+				parentName: {
+					$first: '$parent.name',
+				},
+				class: {
+					$first: '$section.className',
+				},
+			},
+		},
+	];
+
+	async function aggregateWithPipeline(collection, pipeline) {
+		try {
+			return await collection.aggregate(pipeline);
+		} catch (error) {
+			throw new ErrorResponse('Error executing pipeline', 500);
+		}
+	}
+
+	const [feeInstallments, miscFees, previousBalances, studentDetails] = await Promise.all([
+		aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
+		aggregateWithPipeline(FeeReceipt, miscFeePipeline),
+		aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
+		findStudentDetails()
+	]);
+
+	async function findStudentDetails() {
+		const foundStudent = await Student.aggregate(studentPipeline).toArray();
+		if (foundStudent.length < 1) {
+			return next(new ErrorResponse('Student Not Found', 404));
+		}
+		const response = foundStudent[0];
+		return response
+	}
+
+	const data = {
+		stats: feeInstallments[0].stats,
+		feeInstallments: feeInstallments[0].feeInstallments,
+		discounts: feeInstallments[0].discounts,
+		miscFees: miscFees,
+		previousBalance: previousBalances,
+		studentDetails: studentDetails
+	};
+
+	return res.status(200).json(SuccessResponse(data));
+})
+
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	// StudentName	ParentName	PhoneNumber Class Section Total AmountTerm feeAmount AmountPaid TermBal LastYearBal
 
@@ -2031,13 +2303,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-					amount: info.amount,
-					sectionId: {
-						_id: section._id,
-						sectionName: section.name,
-						className: section.className,
-					},
-			  }
+				amount: info.amount,
+				sectionId: {
+					_id: section._id,
+					sectionName: section.name,
+					className: section.className,
+				},
+			}
 			: null;
 	};
 
