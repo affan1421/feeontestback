@@ -35,10 +35,7 @@ router.get(
 	feeInstallmentController.getStudentFeeStructure
 );
 
-router.get(
-	'/studentReport',
-	feeInstallmentController.studentReport
-);
+router.get('/studentReport', feeInstallmentController.studentReport);
 
 router.get(
 	'/studentFeeExcel/:schoolId',

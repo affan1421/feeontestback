@@ -1492,88 +1492,84 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 		(acc, curr) => acc + (curr.totalBudget - curr.budgetRemaining),
 		0
 	);
-	console.log(totalDiscountAmount);
 
 	// DISCOUNT DATA
-	const [discountReport] = await SectionDiscount.aggregate([
+	const [discountReport] = await FeeInstallment.aggregate([
 		{
 			$match: {
 				schoolId: mongoose.Types.ObjectId(school_id),
-			},
-		},
-		{
-			$addFields: {
-				approvedAmount: {
-					$multiply: ['$discountAmount', '$totalApproved'],
+				totalDiscountAmount: {
+					$gt: 0,
 				},
 			},
 		},
 		{
 			$group: {
 				_id: '$sectionId',
-				approvedAmount: {
-					$sum: '$approvedAmount',
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+			},
+		},
+		{
+			$sort: {
+				totalDiscountAmount: -1,
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				maxClass: {
+					$first: {
+						sectionId: '$_id',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
+				},
+				minClass: {
+					$last: {
+						sectionId: '$_id',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
 				},
 			},
 		},
 		{
 			$lookup: {
 				from: 'sections',
-				localField: '_id',
-				foreignField: '_id',
-				as: '_id',
-			},
-		},
-		{
-			$sort: {
-				approvedAmount: -1,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				totalApprovedAmount: {
-					$sum: '$approvedAmount',
+				let: {
+					maxId: '$maxClass.sectionId',
+					minId: '$minClass.sectionId',
 				},
-				maxClass: {
-					$first: '$$ROOT',
-				},
-				minClass: {
-					$last: '$$ROOT',
-				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$in: ['$_id', ['$$maxId', '$$minId']],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'sections',
 			},
 		},
 		{
 			$project: {
-				_id: 0,
-				totalApprovedAmount: 1,
 				maxClass: {
-					amount: '$maxClass.approvedAmount',
 					sectionId: {
-						_id: {
-							$first: '$maxClass._id._id',
-						},
-						sectionName: {
-							$first: '$maxClass._id.name',
-						},
-						className: {
-							$first: '$maxClass._id.className',
-						},
+						$first: '$sections',
 					},
+					amount: '$maxClass.totalDiscountAmount',
 				},
 				minClass: {
-					amount: '$minClass.approvedAmount',
 					sectionId: {
-						_id: {
-							$first: '$maxClass._id._id',
-						},
-						sectionName: {
-							$first: '$maxClass._id.name',
-						},
-						className: {
-							$first: '$maxClass._id.className',
-						},
+						$last: '$sections',
 					},
+					amount: '$minClass.totalDiscountAmount',
 				},
 			},
 		},
