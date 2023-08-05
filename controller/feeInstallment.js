@@ -458,6 +458,93 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	return res.status(200).json(SuccessResponse(foundStudents, totalStudents));
 });
 
+exports.StudentSearch = catchAsync(async (req, res, next) => {
+	const { search, page, limit } = req.query;
+	let path = 'username';
+	const limitInt = limit ? parseInt(limit) : 10;
+	const skip = page ? parseInt(page - 1) * limitInt : 0;
+	if (!search) {
+		return res
+			.status(400)
+			.json(new ErrorResponse('PLease enter search value', 400));
+	}
+	if (Number.isNaN(+search)) {
+		path = 'name';
+	}
+	const queryObj = {
+		index: 'studentBasicInfo',
+		compound: {
+			must: [
+				{
+					autocomplete: {
+						query: search,
+						path,
+					},
+				},
+			],
+		},
+		count: {
+			type: 'total',
+		},
+	};
+
+	const searchResult = await Student.aggregate([
+		{
+			$search: queryObj,
+		},
+		{
+			$skip: Number(skip),
+		},
+		{
+			$limit: Number(limit),
+		},
+		{
+			$lookup: {
+				from: 'classes',
+				localField: 'class',
+				foreignField: '_id',
+				as: 'class',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				localField: 'section',
+				foreignField: '_id',
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				localField: 'parent_id',
+				foreignField: '_id',
+				as: 'parent',
+			},
+		},
+		{
+			$match: {
+				feeCategoryIds: { $exists: true, $ne: [] },
+			},
+		},
+		{
+			$project: {
+				name: 1,
+				class: {
+					$concat: { $first: '$class.name', $first: '$section.name' },
+				},
+				parentName: {
+					$first: '$parent.name',
+				},
+				username: 1,
+				count: '$meta.count.total',
+				profile_image: 1,
+			},
+		},
+	]).toArray();
+	res.status(200).json(SuccessResponse(searchResult));
+});
+
 exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 	const { categoryId = null, studentId = null } = req.query;
 
@@ -562,8 +649,11 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 });
 
 exports.studentReport = catchAsync(async (req, res, next) => {
-
 	const { categoryId, studentId } = req.query;
+
+	if (!categoryId || !studentId) {
+		return next(new ErrorResponse('Please Provide All Inputs', 422));
+	}
 
 	const feeInstallmentsPipeline = [
 		{
@@ -672,7 +762,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 				feeInstallments: 1,
 			},
 		},
-	]
+	];
 
 	const miscFeePipeline = [
 		{
@@ -801,37 +891,38 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		try {
 			return await collection.aggregate(pipeline);
 		} catch (error) {
-			throw new ErrorResponse('Error executing pipeline', 500);
+			return next(new ErrorResponse('Error', 400));
 		}
 	}
-
-	const [feeInstallments, miscFees, previousBalances, studentDetails] = await Promise.all([
-		aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
-		aggregateWithPipeline(FeeReceipt, miscFeePipeline),
-		aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
-		findStudentDetails()
-	]);
 
 	async function findStudentDetails() {
 		const foundStudent = await Student.aggregate(studentPipeline).toArray();
-		if (foundStudent.length < 1) {
+		if (!foundStudent.length) {
 			return next(new ErrorResponse('Student Not Found', 404));
 		}
 		const response = foundStudent[0];
-		return response
+		return response;
 	}
+
+	const [feeInstallments, miscFees, previousBalances, studentDetails] =
+		await Promise.all([
+			aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
+			aggregateWithPipeline(FeeReceipt, miscFeePipeline),
+			aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
+			findStudentDetails(),
+		]);
 
 	const data = {
 		stats: feeInstallments[0].stats,
 		feeInstallments: feeInstallments[0].feeInstallments,
 		discounts: feeInstallments[0].discounts,
-		miscFees: miscFees,
+		miscFees,
 		previousBalance: previousBalances,
-		studentDetails: studentDetails
+		studentDetails,
 	};
 
-	return res.status(200).json(SuccessResponse(data));
-})
+	return res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
+});
 
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	// StudentName	ParentName	PhoneNumber Class Section Total AmountTerm feeAmount AmountPaid TermBal LastYearBal
@@ -2303,13 +2394,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-				amount: info.amount,
-				sectionId: {
-					_id: section._id,
-					sectionName: section.name,
-					className: section.className,
-				},
-			}
+					amount: info.amount,
+					sectionId: {
+						_id: section._id,
+						sectionName: section.name,
+						className: section.className,
+					},
+			  }
 			: null;
 	};
 
