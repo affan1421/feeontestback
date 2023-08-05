@@ -458,6 +458,93 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	return res.status(200).json(SuccessResponse(foundStudents, totalStudents));
 });
 
+exports.StudentSearch = catchAsync(async (req, res, next) => {
+	const { search, page, limit } = req.query;
+	let path = 'username';
+	const limitInt = limit ? parseInt(limit) : 10;
+	const skip = page ? parseInt(page - 1) * limitInt : 0;
+	if (!search) {
+		return res
+			.status(400)
+			.json(new ErrorResponse('PLease enter search value', 400));
+	}
+	if (Number.isNaN(+search)) {
+		path = 'name';
+	}
+	const queryObj = {
+		index: 'studentBasicInfo',
+		compound: {
+			must: [
+				{
+					autocomplete: {
+						query: search,
+						path,
+					},
+				},
+			],
+		},
+		count: {
+			type: 'total',
+		},
+	};
+
+	const searchResult = await Student.aggregate([
+		{
+			$search: queryObj
+		},
+		{
+			$skip: Number(skip),
+		},
+		{
+			$limit: Number(limit),
+		},
+		{
+			$lookup: {
+				from: 'classes',
+				localField: 'class',
+				foreignField: '_id',
+				as: 'class',
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				localField: 'section',
+				foreignField: '_id',
+				as: 'section',
+			},
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				localField: 'parent_id',
+				foreignField: '_id',
+				as: 'parent',
+			},
+		},
+		{
+			$match: {
+				feeCategoryIds: { $exists: true, $ne: [] }
+			},
+		},
+		{
+			$project: {
+				name: 1,
+				class: {
+					$concat: { $first: '$class.name', $first: '$section.name' }
+				},
+				parentName: {
+					$first: '$parent.name'
+				},
+				username: 1,
+				count: '$meta.count.total',
+				profile_image: 1
+			},
+		},
+	]).toArray()
+	res.status(200).json(SuccessResponse(searchResult));
+});
+
 exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 	const { categoryId = null, studentId = null } = req.query;
 
@@ -801,7 +888,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		try {
 			return await collection.aggregate(pipeline);
 		} catch (error) {
-			throw new ErrorResponse('Error executing pipeline', 500);
+			return next(new ErrorResponse('Error', 400));
 		}
 	}
 
