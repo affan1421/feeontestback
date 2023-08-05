@@ -490,7 +490,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 
 	const searchResult = await Student.aggregate([
 		{
-			$search: queryObj
+			$search: queryObj,
 		},
 		{
 			$skip: Number(skip),
@@ -524,24 +524,24 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 		},
 		{
 			$match: {
-				feeCategoryIds: { $exists: true, $ne: [] }
+				feeCategoryIds: { $exists: true, $ne: [] },
 			},
 		},
 		{
 			$project: {
 				name: 1,
 				class: {
-					$concat: { $first: '$class.name', $first: '$section.name' }
+					$concat: { $first: '$class.name', $first: '$section.name' },
 				},
 				parentName: {
-					$first: '$parent.name'
+					$first: '$parent.name',
 				},
 				username: 1,
 				count: '$meta.count.total',
-				profile_image: 1
+				profile_image: 1,
 			},
 		},
-	]).toArray()
+	]).toArray();
 	res.status(200).json(SuccessResponse(searchResult));
 });
 
@@ -649,8 +649,11 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 });
 
 exports.studentReport = catchAsync(async (req, res, next) => {
-
 	const { categoryId, studentId } = req.query;
+
+	if (!categoryId || !studentId) {
+		return next(new ErrorResponse('Please Provide All Inputs', 422));
+	}
 
 	const feeInstallmentsPipeline = [
 		{
@@ -759,7 +762,7 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 				feeInstallments: 1,
 			},
 		},
-	]
+	];
 
 	const miscFeePipeline = [
 		{
@@ -892,33 +895,34 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 		}
 	}
 
-	const [feeInstallments, miscFees, previousBalances, studentDetails] = await Promise.all([
-		aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
-		aggregateWithPipeline(FeeReceipt, miscFeePipeline),
-		aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
-		findStudentDetails()
-	]);
-
 	async function findStudentDetails() {
 		const foundStudent = await Student.aggregate(studentPipeline).toArray();
-		if (foundStudent.length < 1) {
+		if (!foundStudent.length) {
 			return next(new ErrorResponse('Student Not Found', 404));
 		}
 		const response = foundStudent[0];
-		return response
+		return response;
 	}
+
+	const [feeInstallments, miscFees, previousBalances, studentDetails] =
+		await Promise.all([
+			aggregateWithPipeline(FeeInstallment, feeInstallmentsPipeline),
+			aggregateWithPipeline(FeeReceipt, miscFeePipeline),
+			aggregateWithPipeline(PreviousBalance, previousBalancesPipeline),
+			findStudentDetails(),
+		]);
 
 	const data = {
 		stats: feeInstallments[0].stats,
 		feeInstallments: feeInstallments[0].feeInstallments,
 		discounts: feeInstallments[0].discounts,
-		miscFees: miscFees,
+		miscFees,
 		previousBalance: previousBalances,
-		studentDetails: studentDetails
+		studentDetails,
 	};
 
-	return res.status(200).json(SuccessResponse(data));
-})
+	return res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
+});
 
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	// StudentName	ParentName	PhoneNumber Class Section Total AmountTerm feeAmount AmountPaid TermBal LastYearBal
@@ -2390,13 +2394,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-				amount: info.amount,
-				sectionId: {
-					_id: section._id,
-					sectionName: section.name,
-					className: section.className,
-				},
-			}
+					amount: info.amount,
+					sectionId: {
+						_id: section._id,
+						sectionName: section.name,
+						className: section.className,
+					},
+			  }
 			: null;
 	};
 
