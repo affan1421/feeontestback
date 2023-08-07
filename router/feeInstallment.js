@@ -30,6 +30,7 @@ router.post(
 );
 
 router.get('/studentsList', feeInstallmentController.StudentsList);
+router.get('/student', feeInstallmentController.StudentSearch);
 router.get(
 	'/studentstructure',
 	feeInstallmentController.getStudentFeeStructure

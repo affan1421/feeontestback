@@ -59,22 +59,22 @@ const getSummary = CatchAsync(async (req, res, next) => {
 			$match: match,
 		},
 		{
-			$addFields: {
-				dueAmount: {
-					$subtract: ['$netAmount', '$paidAmount'],
-				},
-			},
-		},
-		{
-			$match: {
-				dueAmount: {
-					$gt: 0,
-				},
-			},
-		},
-		{
 			$facet: {
 				classes: [
+					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
+							},
+						},
+					},
 					{
 						$group: {
 							_id: '$sectionId',
@@ -111,6 +111,13 @@ const getSummary = CatchAsync(async (req, res, next) => {
 				],
 				duesAmount: [
 					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
 						$group: {
 							_id: null,
 							totalReceivables: {
@@ -123,6 +130,20 @@ const getSummary = CatchAsync(async (req, res, next) => {
 					},
 				],
 				dueStudents: [
+					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
+							},
+						},
+					},
 					{
 						$group: {
 							_id: '$studentId',
@@ -1258,6 +1279,7 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 							username: 1,
 							profile_image: 1,
 							admission_no: 1,
+							parent_id: 1,
 						},
 					},
 				],
@@ -1268,8 +1290,35 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 			$unwind: '$student',
 		},
 		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$student.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$unwind: '$parent',
+		},
+		{
 			$project: {
 				studentName: '$student.name',
+				parentName: '$parent.name',
 				admission_no: '$student.admission_no',
 				username: '$student.username',
 				profileImage: '$student.profile_image',
