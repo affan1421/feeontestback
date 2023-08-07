@@ -831,15 +831,90 @@ const getExcel = catchAsync(async (req, res, next) => {
 			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
 		};
 	}
+	const methodMap = new Map();
 
 	const receiptDetails = await FeeReceipt.aggregate([
 		{
-			$match: payload,
+			$match: {
+				_id: mongoose.Types.ObjectId('6464575117e476080ecf0b86'),
+			},
 		},
 		{
 			$unwind: {
 				path: '$items',
 				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$set: {
+				insId: {
+					$ifNull: ['$items.installmentId', []],
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'feeinstallments',
+				let: {
+					insId: '$insId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$and: [
+									{
+										$eq: ['$_id', '$$insId'],
+									},
+									{
+										$eq: ['$deleted', false],
+									},
+								],
+							},
+						},
+					},
+					{
+						$project: {
+							month: {
+								$month: '$date',
+							},
+						},
+					},
+				],
+				as: 'insResult',
+			},
+		},
+		{
+			$unwind: {
+				path: '$insResult',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$addFields: {
+				month: {
+					$let: {
+						vars: {
+							monthsInString: [
+								'Jan',
+								'Feb',
+								'Mar',
+								'Apr',
+								'May',
+								'Jun',
+								'Jul',
+								'Aug',
+								'Sep',
+								'Oct',
+								'Nov',
+								'Dec',
+							],
+						},
+						in: {
+							$arrayElemAt: ['$$monthsInString', '$insResult.month'],
+						},
+					},
+				},
 			},
 		},
 		{
@@ -865,9 +940,25 @@ const getExcel = catchAsync(async (req, res, next) => {
 				amount: {
 					$first: '$paidAmount',
 				},
-				description: {
-					$addToSet: {
-						$first: '$feetypes.feeType',
+				items: {
+					$push: {
+						feeType: {
+							$ifNull: [
+								{
+									$concat: [
+										{
+											$first: '$feetypes.feeType',
+										},
+										' - ',
+										'$month',
+									],
+								},
+								{
+									$first: '$feetypes.feeType',
+								},
+							],
+						},
+						amount: '$items.paidAmount',
 					},
 				},
 				receiptId: {
@@ -898,27 +989,72 @@ const getExcel = catchAsync(async (req, res, next) => {
 		},
 		numberFormat: '$#,##0.00; ($#,##0.00); -',
 	});
+
+	const mergedCellCenter = {
+		alignment: {
+			vertical: 'center',
+		},
+	};
 	worksheet.cell(1, 1).string('Name').style(style);
 	worksheet.cell(1, 2).string('Class').style(style);
-	worksheet.cell(1, 3).string('Amount').style(style);
-	worksheet.cell(1, 4).string('Description').style(style);
-	worksheet.cell(1, 5).string('Receipt ID').style(style);
-	worksheet.cell(1, 6).string('Date').style(style);
+	worksheet.cell(1, 3).string('Receipt ID').style(style);
+	worksheet.cell(1, 4).string('Date').style(style);
+	worksheet.cell(1, 5).string('Description').style(style);
+	worksheet.cell(1, 6).string('Amount').style(style);
 	worksheet.cell(1, 7).string('Payment Mode').style(style);
+	worksheet.cell(1, 8).string('Total Amount').style(style);
 
 	receiptDetails.forEach((receipt, index) => {
-		worksheet.cell(index + 2, 1).string(receipt.student);
+		const {
+			student,
+			class: className,
+			section,
+			amount,
+			items,
+			receiptId,
+			issueDate,
+			method,
+		} = receipt;
+
+		// based on items length create rows and merge all rows except the description and amount
+		const rowStart = index * items.length + 2;
+		const rowEnd = rowStart + items.length - 1;
 		worksheet
-			.cell(index + 2, 2)
-			.string(`${receipt.class} - ${receipt.section}`);
-		worksheet.cell(index + 2, 3).number(receipt.amount);
-		worksheet.cell(index + 2, 4).string(receipt.description.join(','));
-		worksheet.cell(index + 2, 5).string(receipt.receiptId);
-		// 20-05-2023
+			.cell(rowStart, 1, rowEnd, 1, true)
+			.string(student)
+			.style(mergedCellCenter);
 		worksheet
-			.cell(index + 2, 6)
-			.string(moment(receipt.issueDate).format('DD-MM-YYYY'));
-		worksheet.cell(index + 2, 7).string(receipt.method);
+			.cell(rowStart, 2, rowEnd, 2, true)
+			.string(`${className} - ${section}`)
+			.style(mergedCellCenter);
+
+		worksheet
+			.cell(rowStart, 3, rowEnd, 3, true)
+			.string(receiptId)
+			.style(mergedCellCenter);
+
+		worksheet
+			.cell(rowStart, 4, rowEnd, 4, true)
+			.string(moment(issueDate).format('DD/MM/YYYY'))
+			.style(mergedCellCenter);
+
+		items.forEach((item, itemIndex) => {
+			const { feeType, amount: itemAmount } = item;
+			const row = rowStart + itemIndex;
+			worksheet.cell(row, 5).string(feeType);
+			worksheet.cell(row, 6).number(itemAmount);
+		});
+
+		worksheet
+			.cell(rowStart, 7, rowEnd, 7, true)
+			.string(method)
+			.style(mergedCellCenter);
+		worksheet
+			.cell(rowStart, 8, rowEnd, 8, true)
+			.number(amount)
+			.style(mergedCellCenter);
+
+		methodMap.set(method, methodMap.get(method) + amount || amount);
 	});
 
 	// workbook.write('income.xlsx');
