@@ -59,22 +59,22 @@ const getSummary = CatchAsync(async (req, res, next) => {
 			$match: match,
 		},
 		{
-			$addFields: {
-				dueAmount: {
-					$subtract: ['$netAmount', '$paidAmount'],
-				},
-			},
-		},
-		{
-			$match: {
-				dueAmount: {
-					$gt: 0,
-				},
-			},
-		},
-		{
 			$facet: {
 				classes: [
+					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
+							},
+						},
+					},
 					{
 						$group: {
 							_id: '$sectionId',
@@ -111,6 +111,13 @@ const getSummary = CatchAsync(async (req, res, next) => {
 				],
 				duesAmount: [
 					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
 						$group: {
 							_id: null,
 							totalReceivables: {
@@ -123,6 +130,20 @@ const getSummary = CatchAsync(async (req, res, next) => {
 					},
 				],
 				dueStudents: [
+					{
+						$addFields: {
+							dueAmount: {
+								$subtract: ['$netAmount', '$paidAmount'],
+							},
+						},
+					},
+					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
+							},
+						},
+					},
 					{
 						$group: {
 							_id: '$studentId',
