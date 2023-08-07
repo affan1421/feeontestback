@@ -835,9 +835,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 
 	const receiptDetails = await FeeReceipt.aggregate([
 		{
-			$match: {
-				_id: mongoose.Types.ObjectId('6464575117e476080ecf0b86'),
-			},
+			$match: payload,
 		},
 		{
 			$unwind: {
@@ -911,7 +909,12 @@ const getExcel = catchAsync(async (req, res, next) => {
 							],
 						},
 						in: {
-							$arrayElemAt: ['$$monthsInString', '$insResult.month'],
+							$arrayElemAt: [
+								'$$monthsInString',
+								{
+									$subtract: ['$insResult.month', 1],
+								},
+							],
 						},
 					},
 				},
@@ -978,6 +981,15 @@ const getExcel = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
+
+	if (!receiptDetails.length)
+		return next(new ErrorResponse('No Receipts Found', 404));
+
+	const commonBorderStyle = {
+		style: 'thin',
+		color: '#000000',
+	};
+
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Income Details');
@@ -987,7 +999,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 			color: '#000000',
 			size: 12,
 		},
-		numberFormat: '$#,##0.00; ($#,##0.00); -',
+		numberFormat: '₹#,##0.00; ($#,##0.00); -',
 	});
 
 	const mergedCellCenter = {
@@ -1004,7 +1016,8 @@ const getExcel = catchAsync(async (req, res, next) => {
 	worksheet.cell(1, 7).string('Payment Mode').style(style);
 	worksheet.cell(1, 8).string('Total Amount').style(style);
 
-	receiptDetails.forEach((receipt, index) => {
+	let rowIndex = 2; // Start from row 2
+	receiptDetails.forEach(receipt => {
 		const {
 			student,
 			class: className,
@@ -1016,9 +1029,10 @@ const getExcel = catchAsync(async (req, res, next) => {
 			method,
 		} = receipt;
 
-		// based on items length create rows and merge all rows except the description and amount
-		const rowStart = index * items.length + 2;
-		const rowEnd = rowStart + items.length - 1;
+		const itemCount = items.length;
+		const rowStart = rowIndex;
+		const rowEnd = rowIndex + itemCount - 1;
+
 		worksheet
 			.cell(rowStart, 1, rowEnd, 1, true)
 			.string(student)
@@ -1054,7 +1068,34 @@ const getExcel = catchAsync(async (req, res, next) => {
 			.number(amount)
 			.style(mergedCellCenter);
 
-		methodMap.set(method, methodMap.get(method) + amount || amount);
+		methodMap.set(method, (methodMap.get(method) || 0) + amount);
+
+		rowIndex = rowEnd + 1; // Move the rowIndex to the next available row for the next receipt
+	});
+
+	// add total row
+	let totalRow = rowIndex + 1;
+	const mapRow = totalRow;
+	methodMap.forEach((value, key) => {
+		worksheet.cell(totalRow, 7).string(key).style(style);
+		worksheet.cell(totalRow, 8).number(value).style(style);
+		totalRow += 1;
+	});
+
+	// Grant Total
+	worksheet.cell(totalRow, 7).string('Grant Total').style(style);
+	worksheet
+		.cell(totalRow, 8)
+		.formula(`SUM(H${mapRow}:H${totalRow - 1})`)
+		.style(style);
+
+	worksheet.cell(1, 1, totalRow, 8).style({
+		border: {
+			left: commonBorderStyle,
+			right: commonBorderStyle,
+			top: commonBorderStyle,
+			bottom: commonBorderStyle,
+		},
 	});
 
 	// workbook.write('income.xlsx');
