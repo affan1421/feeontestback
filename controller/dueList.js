@@ -1258,6 +1258,7 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 							username: 1,
 							profile_image: 1,
 							admission_no: 1,
+							parent_id: 1,
 						},
 					},
 				],
@@ -1268,8 +1269,35 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 			$unwind: '$student',
 		},
 		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$student.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$unwind: '$parent',
+		},
+		{
 			$project: {
 				studentName: '$student.name',
+				parentName: '$parent.name',
 				admission_no: '$student.admission_no',
 				username: '$student.username',
 				profileImage: '$student.profile_image',
