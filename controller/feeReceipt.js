@@ -1086,7 +1086,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 	worksheet.cell(totalRow, 7).string('Grant Total').style(style);
 	worksheet
 		.cell(totalRow, 8)
-		.formula(`SUM(H${mapRow}:H${totalRow - 1})`)
+		.number(Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0))
 		.style(style);
 
 	worksheet.cell(1, 1, totalRow, 8).style({
