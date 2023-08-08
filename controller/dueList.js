@@ -715,7 +715,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
-	const worksheet = workbook.addWorksheet('Student Due Excel');
+	const worksheet = workbook.addWorksheet('Students Dues');
 	const style = workbook.createStyle({
 		font: {
 			bold: true,
@@ -730,10 +730,9 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 	worksheet.cell(1, 3).string('Parent Name').style(style);
 	worksheet.cell(1, 4).string('Phone Number').style(style);
 	worksheet.cell(1, 5).string('Class').style(style);
-	worksheet.cell(1, 6).string('Total Fees').style(style);
+	worksheet.cell(1, 6).string('Net Fees').style(style);
 	worksheet.cell(1, 7).string('Paid Fees').style(style);
-	worksheet.cell(1, 8).string('Discount').style(style);
-	worksheet.cell(1, 9).string('Balance Fee').style(style);
+	worksheet.cell(1, 8).string('Balance Fees').style(style);
 
 	result.forEach((row, index) => {
 		const {
@@ -742,9 +741,8 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 			username,
 			admission_no = '',
 			sectionName = '',
-			totalAmount,
+			totalNetAmount,
 			paidAmount,
-			discountAmount,
 			dueAmount,
 		} = row;
 
@@ -753,13 +751,12 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 3).string(parentName);
 		worksheet.cell(index + 2, 4).string(username);
 		worksheet.cell(index + 2, 5).string(sectionName);
-		worksheet.cell(index + 2, 6).number(totalAmount);
+		worksheet.cell(index + 2, 6).number(totalNetAmount);
 		worksheet.cell(index + 2, 7).number(paidAmount);
-		worksheet.cell(index + 2, 8).number(discountAmount);
-		worksheet.cell(index + 2, 9).number(dueAmount);
+		worksheet.cell(index + 2, 8).number(dueAmount);
 	});
 
-	workbook.write(`student-List.xlsx`);
+	// workbook.write(`student-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 
@@ -1190,7 +1187,7 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 6).number(totalDueAmount);
 	});
 
-	workbook.write(`Class-List.xlsx`);
+	// workbook.write(`Class-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 

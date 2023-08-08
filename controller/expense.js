@@ -909,7 +909,7 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 6).string(expense.paymentMethod);
 	});
 
-	workbook.write('expense.xlsx');
+	// workbook.write('expense.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
