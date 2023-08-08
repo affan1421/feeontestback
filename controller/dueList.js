@@ -782,9 +782,6 @@ const getClassList = CatchAsync(async (req, res, next) => {
 	const match = {
 		schoolId: mongoose.Types.ObjectId(school_id),
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
-		status: {
-			$in: ['Due', 'Upcoming'],
-		},
 	};
 
 	match.$or = scheduleDates.map(date => {
@@ -997,9 +994,6 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 	const match = {
 		schoolId: mongoose.Types.ObjectId(school_id),
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
-		status: {
-			$in: ['Due', 'Upcoming'],
-		},
 	};
 
 	match.$or = scheduleDates.map(date => {
