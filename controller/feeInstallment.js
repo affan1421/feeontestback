@@ -459,7 +459,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 });
 
 exports.StudentSearch = catchAsync(async (req, res, next) => {
-	const { search, page, limit } = req.query;
+	const { search, page, limit, schoolId } = req.query;
 	let path = 'username';
 	const limitInt = limit ? parseInt(limit) : 10;
 	const skip = page ? parseInt(page - 1) * limitInt : 0;
@@ -525,6 +525,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				feeCategoryIds: { $exists: true, $ne: [] },
+				school_id: mongoose.Types.ObjectId(schoolId)
 			},
 		},
 		{
@@ -540,7 +541,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 				count: '$meta.count.total',
 				profile_image: 1,
 			},
-		},
+		},	
 	]).toArray();
 	res.status(200).json(SuccessResponse(searchResult));
 });
@@ -2394,13 +2395,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-					amount: info.amount,
-					sectionId: {
-						_id: section._id,
-						sectionName: section.name,
-						className: section.className,
-					},
-			  }
+				amount: info.amount,
+				sectionId: {
+					_id: section._id,
+					sectionName: section.name,
+					className: section.className,
+				},
+			}
 			: null;
 	};
 
