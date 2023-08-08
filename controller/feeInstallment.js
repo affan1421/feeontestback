@@ -525,7 +525,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 		{
 			$match: {
 				feeCategoryIds: { $exists: true, $ne: [] },
-				school_id: mongoose.Types.ObjectId(schoolId)
+				school_id: mongoose.Types.ObjectId(schoolId),
 			},
 		},
 		{
@@ -541,7 +541,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 				count: '$meta.count.total',
 				profile_image: 1,
 			},
-		},	
+		},
 	]).toArray();
 	res.status(200).json(SuccessResponse(searchResult));
 });
@@ -1795,11 +1795,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		items,
 	};
-	// Promise all to resolve all the bulkwrite queries
-	const [updateFeeInstallments, createdReceipt] = await Promise.all([
-		FeeInstallment.bulkWrite(bulkWriteOps),
-		FeeReceipt.create(receiptPayload),
-	]);
+
+	const createdReceipt = await FeeReceipt.create(receiptPayload);
+
+	if (!createdReceipt) {
+		return next(new ErrorResponse('Receipt Not Generated', 500));
+	}
+	await FeeInstallment.bulkWrite(bulkWriteOps);
 
 	return res.status(201).json(
 		SuccessResponse(
@@ -2395,13 +2397,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-				amount: info.amount,
-				sectionId: {
-					_id: section._id,
-					sectionName: section.name,
-					className: section.className,
-				},
-			}
+					amount: info.amount,
+					sectionId: {
+						_id: section._id,
+						sectionName: section.name,
+						className: section.className,
+					},
+			  }
 			: null;
 	};
 
