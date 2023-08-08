@@ -281,6 +281,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 			school_id: mongoose.Types.ObjectId(school_id),
 			name: {
 				$regex: searchTerm,
+				$options: 'i',
 			},
 			deleted: false,
 			profileStatus: 'APPROVED',
@@ -392,8 +393,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 				parentName: '$parent.name',
 				sectionName: '$section.className',
 				profileImage: '$student.profile_image',
-				totalAmount: 1,
-				discountAmount: 1,
+				totalNetAmount: 1,
 				paidAmount: 1,
 				dueAmount: 1,
 			},
@@ -417,11 +417,8 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 			sectionId: {
 				$first: '$sectionId',
 			},
-			totalAmount: {
-				$sum: '$totalAmount',
-			},
-			discountAmount: {
-				$sum: '$totalDiscountAmount',
+			totalNetAmount: {
+				$sum: '$netAmount',
 			},
 			paidAmount: {
 				$sum: '$paidAmount',
@@ -450,7 +447,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 				aggregate.push(addFieldStage, groupByStudent, {
 					$match: {
 						$expr: {
-							$lt: ['$dueAmount', '$totalAmount'],
+							$lt: ['$dueAmount', '$totalNetAmount'],
 						},
 					},
 				});
@@ -461,7 +458,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 					{
 						$match: {
 							$expr: {
-								$eq: ['$dueAmount', '$totalAmount'],
+								$eq: ['$paidAmount', 0],
 							},
 						},
 					},
@@ -629,8 +626,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 				sectionName: '$section.className',
 				username: '$student.username',
 				admission_no: '$student.admission_no',
-				totalAmount: 1,
-				discountAmount: 1,
+				totalNetAmount: 1,
 				paidAmount: 1,
 				dueAmount: 1,
 			},
@@ -654,11 +650,8 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 			sectionId: {
 				$first: '$sectionId',
 			},
-			totalAmount: {
-				$sum: '$totalAmount',
-			},
-			discountAmount: {
-				$sum: '$totalDiscountAmount',
+			totalNetAmount: {
+				$sum: '$netAmount',
 			},
 			paidAmount: {
 				$sum: '$paidAmount',
@@ -687,7 +680,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 				aggregate.push(addFieldStage, groupByStudent, {
 					$match: {
 						$expr: {
-							$lt: ['$dueAmount', '$totalAmount'],
+							$lt: ['$dueAmount', '$totalNetAmount'],
 						},
 					},
 				});
@@ -698,7 +691,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 					{
 						$match: {
 							$expr: {
-								$eq: ['$dueAmount', '$totalAmount'],
+								$eq: ['$paidAmount', 0],
 							},
 						},
 					},
@@ -813,6 +806,7 @@ const getClassList = CatchAsync(async (req, res, next) => {
 			school: mongoose.Types.ObjectId(school_id),
 			className: {
 				$regex: searchTerm,
+				$options: 'i',
 			},
 		};
 		sectionIds = await Sections.find(searchPayload)
@@ -1251,8 +1245,8 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 				sectionId: {
 					$first: '$sectionId',
 				},
-				totalAmount: {
-					$sum: '$totalAmount',
+				totalNetAmount: {
+					$sum: '$netAmount',
 				},
 				dueAmount: {
 					$sum: '$dueAmount',
@@ -1322,7 +1316,7 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 				admission_no: '$student.admission_no',
 				username: '$student.username',
 				profileImage: '$student.profile_image',
-				totalAmount: 1,
+				totalNetAmount: 1,
 				dueAmount: 1,
 			},
 		},
