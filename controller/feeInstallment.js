@@ -1284,7 +1284,7 @@ exports.NewAdmissionExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 4).string(className);
 	});
 
-	workbook.write(`${schoolName} - New Admissions.xlsx`);
+	// workbook.write(`${schoolName} - New Admissions.xlsx`);
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
@@ -1402,7 +1402,7 @@ exports.UnmappedStudentExcel = catchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 4).string(section);
 	});
 
-	workbook.write(`${schoolName}-unmapped.xlsx`);
+	// workbook.write(`${schoolName}-unmapped.xlsx`);
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
