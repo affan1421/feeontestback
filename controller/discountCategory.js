@@ -95,13 +95,34 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				},
 			},
 		},
+
+		{
+			$group: {
+				_id: '$_id.sectionId',
+				sectionName: {
+					$first: '$sectionName',
+				},
+				totalStudents: {
+					$sum: '$totalStudents',
+				},
+				totalApproved: {
+					$sum: '$totalApproved',
+				},
+				totalPending: {
+					$sum: '$totalPending',
+				},
+				totalFees: {
+					$sum: '$totalFees',
+				},
+			},
+		},
 		{
 			$lookup: {
 				from: 'feeinstallments',
 				let: {
-					sectionId: '$_id.sectionId',
+					sectionId: '$_id',
 				},
-				as: 'insAmount',
+				as: 'totalAmount',
 				pipeline: [
 					{
 						$match: {
@@ -119,7 +140,14 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					{
 						$match: {
 							$expr: {
-								$eq: ['$discounts.discountId', mongoose.Types.ObjectId(id)],
+								$and: [
+									{
+										$eq: ['$discounts.discountId', mongoose.Types.ObjectId(id)],
+									},
+									{
+										$eq: ['$discounts.status', 'Approved'],
+									},
+								],
 							},
 						},
 					},
@@ -136,36 +164,19 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 		},
 		{
 			$unwind: {
-				path: '$insAmount',
+				path: '$totalAmount',
 				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$group: {
-				_id: '$_id.sectionId',
-				sectionName: {
-					$first: '$sectionName',
-				},
-				totalStudents: {
-					$sum: '$totalStudents',
-				},
-				totalApproved: {
-					$sum: '$totalApproved',
-				},
-				totalPending: {
-					$sum: '$totalPending',
-				},
-				totalAmount: {
-					$sum: '$insAmount.discountAmount',
-				},
-				totalFees: {
-					$sum: '$totalFees',
-				},
 			},
 		},
 		{
 			$addFields: {
 				sectionId: '$_id',
+				totalAmount: '$totalAmount.discountAmount',
+			},
+		},
+		{
+			$sort: {
+				totalAmount: -1,
 			},
 		},
 	]);
@@ -1354,6 +1365,12 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 		value: 1,
 		breakdown: 1,
 	};
+	const discountCategory = await DiscountCategory.findOne(
+		{
+			_id: mongoose.Types.ObjectId(id),
+		},
+		'totalBudget budgetAlloted budgetRemaining'
+	);
 	// find in sectionDiscount
 	const sectionDiscount = await SectionDiscount.aggregate([
 		{
@@ -1411,7 +1428,7 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 
 	res.json(
 		SuccessResponse(
-			sectionDiscount,
+			{ discountDetails: discountCategory, feeDetails: sectionDiscount },
 			sectionDiscount.length,
 			'Fetched Successfully'
 		)

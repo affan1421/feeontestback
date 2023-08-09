@@ -1586,6 +1586,7 @@ const getDashboardData = catchAsync(async (req, res, next) => {
 					{
 						$match: {
 							'school.schoolId': mongoose.Types.ObjectId(school_id),
+							status: { $ne: 'CANCELLED' },
 						},
 					},
 					{
