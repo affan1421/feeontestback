@@ -73,13 +73,6 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 			$match: query,
 		},
 		{
-			$addFields: {
-				approvedAmount: {
-					$multiply: ['$discountAmount', '$totalApproved'],
-				},
-			},
-		},
-		{
 			$group: {
 				_id: {
 					sectionId: '$sectionId',
@@ -97,12 +90,54 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 				totalPending: {
 					$first: '$totalPending',
 				},
-				totalAmount: {
-					$sum: '$approvedAmount',
-				},
 				totalFees: {
 					$sum: '$totalAmount',
 				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'feeinstallments',
+				let: {
+					sectionId: '$_id.sectionId',
+				},
+				as: 'insAmount',
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$$sectionId', '$sectionId'],
+							},
+						},
+					},
+					{
+						$unwind: {
+							path: '$discounts',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$match: {
+							$expr: {
+								$eq: ['$discounts.discountId', mongoose.Types.ObjectId(id)],
+							},
+						},
+					},
+					{
+						$group: {
+							_id: null,
+							discountAmount: {
+								$sum: '$discounts.discountAmount',
+							},
+						},
+					},
+				],
+			},
+		},
+		{
+			$unwind: {
+				path: '$insAmount',
+				preserveNullAndEmptyArrays: true,
 			},
 		},
 		{
@@ -121,7 +156,7 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 					$sum: '$totalPending',
 				},
 				totalAmount: {
-					$sum: '$totalAmount',
+					$sum: '$insAmount.discountAmount',
 				},
 				totalFees: {
 					$sum: '$totalFees',
