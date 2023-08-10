@@ -455,9 +455,9 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					$cond: {
 						if: { $gt: [{ $size: '$feeinstallments' }, 0] },
 						then: true,
-						else: false
-					}
-				}
+						else: false,
+					},
+				},
 			},
 		},
 	]).toArray();
@@ -2405,13 +2405,13 @@ exports.reportBySchedules = async (req, res, next) => {
 		const section = sectionObj[info.sectionId];
 		return section
 			? {
-				amount: info.amount,
-				sectionId: {
-					_id: section._id,
-					sectionName: section.name,
-					className: section.className,
-				},
-			}
+					amount: info.amount,
+					sectionId: {
+						_id: section._id,
+						sectionName: section.name,
+						className: section.className,
+					},
+			  }
 			: null;
 	};
 
