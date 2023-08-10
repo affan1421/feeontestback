@@ -2257,6 +2257,7 @@ exports.reportBySchedules = async (req, res, next) => {
 
 	const match = {
 		schoolId: mongoose.Types.ObjectId(school_id),
+		deleted: false,
 	};
 
 	if (scheduleId) match.scheduleTypeId = mongoose.Types.ObjectId(scheduleId);
