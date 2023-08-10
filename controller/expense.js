@@ -324,6 +324,7 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 	const {
 		schoolId,
 		paymentMethod,
+		expenseTypeId = null,
 		sort,
 		date, // single date
 		startDate, // date range
@@ -351,6 +352,9 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 			$gte: moment(startDate).startOf('day').toDate(),
 			$lte: moment(endDate).endOf('day').toDate(),
 		};
+	}
+	if (expenseTypeId) {
+		match.expenseType = mongoose.Types.ObjectId(expenseTypeId);
 	}
 
 	// check if the search term is having number
