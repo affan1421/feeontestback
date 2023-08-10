@@ -844,7 +844,15 @@ const getClassList = CatchAsync(async (req, res, next) => {
 				$group: {
 					_id: '$sectionId',
 					dueStudents: {
-						$sum: 1,
+						$sum: {
+							$cond: [
+								{
+									$gt: ['$dueAmount', 0],
+								},
+								1,
+								0,
+							],
+						},
 					},
 					totalPaidAmount: {
 						$sum: '$paidAmount',
