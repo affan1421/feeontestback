@@ -16,6 +16,9 @@ router.get(
 // READ
 router.get('/:id', feeStructureController.read);
 
+// ADD ROW
+router.post('/:id/addRow', feeStructureController.addFeeStructureRow);
+
 // UPDATE
 router.put('/:id', feeStructureController.updatedFeeStructure);
 
