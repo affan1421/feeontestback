@@ -2306,6 +2306,13 @@ exports.reportBySchedules = async (req, res, next) => {
 						},
 					},
 					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
+							},
+						},
+					},
+					{
 						$group: {
 							_id: '$sectionId',
 							totalAmount: {

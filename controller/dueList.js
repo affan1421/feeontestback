@@ -824,6 +824,13 @@ const getClassList = CatchAsync(async (req, res, next) => {
 				},
 			},
 			{
+				$match: {
+					dueAmount: {
+						$gt: 0,
+					},
+				},
+			},
+			{
 				$group: {
 					_id: '$studentId',
 					sectionId: {
@@ -967,6 +974,13 @@ const getClassList = CatchAsync(async (req, res, next) => {
 				},
 			},
 			{
+				$match: {
+					dueAmount: {
+						$gt: 0,
+					},
+				},
+			},
+			{
 				$group: {
 					_id: '$sectionId',
 				},
@@ -1023,6 +1037,13 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 			$addFields: {
 				dueAmount: {
 					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$match: {
+				dueAmount: {
+					$gt: 0,
 				},
 			},
 		},
