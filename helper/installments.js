@@ -65,8 +65,6 @@ async function insertFeeInstallments() {
 
 		const flattenedFeeInstallments = feeInstallmentsByStudent.flat();
 
-		console.log('flattenedFeeInstallments', flattenedFeeInstallments);
-
 		await FeeInstallments.insertMany(flattenedFeeInstallments);
 	} catch (err) {
 		console.error('Error while inserting data:', err);

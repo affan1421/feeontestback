@@ -451,6 +451,13 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 					],
 				},
 				admission_no: 1,
+				hasfeeStructure: {
+					$cond: {
+						if: { $gt: [{ $size: '$feeinstallments' }, 0] },
+						then: true,
+						else: false,
+					},
+				},
 			},
 		},
 	]).toArray();
@@ -2295,6 +2302,13 @@ exports.reportBySchedules = async (req, res, next) => {
 						$addFields: {
 							dueAmount: {
 								$subtract: [amountProp, '$paidAmount'],
+							},
+						},
+					},
+					{
+						$match: {
+							dueAmount: {
+								$gt: 0,
 							},
 						},
 					},

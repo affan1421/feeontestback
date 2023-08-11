@@ -280,11 +280,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		const { studentList, feeStructureName, classes, feeDetails, ...rest } =
 			req.body;
 
-		// Dependent on isRowAdded
-		// const foundStructure = await FeeStructure.findOne({
-		// 	_id: id,
-		// });
-
 		const { studentsToUpdate, studentsToRemove } = studentList.reduce(
 			(acc, student) => {
 				const { isNew, isRemoved } = student;
@@ -300,31 +295,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				studentsToRemove: [],
 			}
 		);
-
-		// TODO: Due to existing heavy payload of existing (250+) students. the ADD ROW is disabled ,
-		// TODO: need to make new API for exclusively adding the row to existing students without getting them in payload.
-		// if (rest.isRowAdded) {
-		// 	feeDetails = feeDetails.map(fee =>
-		// 		fee.isNewFieldinEdit ? { ...fee, _id: mongoose.Types.ObjectId() } : fee
-		// 	);
-		// 	const existingTypes = foundStructure.feeDetails.map(fee =>
-		// 		fee.feeTypeId.toString()
-		// 	);
-		// 	// extract new rows from the fedetails
-		// 	const newRows = feeDetails.filter(
-		// 		fee => !existingTypes.includes(fee.feeTypeId)
-		// 	);
-
-		// 	await runChildProcess(
-		// 		newRows,
-		// 		existingStudents,
-		// 		id,
-		// 		rest.schoolId,
-		// 		rest.academicYearId,
-		// 		rest.categoryId,
-		// 		true
-		// 	);
-		// }
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
 			{ _id: id },
@@ -417,6 +387,68 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
+
+exports.addFeeStructureRow = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { feeDetails } = req.body;
+	const { school_id: schoolId } = req.user;
+
+	const foundStructure = await FeeStructure.findOne({ _id: id });
+
+	if (!foundStructure) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+
+	// Fetch existing students' information using aggregation
+	const existingStudents = await FeeInstallment.aggregate([
+		{
+			$match: { feeStructureId: mongoose.Types.ObjectId(id) },
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				section: { $first: '$sectionId' },
+				gender: { $first: '$gender' },
+			},
+		},
+	]);
+
+	// Calculate the total amount to add and create new fee details with generated _id
+	const amountToAdd = feeDetails.reduce(
+		(acc, curr) => acc + curr.totalAmount,
+		0
+	);
+	const newFeeDetails = feeDetails.map(fee => ({
+		...fee,
+		_id: mongoose.Types.ObjectId(),
+	}));
+
+	// Run child process with necessary information
+	await runChildProcess(
+		newFeeDetails,
+		existingStudents,
+		id,
+		schoolId,
+		foundStructure.academicYearId,
+		foundStructure.categoryId,
+		true
+	);
+
+	// Update the FeeStructure document with new fee details and total amount
+	await FeeStructure.findOneAndUpdate(
+		{ _id: id },
+		{
+			$push: {
+				feeDetails: { $each: newFeeDetails },
+			},
+			$inc: {
+				totalAmount: amountToAdd,
+			},
+		}
+	);
+
+	res.status(200).json(SuccessResponse(null, 1, 'Added Successfully'));
+});
 
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {

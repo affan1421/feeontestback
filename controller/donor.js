@@ -23,20 +23,17 @@ exports.create = async (req, res, next) => {
 	} = req.body;
 	if (
 		!name ||
-		!email ||
-		!address ||
 		!bank ||
 		!schoolId ||
 		!IFSC ||
 		!accountNumber ||
 		!accountType ||
-		!donorType ||
-		!contactNumber
+		!donorType
 	) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
 	}
 
-	const isExist = await DonorModel.findOne({ name, email, contactNumber });
+	const isExist = await DonorModel.findOne({ IFSC, accountNumber, schoolId });
 	if (isExist) {
 		return next(new ErrorResponse('Donor Already Exist', 400));
 	}
@@ -44,17 +41,7 @@ exports.create = async (req, res, next) => {
 	let newDonor;
 	try {
 		newDonor = await DonorModel.create({
-			name,
-			email,
-			address,
-			contactNumber,
-			profileImage,
-			bank,
-			schoolId,
-			IFSC,
-			accountNumber,
-			accountType,
-			donorType,
+			...req.body,
 			studentList: studentList ?? [],
 		});
 	} catch (error) {
