@@ -189,7 +189,6 @@ const updategender = async (req, res, next) => {
 			.on('error', error => console.error(error))
 			.on('data', async row => {
 				const { _id, Gender } = row;
-				console.log(_id, Gender);
 				const applicationFee = await ApplicationFee.findByIdAndUpdate(
 					mongoose.Types.ObjectId(_id),
 					{
