@@ -740,6 +740,9 @@ exports.getFeeCategory = async (req, res, next) => {
 					sectionId: {
 						$first: '$sectionId',
 					},
+					paidAmount: {
+						$sum: '$paidAmount',
+					},
 					totalFees: { $sum: '$totalAmount' },
 				},
 			},
@@ -798,6 +801,7 @@ exports.getFeeCategory = async (req, res, next) => {
 					studentName: {
 						$first: '$_id.name',
 					},
+					paidAmount: 1,
 					studentId: {
 						$first: '$_id._id',
 					},
