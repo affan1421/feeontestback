@@ -212,6 +212,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
 				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
 				totalFees: {
 					$sum: '$totalAmount',
 				},
@@ -278,6 +281,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			$project: {
 				_id: 0,
 				studentName: '$student.name',
+				paidAmount: 1,
 				studentId: '$student._id',
 				admission_no: '$student.admission_no',
 				totalDiscountAmount: 1,
