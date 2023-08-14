@@ -279,14 +279,18 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		const { id } = req.params;
 		const { studentList, feeStructureName, classes, feeDetails, ...rest } =
 			req.body;
+		const studMappedList = [];
+		const unMapStudList = [];
 
 		const { studentsToUpdate, studentsToRemove } = studentList.reduce(
 			(acc, student) => {
 				const { isNew, isRemoved } = student;
 				if (isNew) {
 					acc.studentsToUpdate.push(student);
+					studMappedList.push(mongoose.Types.ObjectId(student._id));
 				} else if (isRemoved) {
 					acc.studentsToRemove.push(student);
+					unMapStudList.push(mongoose.Types.ObjectId(student._id));
 				}
 				return acc;
 			},
@@ -301,7 +305,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				.filter(fee => fee.isNewFieldinEdit)
 				.map(fee => ({ ...fee, _id: mongoose.Types.ObjectId() }));
 
-			const existingStudents = await FeeInstallment.aggregate([
+			const studAggregate = [
 				{
 					$match: { feeStructureId: mongoose.Types.ObjectId(id) },
 				},
@@ -312,7 +316,12 @@ exports.updatedFeeStructure = async (req, res, next) => {
 						gender: { $first: '$gender' },
 					},
 				},
-			]);
+			];
+			// remove the students who are in unMapStudList array
+			if (unMapStudList.length > 0)
+				studAggregate[0].$match.studentId = { $nin: unMapStudList };
+
+			const existingStudents = await FeeInstallment.aggregate(studAggregate);
 
 			await runChildProcess(
 				newRows,
@@ -335,13 +344,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 					...rest,
 				},
 			}
-		);
-		// Create arrays of ObjectId directly during the mapping process
-		const studMappedList = studentsToUpdate.map(s =>
-			mongoose.Types.ObjectId(s._id)
-		);
-		const unMapStudList = studentsToRemove.map(s =>
-			mongoose.Types.ObjectId(s._id)
 		);
 
 		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
