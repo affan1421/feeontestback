@@ -296,6 +296,35 @@ exports.updatedFeeStructure = async (req, res, next) => {
 			}
 		);
 
+		if (rest.isRowAdded) {
+			const newRows = feeDetails
+				.filter(fee => fee.isNewFieldinEdit)
+				.map(fee => ({ ...fee, _id: mongoose.Types.ObjectId() }));
+
+			const existingStudents = await FeeInstallment.aggregate([
+				{
+					$match: { feeStructureId: mongoose.Types.ObjectId(id) },
+				},
+				{
+					$group: {
+						_id: '$studentId',
+						section: { $first: '$sectionId' },
+						gender: { $first: '$gender' },
+					},
+				},
+			]);
+
+			await runChildProcess(
+				newRows,
+				existingStudents,
+				id,
+				rest.schoolId,
+				rest.academicYearId,
+				rest.categoryId,
+				true
+			);
+		}
+
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
 			{ _id: id },
 			{
@@ -387,68 +416,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
-
-exports.addFeeStructureRow = catchAsync(async (req, res, next) => {
-	const { id } = req.params;
-	const { feeDetails } = req.body;
-	const { school_id: schoolId } = req.user;
-
-	const foundStructure = await FeeStructure.findOne({ _id: id });
-
-	if (!foundStructure) {
-		return next(new ErrorResponse('Fee Structure Not Found', 404));
-	}
-
-	// Fetch existing students' information using aggregation
-	const existingStudents = await FeeInstallment.aggregate([
-		{
-			$match: { feeStructureId: mongoose.Types.ObjectId(id) },
-		},
-		{
-			$group: {
-				_id: '$studentId',
-				section: { $first: '$sectionId' },
-				gender: { $first: '$gender' },
-			},
-		},
-	]);
-
-	// Calculate the total amount to add and create new fee details with generated _id
-	const amountToAdd = feeDetails.reduce(
-		(acc, curr) => acc + curr.totalAmount,
-		0
-	);
-	const newFeeDetails = feeDetails.map(fee => ({
-		...fee,
-		_id: mongoose.Types.ObjectId(),
-	}));
-
-	// Run child process with necessary information
-	await runChildProcess(
-		newFeeDetails,
-		existingStudents,
-		id,
-		schoolId,
-		foundStructure.academicYearId,
-		foundStructure.categoryId,
-		true
-	);
-
-	// Update the FeeStructure document with new fee details and total amount
-	await FeeStructure.findOneAndUpdate(
-		{ _id: id },
-		{
-			$push: {
-				feeDetails: { $each: newFeeDetails },
-			},
-			$inc: {
-				totalAmount: amountToAdd,
-			},
-		}
-	);
-
-	res.status(200).json(SuccessResponse(null, 1, 'Added Successfully'));
-});
 
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
