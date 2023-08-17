@@ -350,7 +350,8 @@ exports.updatedFeeStructure = async (req, res, next) => {
 						id,
 						rest.schoolId,
 						rest.academicYearId,
-						rest.categoryId
+						rest.categoryId,
+						true
 					)
 				);
 
