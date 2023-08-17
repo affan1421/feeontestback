@@ -11,6 +11,267 @@ const Students = mongoose.connection.db.collection('students');
 
 /**
  * @desc    Get Summary
+ * @param   {ObjectId} schoolId - School Id
+ * @param   {String} searchTerm - Search Term
+ * @description This method is used to get studentIds from student collection
+ * @returns {Array} studentIds - Array of studentIds
+ * */
+
+const findStudentIds = async (schoolId, searchTerm) => {
+	const searchPayload = {
+		school_id: mongoose.Types.ObjectId(schoolId),
+		name: {
+			$regex: searchTerm,
+			$options: 'i',
+		},
+		deleted: false,
+		profileStatus: 'APPROVED',
+	};
+	const studentIds = await Students.find(searchPayload)
+		.project({ _id: 1 })
+		.toArray();
+	return studentIds.map(student => mongoose.Types.ObjectId(student._id));
+};
+
+/**
+ * @desc  Build Payment Status Stages
+ * @param {Array} paymentStatus - ['FULL', 'PARTIAL', 'NOT']
+ * @param {Array} scheduleDates - ['MM/DD/YYYY']
+ * @returns {Array} stages - Array of stages
+ */
+const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
+	const addFieldStage = {
+		$addFields: {
+			dueAmount: {
+				$subtract: ['$netAmount', '$paidAmount'],
+			},
+		},
+	};
+
+	const groupByStudent = {
+		$group: {
+			_id: '$studentId',
+			recCount: {
+				$sum: 1,
+			},
+			sectionId: {
+				$first: '$sectionId',
+			},
+			totalNetAmount: {
+				$sum: '$netAmount',
+			},
+			paidAmount: {
+				$sum: '$paidAmount',
+			},
+			dueAmount: {
+				$sum: '$dueAmount',
+			},
+		},
+	};
+	if (
+		!paymentStatus ||
+		paymentStatus === 'NOT,PARTIAL' ||
+		paymentStatus === 'FULL,NOT,PARTIAL'
+	) {
+		return [addFieldStage, groupByStudent];
+	}
+
+	const paymentStages = {
+		FULL: [
+			{ $match: { status: { $in: ['Paid', 'Late'] }, paidAmount: { $gt: 0 } } },
+			groupByStudent,
+			{ $match: { recCount: scheduleDates.length } },
+		],
+		PARTIAL: [
+			addFieldStage,
+			{ $match: { $expr: { $lt: ['$dueAmount', '$netAmount'] } } },
+			groupByStudent,
+		],
+		NOT: [
+			{ $match: { $expr: { $eq: ['$paidAmount', 0] } } },
+			addFieldStage,
+			groupByStudent,
+		],
+		'FULL,PARTIAL': [
+			// NO STATUS FILTER
+			{ $match: { $expr: { $ne: ['$paidAmount', 0] } } },
+			addFieldStage,
+			groupByStudent,
+		],
+		'FULL,NOT': [
+			{
+				$match: {
+					$expr: {
+						$or: [
+							{
+								$and: [
+									{
+										$in: ['$status', ['Late', 'Paid']],
+									},
+									{
+										$gt: ['$paidAmount', 0],
+									},
+								],
+							},
+							{
+								$and: [
+									{
+										$in: ['$status', ['Upcoming', 'Due']],
+									},
+									{
+										$eq: ['$paidAmount', 0],
+									},
+								],
+							},
+						],
+					},
+				},
+			},
+			addFieldStage,
+
+			groupByStudent,
+		],
+	};
+
+	return paymentStages[paymentStatus] || [];
+};
+
+/**
+ *
+ * @param {Number} page
+ * @param {Number} limit
+ * @returns  {Array} stages - Array of stages
+ */
+const buildGeneralStages = (page, limit) => {
+	const stages = [
+		{
+			$lookup: {
+				from: 'students',
+				let: {
+					studentId: '$_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$studentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							parent_id: 1,
+							profile_image: 1,
+							username: 1,
+						},
+					},
+				],
+				as: 'student',
+			},
+		},
+		{
+			$unwind: '$student',
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					sectionId: '$sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$sectionId'],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'section',
+			},
+		},
+		{
+			$unwind: '$section',
+		},
+		{
+			$lookup: {
+				from: 'parents',
+				let: {
+					parentId: '$student.parent_id',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$eq: ['$_id', '$$parentId'],
+							},
+						},
+					},
+					{
+						$project: {
+							name: 1,
+						},
+					},
+				],
+				as: 'parent',
+			},
+		},
+		{
+			$unwind: '$parent',
+		},
+		{
+			$project: {
+				studentName: '$student.name',
+				parentName: '$parent.name',
+				sectionName: '$section.className',
+				profileImage: '$student.profile_image',
+				totalNetAmount: 1,
+				username: '$student.username',
+				paidAmount: 1,
+				dueAmount: 1,
+			},
+		},
+	];
+	// if (page && limit) {
+	// return [{ $skip: page * limit }, { $limit: limit }, ...stages];
+	// }
+	return stages;
+};
+
+/**
+ * @desc   Build Aggregation
+ * @param {Object} match
+ * @param {Array} paymentStatus
+ * @param {Array} scheduleDates
+ * @param {Number} page - optional
+ * @param {Number} limit - optional
+ * @returns  {Array} aggregation - Array of aggregation stages
+ */
+const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
+	const aggregation = [
+		{
+			$match:
+				paymentStatus === 'FULL' ||
+				paymentStatus === 'FULL,PARTIAL' ||
+				paymentStatus === 'FULL,NOT' ||
+				paymentStatus === 'FULL,NOT,PARTIAL'
+					? match
+					: { ...match, status: { $in: ['Due', 'Upcoming'] } },
+		},
+		...buildPaymentStatusStages(paymentStatus, scheduleDates),
+		...buildGeneralStages(page, limit),
+	];
+	return aggregation;
+};
+
+/**
+ * @desc    Get Summary
  * @route   POST /api/v1/dueList/summary
  * @param   {Object} req - Request Object (scheduleId, scheduleDates)
  * @description This method is used to get summary of due list
@@ -245,235 +506,58 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		page = 0,
 		limit = 6,
 		searchTerm = null,
-		paymentStatus = null,
 	} = req.body;
+	let { paymentStatus = null } = req.body;
 	const { school_id } = req.user;
-	let studentIds = null;
 
 	if (!scheduleId || !scheduleDates.length)
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
 
-	if (paymentStatus && !['FULL', 'PARTIAL', 'NOT'].includes(paymentStatus))
+	// add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
+	const isInvalidPaymentStatus =
+		paymentStatus &&
+		paymentStatus.some(item => !['FULL', 'PARTIAL', 'NOT'].includes(item));
+	if (isInvalidPaymentStatus) {
 		return next(new ErrorResponse('Invalid Payment Status', 422));
+	}
+
+	paymentStatus = paymentStatus?.slice().sort().join(',');
 
 	const match = {
 		schoolId: mongoose.Types.ObjectId(school_id),
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
-		status: {
-			$in: ['Due', 'Upcoming'],
-		},
+		netAmount: { $gt: 0 },
+		$or: scheduleDates.map(date => {
+			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			return {
+				date: {
+					$gte: startDate,
+					$lte: endDate,
+				},
+			};
+		}),
 	};
-
-	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
-		return {
-			date: {
-				$gte: startDate,
-				$lte: endDate,
-			},
-		};
-	});
 
 	if (searchTerm) {
-		// find the studentIds from student collection
-		const searchPayload = {
-			school_id: mongoose.Types.ObjectId(school_id),
-			name: {
-				$regex: searchTerm,
-				$options: 'i',
-			},
-			deleted: false,
-			profileStatus: 'APPROVED',
-		};
-		studentIds = await Students.find(searchPayload)
-			.project({ _id: 1 })
-			.toArray();
+		const studentIds = await findStudentIds(school_id, searchTerm);
 		match.studentId = {
-			$in: studentIds.map(student => mongoose.Types.ObjectId(student._id)),
+			$in: studentIds,
 		};
 	}
 
-	if (paymentStatus === 'FULL') {
-		match.status = {
-			$in: ['Paid', 'Late'],
-		};
-	}
-	// 3 // general stages
-	const lookupAndProject = [
-		{
-			$skip: page * limit,
-		},
-		{
-			$limit: limit,
-		},
-		{
-			$lookup: {
-				from: 'students',
-				let: {
-					studentId: '$_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$studentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							parent_id: 1,
-							profile_image: 1,
-						},
-					},
-				],
-				as: 'student',
-			},
-		},
-		{
-			$unwind: '$student',
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					sectionId: '$sectionId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
-						},
-					},
-					{
-						$project: {
-							className: 1,
-						},
-					},
-				],
-				as: 'section',
-			},
-		},
-		{
-			$unwind: '$section',
-		},
-		{
-			$lookup: {
-				from: 'parents',
-				let: {
-					parentId: '$student.parent_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-						},
-					},
-				],
-				as: 'parent',
-			},
-		},
-		{
-			$unwind: '$parent',
-		},
-		{
-			$project: {
-				studentName: '$student.name',
-				parentName: '$parent.name',
-				sectionName: '$section.className',
-				profileImage: '$student.profile_image',
-				totalNetAmount: 1,
-				paidAmount: 1,
-				dueAmount: 1,
-			},
-		},
+	const aggregate = buildAggregation(
+		match,
+		paymentStatus,
+		scheduleDates,
+		page,
+		limit
+	);
+
+	const countStages = [
+		...aggregate.slice(0, paymentStatus ? 4 : 3),
+		{ $count: 'count' },
 	];
-	// 2 without payment Status filter
-	const addFieldStage = {
-		$addFields: {
-			dueAmount: {
-				$subtract: ['$netAmount', '$paidAmount'],
-			},
-		},
-	};
-
-	const groupByStudent = {
-		$group: {
-			_id: '$studentId',
-			recCount: {
-				$sum: 1,
-			},
-			sectionId: {
-				$first: '$sectionId',
-			},
-			totalNetAmount: {
-				$sum: '$netAmount',
-			},
-			paidAmount: {
-				$sum: '$paidAmount',
-			},
-			dueAmount: {
-				$sum: '$dueAmount',
-			},
-		},
-	};
-	const aggregate = [
-		{
-			$match: match,
-		},
-	];
-
-	if (paymentStatus) {
-		switch (paymentStatus) {
-			case 'FULL':
-				aggregate.push(groupByStudent, {
-					$match: {
-						recCount: scheduleDates.length,
-					},
-				});
-				break;
-			case 'PARTIAL':
-				aggregate.push(addFieldStage, groupByStudent, {
-					$match: {
-						$expr: {
-							$lt: ['$dueAmount', '$totalNetAmount'],
-						},
-					},
-				});
-				break;
-			case 'NOT':
-				aggregate.push(
-					addFieldStage,
-					{
-						$match: {
-							$expr: {
-								$eq: ['$paidAmount', 0],
-							},
-						},
-					},
-					groupByStudent
-				);
-				break;
-			default:
-				break;
-		}
-	} else {
-		aggregate.push(addFieldStage, groupByStudent);
-	}
-	const countStages = [...aggregate, { $count: 'count' }];
-
-	aggregate.push(...lookupAndProject);
 
 	const [result] = await FeeInstallment.aggregate([
 		{
@@ -496,222 +580,48 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentListExcel = CatchAsync(async (req, res, next) => {
-	const {
-		scheduleId = null,
-		scheduleDates = [],
-		paymentStatus = null,
-		sectionId = null, // optional only for class wise
-	} = req.body;
+	const { scheduleId = null, scheduleDates = [], sectionId = null } = req.body;
+	let { paymentStatus = null } = req.body;
 	const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length)
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
 
-	if (paymentStatus && !['FULL', 'PARTIAL', 'NOT'].includes(paymentStatus))
+	const isInvalidPaymentStatus =
+		paymentStatus &&
+		paymentStatus.some(item => !['FULL', 'PARTIAL', 'NOT'].includes(item));
+	if (isInvalidPaymentStatus) {
 		return next(new ErrorResponse('Invalid Payment Status', 422));
+	}
+
+	paymentStatus = paymentStatus?.slice().sort().join(',');
 
 	const match = {
 		schoolId: mongoose.Types.ObjectId(school_id),
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
-		status: {
-			$in: ['Due', 'Upcoming'],
-		},
+		netAmount: { $gt: 0 },
+		$or: scheduleDates.map(date => {
+			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			return {
+				date: {
+					$gte: startDate,
+					$lte: endDate,
+				},
+			};
+		}),
 	};
-
-	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
-		return {
-			date: {
-				$gte: startDate,
-				$lte: endDate,
-			},
-		};
-	});
-
 	if (sectionId) match.sectionId = mongoose.Types.ObjectId(sectionId);
 
-	if (paymentStatus === 'FULL') {
-		match.status = {
-			$in: ['Paid', 'Late'],
-		};
-	}
-	// 3 // general stages
-	const lookupAndProject = [
-		{
-			$lookup: {
-				from: 'students',
-				let: {
-					studentId: '$_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$studentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-							parent_id: 1,
-							username: 1,
-							admission_no: 1,
-						},
-					},
-				],
-				as: 'student',
-			},
-		},
-		{
-			$unwind: '$student',
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					sectionId: '$sectionId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
-						},
-					},
-					{
-						$project: {
-							className: 1,
-						},
-					},
-				],
-				as: 'section',
-			},
-		},
-		{
-			$unwind: '$section',
-		},
-		{
-			$lookup: {
-				from: 'parents',
-				let: {
-					parentId: '$student.parent_id',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-						},
-					},
-				],
-				as: 'parent',
-			},
-		},
-		{
-			$unwind: '$parent',
-		},
-		{
-			$project: {
-				studentName: '$student.name',
-				parentName: '$parent.name',
-				sectionName: '$section.className',
-				username: '$student.username',
-				admission_no: '$student.admission_no',
-				totalNetAmount: 1,
-				paidAmount: 1,
-				dueAmount: 1,
-			},
-		},
-	];
-	// 2 without payment Status filter
-	const addFieldStage = {
-		$addFields: {
-			dueAmount: {
-				$subtract: ['$netAmount', '$paidAmount'],
-			},
-		},
-	};
-
-	const groupByStudent = {
-		$group: {
-			_id: '$studentId',
-			recCount: {
-				$sum: 1,
-			},
-			sectionId: {
-				$first: '$sectionId',
-			},
-			totalNetAmount: {
-				$sum: '$netAmount',
-			},
-			paidAmount: {
-				$sum: '$paidAmount',
-			},
-			dueAmount: {
-				$sum: '$dueAmount',
-			},
-		},
-	};
-	const aggregate = [
-		{
-			$match: match,
-		},
-	];
-
-	if (paymentStatus) {
-		switch (paymentStatus) {
-			case 'FULL':
-				aggregate.push(groupByStudent, {
-					$match: {
-						recCount: scheduleDates.length,
-					},
-				});
-				break;
-			case 'PARTIAL':
-				aggregate.push(addFieldStage, groupByStudent, {
-					$match: {
-						$expr: {
-							$lt: ['$dueAmount', '$totalNetAmount'],
-						},
-					},
-				});
-				break;
-			case 'NOT':
-				aggregate.push(
-					addFieldStage,
-					{
-						$match: {
-							$expr: {
-								$eq: ['$paidAmount', 0],
-							},
-						},
-					},
-					groupByStudent
-				);
-				break;
-			default:
-				break;
-		}
-	} else {
-		aggregate.push(addFieldStage, groupByStudent);
-	}
-
-	aggregate.push(...lookupAndProject);
+	const aggregate = buildAggregation(match, paymentStatus, scheduleDates);
 
 	const result = await FeeInstallment.aggregate(aggregate);
 
 	if (!result.length) {
 		return next(new ErrorResponse('No Dues Found', 404));
 	}
+
+	console.log(result.length);
 
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
@@ -724,15 +634,24 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		},
 		numberFormat: '$#,##0.00; ($#,##0.00); -',
 	});
-	// TODO resort cell number
-	worksheet.cell(1, 1).string('Student Name').style(style);
-	worksheet.cell(1, 2).string('Admission No').style(style);
-	worksheet.cell(1, 3).string('Parent Name').style(style);
-	worksheet.cell(1, 4).string('Phone Number').style(style);
-	worksheet.cell(1, 5).string('Class').style(style);
-	worksheet.cell(1, 6).string('Net Fees').style(style);
-	worksheet.cell(1, 7).string('Paid Fees').style(style);
-	worksheet.cell(1, 8).string('Balance Fees').style(style);
+
+	const header = [
+		'Student Name',
+		'Admission No',
+		'Parent Name',
+		'Phone Number',
+		'Class',
+		'Net Fees',
+		'Paid Fees',
+		'Balance Fees',
+	];
+
+	header.forEach((item, index) => {
+		worksheet
+			.cell(1, index + 1)
+			.string(item)
+			.style(style);
+	});
 
 	result.forEach((row, index) => {
 		const {
@@ -756,7 +675,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 8).number(dueAmount);
 	});
 
-	// workbook.write(`student-List.xlsx`);
+	workbook.write(`student-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 
