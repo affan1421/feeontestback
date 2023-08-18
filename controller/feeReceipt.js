@@ -1533,11 +1533,11 @@ const getDashboardData = async (req, res, next) => {
 								_id: {
 									$dateToString: {
 										format: '%Y-%m-%d',
-										date: '$expenseDate',
+										date: '$issueDate',
 									},
 								},
-								totalExpAmount: {
-									$sum: '$amount',
+								totalAmount: {
+									$sum: '$paidAmount',
 								},
 							},
 						},
@@ -1549,13 +1549,13 @@ const getDashboardData = async (req, res, next) => {
 						{
 							$group: {
 								_id: null,
-								totalExpAmount: {
-									$sum: '$totalExpAmount',
+								totalAmount: {
+									$sum: '$totalAmount',
 								},
-								expenseList: {
+								incomeList: {
 									$push: {
-										expenseDate: '$_id',
-										amount: '$totalExpAmount',
+										issueDate: '$_id',
+										paidAmount: '$totalAmount',
 									},
 								},
 							},
