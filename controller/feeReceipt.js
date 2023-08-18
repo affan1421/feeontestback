@@ -1502,7 +1502,7 @@ const getDashboardData = async (req, res, next) => {
 		const { dateRange, startDate, endDate } = req.query;
 
 		if (!dateRange && (!startDate || !endDate)) {
-			return next(new ErrorResponse('Date Range is required', 400));
+			return next(new ErrorResponse('Date Range Is Required', 422));
 		}
 
 		const resObj = {

@@ -238,7 +238,7 @@ const buildGeneralStages = (page, limit) => {
 			},
 		},
 	];
-	if (page && limit) {
+	if (page >= 0 && limit) {
 		return [{ $skip: page * limit }, { $limit: limit }, ...stages];
 	}
 	return stages;
