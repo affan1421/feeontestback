@@ -71,7 +71,7 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 	if (
 		!paymentStatus ||
 		paymentStatus === 'NOT,PARTIAL' ||
-		paymentStatus === 'FULL,NOT,PARTIAL'
+		paymentStatus === 'ALL'
 	) {
 		return [addFieldStage, groupByStudent];
 	}
@@ -238,9 +238,9 @@ const buildGeneralStages = (page, limit) => {
 			},
 		},
 	];
-	// if (page && limit) {
-	// return [{ $skip: page * limit }, { $limit: limit }, ...stages];
-	// }
+	if (page && limit) {
+		return [{ $skip: page * limit }, { $limit: limit }, ...stages];
+	}
 	return stages;
 };
 
@@ -260,7 +260,7 @@ const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
 				paymentStatus === 'FULL' ||
 				paymentStatus === 'FULL,PARTIAL' ||
 				paymentStatus === 'FULL,NOT' ||
-				paymentStatus === 'FULL,NOT,PARTIAL'
+				paymentStatus === 'ALL'
 					? match
 					: { ...match, status: { $in: ['Due', 'Upcoming'] } },
 		},
@@ -516,7 +516,9 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	// add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
 	const isInvalidPaymentStatus =
 		paymentStatus &&
-		paymentStatus.some(item => !['FULL', 'PARTIAL', 'NOT'].includes(item));
+		paymentStatus.some(
+			item => !['FULL', 'PARTIAL', 'NOT', 'ALL'].includes(item)
+		);
 	if (isInvalidPaymentStatus) {
 		return next(new ErrorResponse('Invalid Payment Status', 422));
 	}
