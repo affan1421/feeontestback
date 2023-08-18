@@ -7,6 +7,12 @@ const PreviousBalance = require('../models/previousFeesBalance');
 const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
+const {
+	getStartDate,
+	getEndDate,
+	getPrevStartDate,
+	getPrevEndDate,
+} = require('../helpers/dateFormat');
 
 const FeeStructure = require('../models/feeStructure');
 const FeeReceipt = require('../models/feeReceipt.js');
@@ -1832,28 +1838,6 @@ exports.IncomeDashboard = async (req, res, next) => {
 		} = req.query;
 		let dateObj = null;
 		let prevDateObj = null;
-
-		// START DATE
-		const getStartDate = (date, type) =>
-			date
-				? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
-				: moment().startOf(type).toDate();
-		// END DATE
-		const getEndDate = (date, type) =>
-			date
-				? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
-				: moment().endOf(type).toDate();
-
-		// PREV START DATE
-		const getPrevStartDate = (date, type, flag) =>
-			date
-				? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
-				: moment().subtract(1, flag).startOf(type).toDate();
-		// PREV END DATE
-		const getPrevEndDate = (date, type, flag) =>
-			date
-				? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
-				: moment().subtract(1, flag).endOf(type).toDate();
 
 		switch (dateRange) {
 			case 'daily':

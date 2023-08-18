@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { runChildProcess, runPipedProcesses } = require('../helper/process');
+const { runChildProcess, runPipedProcesses } = require('../helpers/process');
 const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
 const FeeInstallment = require('../models/feeInstallment');
