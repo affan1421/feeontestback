@@ -7,6 +7,12 @@ const ExpenseType = require('../models/expenseType');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
+const {
+	getStartDate,
+	getEndDate,
+	getPrevStartDate,
+	getPrevEndDate,
+} = require('../helpers/dateFormat');
 
 // CREATE
 exports.create = async (req, res, next) => {
@@ -611,28 +617,6 @@ exports.getDashboardData = catchAsync(async (req, res, next) => {
 			},
 		},
 	];
-
-	// START DATE
-	const getStartDate = (date, type) =>
-		date
-			? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
-			: moment().startOf(type).toDate();
-	// END DATE
-	const getEndDate = (date, type) =>
-		date
-			? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
-			: moment().endOf(type).toDate();
-
-	// PREV START DATE
-	const getPrevStartDate = (date, type, flag) =>
-		date
-			? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
-			: moment().subtract(1, flag).startOf(type).toDate();
-	// PREV END DATE
-	const getPrevEndDate = (date, type, flag) =>
-		date
-			? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
-			: moment().subtract(1, flag).endOf(type).toDate();
 
 	switch (dateRange) {
 		case 'daily':
