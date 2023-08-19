@@ -5,6 +5,7 @@ const FeeInstallment = require('../models/feeInstallment');
 const CatchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
+const getSections = require('../helpers/section');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -71,7 +72,7 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 	if (
 		!paymentStatus ||
 		paymentStatus === 'NOT,PARTIAL' ||
-		paymentStatus === 'ALL'
+		paymentStatus === 'FULL,NOT,PARTIAL'
 	) {
 		return [addFieldStage, groupByStudent];
 	}
@@ -260,7 +261,7 @@ const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
 				paymentStatus === 'FULL' ||
 				paymentStatus === 'FULL,PARTIAL' ||
 				paymentStatus === 'FULL,NOT' ||
-				paymentStatus === 'ALL'
+				paymentStatus === 'FULL,NOT,PARTIAL'
 					? match
 					: { ...match, status: { $in: ['Due', 'Upcoming'] } },
 		},
@@ -288,15 +289,7 @@ const getSummary = CatchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Please Provide ScheduleId And Dates', 422));
 	}
 
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(school_id),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
+	const sectionList = await getSections(school_id);
 
 	const match = {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
@@ -516,9 +509,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	// add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
 	const isInvalidPaymentStatus =
 		paymentStatus &&
-		paymentStatus.some(
-			item => !['FULL', 'PARTIAL', 'NOT', 'ALL'].includes(item)
-		);
+		paymentStatus.some(item => !['FULL', 'PARTIAL', 'NOT'].includes(item));
 	if (isInvalidPaymentStatus) {
 		return next(new ErrorResponse('Invalid Payment Status', 422));
 	}
@@ -623,8 +614,6 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('No Dues Found', 404));
 	}
 
-	console.log(result.length);
-
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Students Dues');
@@ -677,7 +666,7 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		worksheet.cell(index + 2, 8).number(dueAmount);
 	});
 
-	workbook.write(`student-List.xlsx`);
+	// workbook.write(`student-List.xlsx`);
 	let buffer = await workbook.writeToBuffer();
 	buffer = buffer.toJSON().data;
 
