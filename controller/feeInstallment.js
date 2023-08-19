@@ -25,6 +25,7 @@ const Student = mongoose.connection.db.collection('students');
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
+const getSections = require('../helpers/section');
 
 const getDateRange = (dateRange, startDate, endDate) => {
 	let dateObj;
@@ -1120,8 +1121,6 @@ exports.studentReport = catchAsync(async (req, res, next) => {
 });
 
 exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
-	// StudentName	ParentName	PhoneNumber Class Section Total AmountTerm feeAmount AmountPaid TermBal LastYearBal
-
 	const { schoolId } = req.params;
 	// const regex = /^.*new.*$/i;
 	const studentList = [];
@@ -1132,23 +1131,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		schoolId,
 	});
 
-	// get schoolName
-	const { schoolName } = await School.findOne(
-		{
-			_id: mongoose.Types.ObjectId(schoolId),
-		},
-		{ schoolName: 1 }
-	);
-
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(schoolId),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
+	const sectionList = await getSections(schoolId);
 
 	// Find all the feestructures of this academic year
 	const feeStructures = await FeeStructure.find({
@@ -1160,7 +1143,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 	for (const feeStructure of feeStructures) {
 		let termDate = null;
 		let feeInstallments = null;
-		const { _id, feeStructureName, feeDetails, totalAmount } = feeStructure;
+		const { _id, feeDetails, totalAmount } = feeStructure;
 		feeStructureMap[_id] = totalAmount;
 		// const isNewAdmission = regex.test(feeStructureName);
 		const aggregate = [
@@ -1248,23 +1231,7 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		termDate = feeDetails[0].scheduledDates[0].date;
 		aggregate[0].$match.date = new Date(termDate);
 		feeInstallments = await FeeInstallment.aggregate(aggregate);
-		// [{
-		//   "_id": "646df57e6014fec353252572",
-		//   "sectionId": "6284b90ebb0c8eeb51048c29",
-		//   "studentId": {
-		//     "_id": "646df4a03317392a4d591833",
-		//     "name": "W SAQIYA IRAM",
-		//     "parent_id": "646df4a03317392a4d591832",
-		//     "username": "9972644981"
-		//   },
-		//   "paidAmount": 6300,
-		//   "netAmount": 6300,
-		//   "balanceAmount": 0,
-		//   "parent": {
-		//     "_id": "646df4a03317392a4d591832",
-		//     "name": "K.M. WASEEM UR REHAMAN"
-		//   }
-		// }]
+
 		studentList.push(...feeInstallments);
 	}
 	// Find the previous balances from previousfeesbalance collection and make object
@@ -1293,17 +1260,26 @@ exports.StudentFeeExcel = catchAsync(async (req, res, next) => {
 		},
 		numberFormat: '$#,##0.00; ($#,##0.00); -',
 	});
-	worksheet.cell(1, 1).string('Student Name').style(style);
-	worksheet.cell(1, 2).string('Parent Name').style(style);
-	worksheet.cell(1, 3).string('Phone Number').style(style);
-	worksheet.cell(1, 4).string('Class').style(style);
-	worksheet.cell(1, 5).string('Total Fees').style(style);
-	worksheet.cell(1, 6).string('Term Fee').style(style);
-	worksheet.cell(1, 7).string('Paid Fee').style(style);
-	worksheet.cell(1, 8).string('Balance Fee').style(style);
-	worksheet.cell(1, 9).string('Total Balance (Previous Year)').style(style);
-	worksheet.cell(1, 10).string('Paid Fees (Previous Year)').style(style);
-	worksheet.cell(1, 11).string('Balance (Previous Year)').style(style);
+	const header = [
+		'Student Name',
+		'Parent Name',
+		'Phone Number',
+		'Class',
+		'Total Fees',
+		'Term Fee',
+		'Paid Fee',
+		'Balance Fee',
+		'Total Balance (Previous Year)',
+		'Paid Fees (Previous Year)',
+		'Balance (Previous Year)',
+	];
+
+	header.forEach((item, index) => {
+		worksheet
+			.cell(1, index + 1)
+			.string(item)
+			.style(style);
+	});
 
 	studentList.forEach((installment, index) => {
 		const {
@@ -1353,15 +1329,7 @@ exports.NewAdmissionExcel = catchAsync(async (req, res, next) => {
 		schoolId,
 	});
 
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(schoolId),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
+	const sectionList = await getSections(schoolId);
 	// Find the feeStructure of this academic year and regex for new admission
 	let feeStructures = await FeeStructure.find({
 		academicYearId,
@@ -1910,7 +1878,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		}
 
 		const updateData = {
-			paidDate: new Date(),
+			paidDate: issueDate,
 			paidAmount: item.paidAmount + foundInstallment.paidAmount,
 		};
 
@@ -2220,16 +2188,7 @@ exports.reportBySchedules = async (req, res, next) => {
 	// Partial Paid - On Time, Late
 	// Not Paid
 	// We cant show on time / late for multiple schedules, cause 1 can be on time and other can be late and viceversa.
-
-	let sectionList = await Sections.find({
-		school: mongoose.Types.ObjectId(school_id),
-	})
-		.project({ name: 1, className: 1 })
-		.toArray();
-	sectionList = sectionList.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
+	const sectionList = await getSections(school_id);
 
 	const sortAndGroup = [
 		{
@@ -2398,10 +2357,10 @@ exports.reportBySchedules = async (req, res, next) => {
 		},
 	];
 
-	const feesReport = await FeeInstallment.aggregate(aggregate);
+	const [feesReport] = await FeeInstallment.aggregate(aggregate);
 
 	const { totalReceivables, totalDues, totalCollected, feePerformance } =
-		feesReport[0];
+		feesReport;
 
 	const setDefaultValues = data => {
 		const defaultData = {

@@ -18,18 +18,9 @@ const Students = mongoose.connection.db.collection('students');
 const SuccessResponse = require('../utils/successResponse');
 const ErrorResponse = require('../utils/errorResponse');
 const CatchAsync = require('../utils/catchAsync');
+const getSections = require('../helpers/section');
 
 const Student = mongoose.connection.db.collection('students');
-
-const lockCell = (worksheet, range) => {
-	worksheet.addDataValidation({
-		type: 'textLength',
-		error: 'This cell is locked',
-		operator: 'equal',
-		sqref: range,
-		formulas: [''],
-	});
-};
 
 const GetAllByFilter = CatchAsync(async (req, res, next) => {
 	let {
@@ -567,15 +558,7 @@ const BulkCreatePreviousBalance = async (req, res, next) => {
 				)
 			);
 	} else {
-		let sectionList = await Sections.find({
-			school: mongoose.Types.ObjectId(schoolId),
-		})
-			.project({ name: 1, className: 1 })
-			.toArray();
-		sectionList = sectionList.reduce((acc, curr) => {
-			acc[curr.className] = curr;
-			return acc;
-		}, {});
+		const sectionList = await getSections(schoolId);
 
 		bulkOps = rows
 			.map(({ NAME, CLASS, PARENT, BALANCE, USERNAME, GENDER }) => {

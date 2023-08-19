@@ -676,13 +676,13 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		// payload.$text = { $search: search };
 	}
 
-	const feeReceipts = await FeeReceipt.aggregate([
+	const aggregation = [
+		{
+			$match: payload,
+		},
 		{
 			$facet: {
 				data: [
-					{
-						$match: payload,
-					},
 					{
 						$sort: {
 							createdAt: -1,
@@ -821,24 +821,25 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 				],
 				filterSummary: [
 					{
-						$match: payload,
-					},
-					{
 						$group: {
 							_id: null,
+							docsCount: {
+								$sum: 1,
+							},
 							totalAmount: {
 								$sum: '$paidAmount',
 							},
 						},
 					},
 				],
-				count: [{ $match: payload }, { $count: 'count' }],
 			},
 		},
-	]);
-	const { data, count, filterSummary } = feeReceipts[0];
+	];
 
-	if (count.length === 0) {
+	const [feeReceipts] = await FeeReceipt.aggregate(aggregation);
+	const { data, filterSummary } = feeReceipts;
+
+	if (data.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));
 	}
 	res
@@ -846,7 +847,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 		.json(
 			SuccessResponse(
 				{ data, totalAmount: filterSummary[0].totalAmount },
-				count[0].count,
+				filterSummary[0].docsCount,
 				'Fetched Successfully'
 			)
 		);
