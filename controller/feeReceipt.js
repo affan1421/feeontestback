@@ -3,19 +3,408 @@ const moment = require('moment');
 const excel = require('excel4node');
 const FeeReceipt = require('../models/feeReceipt');
 const FeeType = require('../models/feeType');
-const SectionDiscount = require('../models/sectionDiscount');
 const SuccessResponse = require('../utils/successResponse');
 const DiscountCategory = require('../models/discountCategory');
 const FeeInstallment = require('../models/feeInstallment');
 const PreviousBalance = require('../models/previousFeesBalance');
 const Expense = require('../models/expense');
-
-const Sections = mongoose.connection.db.collection('sections');
+const { getStartDate, getEndDate } = require('../helpers/dateFormat');
 
 const Student = mongoose.connection.db.collection('students');
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const AcademicYear = require('../models/academicYear');
+
+const getIncomeAggregation = (dateObj, school_id, tempAggregation) => [
+	{
+		$match: {
+			'school.schoolId': mongoose.Types.ObjectId(school_id),
+			status: { $ne: 'CANCELLED' },
+			issueDate: dateObj,
+		},
+	},
+	{
+		$facet: {
+			miscCollected: [
+				{
+					$unwind: {
+						path: '$items',
+						preserveNullAndEmptyArrays: true,
+					},
+				},
+				{
+					$group: {
+						_id: '$items.feeTypeId',
+						totalAmount: {
+							$sum: '$items.paidAmount',
+						},
+					},
+				},
+				{
+					$lookup: {
+						from: 'feetypes',
+						let: {
+							feeTypeId: '$_id',
+						},
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$eq: ['$_id', '$$feeTypeId'],
+									},
+								},
+							},
+							{
+								$project: {
+									feeType: 1,
+								},
+							},
+						],
+						as: '_id',
+					},
+				},
+				{
+					$addFields: {
+						_id: {
+							$first: '$_id.feeType',
+						},
+					},
+				},
+			],
+			totalIncomeCollected: tempAggregation,
+			paymentTypeData: [
+				{
+					$group: {
+						_id: '$payment.method',
+						totalAmount: {
+							$sum: '$paidAmount',
+						},
+					},
+				},
+			],
+		},
+	},
+	{
+		$project: {
+			miscCollected: '$miscCollected',
+			totalIncomeCollected: {
+				$first: '$totalIncomeCollected',
+			},
+			paymentTypeData: '$paymentTypeData',
+		},
+	},
+];
+
+const getExpenseAggregation = (dateObj, school_id, tempExpAggregation) => [
+	{
+		$match: {
+			schoolId: mongoose.Types.ObjectId(school_id),
+			expenseDate: dateObj,
+		},
+	},
+	{
+		$facet: {
+			// totalExpense: [
+			// 	{
+			// 		$group: {
+			// 			_id: '$expenseType',
+			// 			totalExpAmount: {
+			// 				$sum: '$amount',
+			// 			},
+			// 			schoolId: {
+			// 				$first: '$schoolId',
+			// 			},
+			// 		},
+			// 	},
+			// 	{
+			// 		$lookup: {
+			// 			from: 'expensetypes',
+			// 			let: {
+			// 				expTypeId: '$_id',
+			// 			},
+			// 			pipeline: [
+			// 				{
+			// 					$match: {
+			// 						$expr: {
+			// 							$eq: ['$_id', '$$expTypeId'],
+			// 						},
+			// 					},
+			// 				},
+			// 				{
+			// 					$project: {
+			// 						name: 1,
+			// 					},
+			// 				},
+			// 			],
+			// 			as: '_id',
+			// 		},
+			// 	},
+			// 	{
+			// 		$group: {
+			// 			_id: '$schoolId',
+			// 			totalAmount: {
+			// 				$sum: '$totalExpAmount',
+			// 			},
+			// 			maxExpType: {
+			// 				$max: {
+			// 					totalExpAmount: '$totalExpAmount',
+			// 					expenseType: {
+			// 						$first: '$_id',
+			// 					},
+			// 				},
+			// 			},
+			// 			minExpType: {
+			// 				$min: {
+			// 					totalExpAmount: '$totalExpAmount',
+			// 					expenseType: {
+			// 						$first: '$_id',
+			// 					},
+			// 				},
+			// 			},
+			// 		},
+			// 	},
+			// ],
+			expenseTypeData: [
+				{
+					$group: {
+						_id: '$expenseType',
+						totalExpAmount: {
+							$sum: '$amount',
+						},
+						schoolId: {
+							$first: '$schoolId',
+						},
+					},
+				},
+				{
+					$lookup: {
+						from: 'expensetypes',
+						let: {
+							expTypeId: '$_id',
+						},
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$eq: ['$_id', '$$expTypeId'],
+									},
+								},
+							},
+							{
+								$project: {
+									name: 1,
+								},
+							},
+						],
+						as: '_id',
+					},
+				},
+				// _id[0].name
+				{
+					$addFields: {
+						_id: {
+							$first: '$_id._id',
+						},
+						expenseTypeName: {
+							$first: '$_id.name',
+						},
+					},
+				},
+			],
+			totalExpenseCurrent: tempExpAggregation,
+		},
+	},
+];
+
+const getStudentData = async schoolId => {
+	const [studentData] = await Student.aggregate([
+		{
+			$match: {
+				school_id: mongoose.Types.ObjectId(schoolId),
+				deleted: false,
+				profileStatus: 'APPROVED',
+			},
+		},
+		{
+			$group: {
+				_id: '$school_id',
+				totalCount: {
+					$sum: 1,
+				},
+				boysCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Male', 'M', 'MALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+				girlsCount: {
+					$sum: {
+						$cond: [
+							{
+								$in: ['$gender', ['Female', 'F', 'FEMALE']],
+							},
+							1,
+							0,
+						],
+					},
+				},
+			},
+		},
+	]).toArray();
+	return studentData;
+};
+
+const getExpenseData = async (schoolId, dateObj, tempExpAggregation) => {
+	const totalExpenseAggregation = getExpenseAggregation(
+		dateObj,
+		schoolId,
+		tempExpAggregation
+	);
+	const expenseData = await Expense.aggregate(totalExpenseAggregation);
+	return expenseData;
+};
+
+const getIncomeData = async (schoolId, dateObj, tempIncAggregation) => {
+	const totalIncomeAggregation = getIncomeAggregation(
+		dateObj,
+		schoolId,
+		tempIncAggregation
+	);
+	const incomeData = await FeeReceipt.aggregate(totalIncomeAggregation);
+	return incomeData;
+};
+
+const getDiscountData = async schoolId => {
+	const discountCategories = await DiscountCategory.find({
+		schoolId: mongoose.Types.ObjectId(schoolId),
+		totalStudents: {
+			$gt: 0,
+		},
+	}).lean();
+
+	// calculate the total discount amount
+	const totalDiscountAmount = discountCategories.reduce(
+		(acc, curr) => acc + (curr.totalBudget - curr.budgetRemaining),
+		0
+	);
+
+	// DISCOUNT DATA
+	const [discountReport] = await FeeInstallment.aggregate([
+		{
+			$match: {
+				schoolId: mongoose.Types.ObjectId(schoolId),
+				totalDiscountAmount: {
+					$gt: 0,
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$sectionId',
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+			},
+		},
+		{
+			$sort: {
+				totalDiscountAmount: -1,
+			},
+		},
+		{
+			$group: {
+				_id: null,
+				maxClass: {
+					$first: {
+						sectionId: '$_id',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
+				},
+				minClass: {
+					$last: {
+						sectionId: '$_id',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'sections',
+				let: {
+					maxId: '$maxClass.sectionId',
+					minId: '$minClass.sectionId',
+				},
+				pipeline: [
+					{
+						$match: {
+							$expr: {
+								$in: ['$_id', ['$$maxId', '$$minId']],
+							},
+						},
+					},
+					{
+						$project: {
+							className: 1,
+						},
+					},
+				],
+				as: 'sections',
+			},
+		},
+		{
+			$project: {
+				maxClass: {
+					sectionId: {
+						$first: '$sections',
+					},
+					amount: '$maxClass.totalDiscountAmount',
+				},
+				minClass: {
+					sectionId: {
+						$last: '$sections',
+					},
+					amount: '$minClass.totalDiscountAmount',
+				},
+			},
+		},
+	]);
+
+	return {
+		totalDiscountAmount,
+		discountReport,
+	};
+};
+
+const getDateRange = (dateRange, startDate, endDate) => {
+	switch (dateRange) {
+		case 'daily':
+			return {
+				$gte: getStartDate(startDate, 'day'),
+				$lte: getEndDate(endDate, 'day'),
+			};
+		case 'weekly':
+			return {
+				$gte: getStartDate(startDate, 'week'),
+				$lte: getEndDate(endDate, 'week'),
+			};
+		case 'monthly':
+			return {
+				$gte: getStartDate(startDate, 'month'),
+				$lte: getEndDate(endDate, 'month'),
+			};
+		default:
+			return {
+				$gte: getStartDate(startDate),
+				$lte: getEndDate(endDate),
+			};
+	}
+};
 
 // Filter BY 'student.class.classId' and 'payment.method
 const getFeeReceipt = catchAsync(async (req, res, next) => {
@@ -1114,672 +1503,180 @@ const getExcel = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, receiptDetails.length, 'Fetched Successfully'));
 });
 
-const getDashboardData = catchAsync(async (req, res, next) => {
-	// get expense dashboard data
+const getDashboardData = async (req, res, next) => {
+	try {
+		const { school_id } = req.user;
+		const { dateRange, startDate, endDate } = req.query;
 
-	const resObj = {};
-	const { school_id } = req.user;
-	const { dateRange = null, startDate = null, endDate = null } = req.query;
-	let dateObj = null;
+		if (!dateRange && (!startDate || !endDate)) {
+			return next(new ErrorResponse('Date Range Is Required', 422));
+		}
 
-	// get Student data total students, boys and girls count
-	const studentData = await Student.aggregate([
-		{
-			$match: {
-				school_id: mongoose.Types.ObjectId(school_id),
-				deleted: false,
-				profileStatus: 'APPROVED',
-			},
-		},
-		{
-			$group: {
-				_id: '$school_id',
-				totalCount: {
-					$sum: 1,
-				},
-				boysCount: {
-					$sum: {
-						$cond: [
-							{
-								$in: ['$gender', ['Male', 'M', 'MALE']],
-							},
-							1,
-							0,
-						],
-					},
-				},
-				girlsCount: {
-					$sum: {
-						$cond: [
-							{
-								$in: ['$gender', ['Female', 'F', 'FEMALE']],
-							},
-							1,
-							0,
-						],
-					},
-				},
-			},
-		},
-	]).toArray();
-
-	// eslint-disable-next-line prefer-destructuring
-	resObj.totalStudents = studentData[0];
-
-	/// ///////////////////////////////////////////////////////
-
-	const totalIncomeAggregation = [
-		{
-			$match: {
-				'school.schoolId': mongoose.Types.ObjectId(school_id),
-				status: { $ne: 'CANCELLED' },
-			},
-		},
-	];
-
-	const totalExpenseAggregation = [
-		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(school_id),
-			},
-		},
-	];
-	const tempAggregation = [
-		{
-			$group: {
-				_id: {
-					$dateToString: {
-						format: '%Y-%m-%d',
-						date: '$expenseDate',
-					},
-				},
-				totalExpAmount: {
-					$sum: '$amount',
-				},
-			},
-		},
-		{
-			$sort: {
-				_id: 1,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				totalExpAmount: {
-					$sum: '$totalExpAmount',
-				},
-				expenseList: {
-					$push: {
-						expenseDate: '$_id',
-						amount: '$totalExpAmount',
-					},
-				},
-			},
-		},
-	];
-
-	const expenseAggregate = [
-		{
-			$facet: {
-				totalExpense: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(school_id),
-						},
-					},
-					{
-						$group: {
-							_id: '$expenseType',
-							totalExpAmount: {
-								$sum: '$amount',
-							},
-							schoolId: {
-								$first: '$schoolId',
-							},
-						},
-					},
-					{
-						$lookup: {
-							from: 'expensetypes',
-							let: {
-								expTypeId: '$_id',
-							},
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$expTypeId'],
-										},
-									},
+		const resObj = {
+			totalStudents: await getStudentData(school_id),
+		};
+		const tempIncAggregation =
+			dateRange === 'daily'
+				? [
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$paidAmount',
 								},
-								{
-									$project: {
-										name: 1,
-									},
-								},
-							],
-							as: '_id',
-						},
-					},
-					{
-						$group: {
-							_id: '$schoolId',
-							totalAmount: {
-								$sum: '$totalExpAmount',
-							},
-							maxExpType: {
-								$max: {
-									totalExpAmount: '$totalExpAmount',
-									expenseType: {
-										$first: '$_id',
-									},
-								},
-							},
-							minExpType: {
-								$min: {
-									totalExpAmount: '$totalExpAmount',
-									expenseType: {
-										$first: '$_id',
+								// push only the issueDate and paidAmount
+								incomeList: {
+									$push: {
+										issueDate: '$issueDate',
+										paidAmount: '$paidAmount',
 									},
 								},
 							},
 						},
-					},
-				],
-				expenseTypeData: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(school_id),
-						},
-					},
-					{
-						$group: {
-							_id: '$expenseType',
-							totalExpAmount: {
-								$sum: '$amount',
-							},
-							schoolId: {
-								$first: '$schoolId',
-							},
-						},
-					},
-					{
-						$lookup: {
-							from: 'expensetypes',
-							let: {
-								expTypeId: '$_id',
-							},
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$expTypeId'],
-										},
+				  ]
+				: [
+						{
+							$group: {
+								_id: {
+									$dateToString: {
+										format: '%Y-%m-%d',
+										date: '$issueDate',
 									},
 								},
-								{
-									$project: {
-										name: 1,
+								totalAmount: {
+									$sum: '$paidAmount',
+								},
+							},
+						},
+						{
+							$sort: {
+								_id: 1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$totalAmount',
+								},
+								incomeList: {
+									$push: {
+										issueDate: '$_id',
+										paidAmount: '$totalAmount',
 									},
 								},
-							],
-							as: '_id',
-						},
-					},
-					// _id[0].name
-					{
-						$addFields: {
-							_id: {
-								$first: '$_id._id',
-							},
-							expenseTypeName: {
-								$first: '$_id.name',
 							},
 						},
-					},
-				],
-				totalExpenseCurrent: totalExpenseAggregation,
+				  ];
+
+		const tempExpAggregation =
+			dateRange === 'daily'
+				? [
+						{
+							$group: {
+								_id: null,
+								totalExpAmount: {
+									$sum: '$amount',
+								},
+								// push only the issueDate and paidAmount
+								expenseList: {
+									$push: {
+										expenseDate: '$expenseDate',
+										amount: '$amount',
+									},
+								},
+							},
+						},
+				  ]
+				: [
+						{
+							$group: {
+								_id: {
+									$dateToString: {
+										format: '%Y-%m-%d',
+										date: '$expenseDate',
+									},
+								},
+								totalExpAmount: {
+									$sum: '$amount',
+								},
+							},
+						},
+						{
+							$sort: {
+								_id: 1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalExpAmount: {
+									$sum: '$totalExpAmount',
+								},
+								expenseList: {
+									$push: {
+										expenseDate: '$_id',
+										amount: '$totalExpAmount',
+									},
+								},
+							},
+						},
+				  ];
+
+		const dateObj = getDateRange(dateRange, startDate, endDate);
+
+		const [{ miscCollected, totalIncomeCollected, paymentTypeData }] =
+			await getIncomeData(school_id, dateObj, tempIncAggregation);
+
+		resObj.paymentMethods = paymentTypeData;
+		resObj.financialFlows = { income: miscCollected };
+
+		const [{ totalExpenseCurrent, expenseTypeData }] = await getExpenseData(
+			school_id,
+			dateObj,
+			tempExpAggregation
+		);
+
+		// const totalExpenseData = totalExpense[0] || {
+		// 	totalAmount: 0,
+		// 	maxExpType: { totalExpAmount: 0, expenseType: null },
+		// 	minExpType: { totalExpAmount: 0, expenseType: null },
+		// };
+
+		resObj.expenseData = {
+			// totalExpense: totalExpenseData,
+			totalExpenseCurrent: totalExpenseCurrent[0] || {
+				totalExpAmount: 0,
+				expenseList: [],
 			},
-		},
-	];
+		};
+		resObj.financialFlows.expense = expenseTypeData;
 
-	// START DATE
-	const getStartDate = (date, type) =>
-		date
-			? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
-			: moment().startOf(type).toDate();
-	// END DATE
-	const getEndDate = (date, type) =>
-		date
-			? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
-			: moment().endOf(type).toDate();
+		const { totalDiscountAmount, discountReport } = await getDiscountData(
+			school_id
+		);
 
-	switch (dateRange) {
-		case 'daily':
-			dateObj = {
-				$gte: getStartDate(startDate, 'day'),
-				$lte: getEndDate(endDate, 'day'),
-			};
-			totalIncomeAggregation.push({
-				$group: {
-					_id: null,
-					totalAmount: {
-						$sum: '$paidAmount',
-					},
-					// push only the issueDate and paidAmount
-					incomeList: {
-						$push: {
-							issueDate: '$issueDate',
-							paidAmount: '$paidAmount',
-						},
-					},
-				},
-			});
-			totalExpenseAggregation.push({
-				$group: {
-					_id: null,
-					totalExpAmount: {
-						$sum: '$amount',
-					},
-					// push only the issueDate and paidAmount
-					expenseList: {
-						$push: {
-							expenseDate: '$expenseDate',
-							amount: '$amount',
-						},
-					},
-				},
-			});
+		resObj.totalDiscounts = discountReport
+			? { ...discountReport, totalApprovedAmount: totalDiscountAmount }
+			: {
+					totalApprovedAmount: 0,
+					maxClass: { amount: 0, sectionId: null },
+					minClass: { amount: 0, sectionId: null },
+			  };
 
-			break;
+		const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
 
-		case 'weekly':
-			dateObj = {
-				$gte: getStartDate(startDate, 'week'),
-				$lte: getEndDate(endDate, 'week'),
-			};
-			totalIncomeAggregation.push(
-				{
-					$group: {
-						_id: {
-							$dateToString: {
-								format: '%Y-%m-%d',
-								date: '$issueDate',
-							},
-						},
-						totalAmount: {
-							$sum: '$paidAmount',
-						},
-					},
-				},
-				{
-					$sort: {
-						_id: 1,
-					},
-				},
-				{
-					$group: {
-						_id: null,
-						totalAmount: {
-							$sum: '$totalAmount',
-						},
-						incomeList: {
-							$push: {
-								issueDate: '$_id',
-								paidAmount: '$totalAmount',
-							},
-						},
-					},
-				}
-			);
-			totalExpenseAggregation.push(...tempAggregation);
-			break;
+		resObj.incomeData = {
+			amount: currentPaidAmount,
+			incomeList: totalIncomeCollected?.incomeList || [],
+		};
 
-		case 'monthly':
-			dateObj = {
-				$gte: getStartDate(startDate, 'month'),
-				$lte: getEndDate(endDate, 'month'),
-			};
-			totalIncomeAggregation.push(
-				{
-					$group: {
-						_id: {
-							$dateToString: {
-								format: '%Y-%m-%d',
-								date: '$issueDate',
-							},
-						},
-						totalAmount: {
-							$sum: '$paidAmount',
-						},
-					},
-				},
-				{
-					$sort: {
-						_id: 1,
-					},
-				},
-				{
-					$group: {
-						_id: null,
-						totalAmount: {
-							$sum: '$totalAmount',
-						},
-						incomeList: {
-							$push: {
-								issueDate: '$_id',
-								paidAmount: '$totalAmount',
-							},
-						},
-					},
-				}
-			);
-			totalExpenseAggregation.push(...tempAggregation);
-			break;
-
-		default:
-			dateObj = {
-				$gte: getStartDate(startDate),
-				$lte: getEndDate(endDate),
-			};
-			totalIncomeAggregation.push(
-				{
-					$group: {
-						_id: {
-							$dateToString: {
-								format: '%Y-%m-%d',
-								date: '$issueDate',
-							},
-						},
-						totalAmount: {
-							$sum: '$paidAmount',
-						},
-					},
-				},
-				{
-					$sort: {
-						_id: 1,
-					},
-				},
-				{
-					$group: {
-						_id: null,
-						totalAmount: {
-							$sum: '$totalAmount',
-						},
-						incomeList: {
-							$push: {
-								issueDate: '$_id',
-								paidAmount: '$totalAmount',
-							},
-						},
-					},
-				}
-			);
-			totalExpenseAggregation.push(...tempAggregation);
-			break;
+		res.status(200).json(SuccessResponse(resObj, 1, 'Fetched Successfully'));
+	} catch (err) {
+		console.log(err.stack);
+		next(err);
 	}
-
-	// update the dateObj into aggregate
-	totalIncomeAggregation[0].$match.issueDate = dateObj;
-	totalExpenseAggregation[0].$match.expenseDate = dateObj;
-
-	// get income dashboard Data
-	// get payment method wise data
-	// fee payment status data
-	// totalIncome pipeline
-	// totalCollected, miscCollected, totalIncomeCollected, paymentTypeData
-	const incomeAggregate = [
-		{
-			$facet: {
-				miscCollected: [
-					{
-						$match: {
-							'school.schoolId': mongoose.Types.ObjectId(school_id),
-							issueDate: dateObj,
-							status: { $ne: 'CANCELLED' },
-						},
-					},
-					{
-						$unwind: {
-							path: '$items',
-							preserveNullAndEmptyArrays: true,
-						},
-					},
-					{
-						$group: {
-							_id: '$items.feeTypeId',
-							totalAmount: {
-								$sum: '$items.paidAmount',
-							},
-						},
-					},
-					{
-						$lookup: {
-							from: 'feetypes',
-							let: {
-								feeTypeId: '$_id',
-							},
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$feeTypeId'],
-										},
-									},
-								},
-								{
-									$project: {
-										feeType: 1,
-									},
-								},
-							],
-							as: '_id',
-						},
-					},
-					{
-						$addFields: {
-							_id: {
-								$first: '$_id.feeType',
-							},
-						},
-					},
-				],
-				totalIncomeCollected: totalIncomeAggregation,
-				// method method wise data
-
-				paymentTypeData: [
-					{
-						$match: {
-							'school.schoolId': mongoose.Types.ObjectId(school_id),
-							status: { $ne: 'CANCELLED' },
-						},
-					},
-					{
-						$group: {
-							_id: '$payment.method',
-							totalAmount: {
-								$sum: '$paidAmount',
-							},
-						},
-					},
-				],
-			},
-		},
-		{
-			$project: {
-				totalCollected: {
-					$first: '$totalCollected',
-				},
-				miscCollected: '$miscCollected',
-
-				totalIncomeCollected: {
-					$first: '$totalIncomeCollected',
-				},
-				paymentTypeData: '$paymentTypeData',
-			},
-		},
-	];
-	const [incomeData] = await FeeReceipt.aggregate(incomeAggregate);
-
-	const { miscCollected, totalIncomeCollected, paymentTypeData } = incomeData;
-
-	resObj.paymentMethods = paymentTypeData;
-	resObj.financialFlows = { income: miscCollected };
-
-	/// ////////////////////////////////////////////////////////////////////
-
-	// EXPENSE DATA
-	const [expenseData] = await Expense.aggregate(expenseAggregate);
-
-	const { totalExpense, totalExpenseCurrent, expenseTypeData } = expenseData;
-	const totalExpenseData = totalExpense[0]
-		? totalExpense[0]
-		: {
-				totalAmount: 0,
-				maxExpType: {
-					totalExpAmount: 0,
-					expenseType: null,
-				},
-				minExpType: {
-					totalExpAmount: 0,
-					expenseType: null,
-				},
-		  };
-	resObj.expenseData = {
-		totalExpense: totalExpenseData,
-		totalExpenseCurrent: totalExpenseCurrent[0] ?? {
-			totalExpAmount: 0,
-			expenseList: [],
-		},
-	};
-	resObj.financialFlows.expense = expenseTypeData;
-
-	/// ////////////////////////////////////////////////////////////////////
-
-	const discountCategories = await DiscountCategory.find({
-		schoolId: mongoose.Types.ObjectId(school_id),
-		totalStudents: {
-			$gt: 0,
-		},
-	}).lean();
-
-	// calculate the total discount amount
-	const totalDiscountAmount = discountCategories.reduce(
-		(acc, curr) => acc + (curr.totalBudget - curr.budgetRemaining),
-		0
-	);
-
-	// DISCOUNT DATA
-	const [discountReport] = await FeeInstallment.aggregate([
-		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(school_id),
-				totalDiscountAmount: {
-					$gt: 0,
-				},
-			},
-		},
-		{
-			$group: {
-				_id: '$sectionId',
-				totalDiscountAmount: {
-					$sum: '$totalDiscountAmount',
-				},
-			},
-		},
-		{
-			$sort: {
-				totalDiscountAmount: -1,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				maxClass: {
-					$first: {
-						sectionId: '$_id',
-						totalDiscountAmount: '$totalDiscountAmount',
-					},
-				},
-				minClass: {
-					$last: {
-						sectionId: '$_id',
-						totalDiscountAmount: '$totalDiscountAmount',
-					},
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					maxId: '$maxClass.sectionId',
-					minId: '$minClass.sectionId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$in: ['$_id', ['$$maxId', '$$minId']],
-							},
-						},
-					},
-					{
-						$project: {
-							className: 1,
-						},
-					},
-				],
-				as: 'sections',
-			},
-		},
-		{
-			$project: {
-				maxClass: {
-					sectionId: {
-						$first: '$sections',
-					},
-					amount: '$maxClass.totalDiscountAmount',
-				},
-				minClass: {
-					sectionId: {
-						$last: '$sections',
-					},
-					amount: '$minClass.totalDiscountAmount',
-				},
-			},
-		},
-	]);
-
-	// eslint-disable-next-line prefer-destructuring
-	resObj.totalDiscounts = discountReport
-		? {
-				...discountReport,
-				totalApprovedAmount: totalDiscountAmount,
-		  }
-		: {
-				totalApprovedAmount: 0,
-				maxClass: {
-					amount: 0,
-					sectionId: null,
-				},
-				minClass: {
-					amount: 0,
-					sectionId: null,
-				},
-		  };
-
-	const currentPaidAmount = totalIncomeCollected?.totalAmount || 0;
-
-	resObj.incomeData = {
-		amount: currentPaidAmount,
-		incomeList: totalIncomeCollected?.incomeList || [],
-	};
-
-	res.status(200).json(SuccessResponse(resObj, 1, 'Fetched Successfully'));
-});
+};
 
 const cancelReceipt = catchAsync(async (req, res, next) => {
 	const { id } = req.params;

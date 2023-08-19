@@ -7,6 +7,12 @@ const PreviousBalance = require('../models/previousFeesBalance');
 const Donations = require('../models/donation');
 const DonorModel = require('../models/donor');
 const FeeInstallment = require('../models/feeInstallment');
+const {
+	getStartDate,
+	getEndDate,
+	getPrevStartDate,
+	getPrevEndDate,
+} = require('../helpers/dateFormat');
 
 const FeeStructure = require('../models/feeStructure');
 const FeeReceipt = require('../models/feeReceipt.js');
@@ -19,6 +25,187 @@ const Student = mongoose.connection.db.collection('students');
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
+
+const getDateRange = (dateRange, startDate, endDate) => {
+	let dateObj;
+	let prevDateObj;
+
+	switch (dateRange) {
+		case 'daily':
+			dateObj = {
+				$gte: getStartDate(startDate, 'day'),
+				$lte: getEndDate(endDate, 'day'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'day', 'days'),
+				$lte: getPrevEndDate(endDate, 'day', 'days'),
+			};
+			break;
+
+		case 'weekly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'week'),
+				$lte: getEndDate(endDate, 'week'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'week', 'weeks'),
+				$lte: getPrevEndDate(endDate, 'week', 'weeks'),
+			};
+			break;
+
+		case 'monthly':
+			dateObj = {
+				$gte: getStartDate(startDate, 'month'),
+				$lte: getEndDate(endDate, 'month'),
+			};
+			prevDateObj = {
+				$gte: getPrevStartDate(startDate, 'month', 'months'),
+				$lte: getPrevEndDate(endDate, 'month', 'months'),
+			};
+			break;
+
+		default:
+			dateObj = {
+				$gte: getStartDate(startDate),
+				$lte: getEndDate(endDate),
+			};
+			break;
+	}
+
+	return { dateObj, prevDateObj };
+};
+
+const getIncomeAggregation = (schoolId, dateObj, current, previous) => [
+	{
+		$match: {
+			'school.schoolId': mongoose.Types.ObjectId(schoolId),
+			status: { $ne: 'CANCELLED' },
+		},
+	},
+	{
+		$facet: {
+			totalCollected: [
+				{
+					$match: {
+						receiptType: 'ACADEMIC',
+						issueDate: dateObj,
+					},
+				},
+				{
+					$unwind: {
+						path: '$items',
+						preserveNullAndEmptyArrays: true,
+					},
+				},
+				{
+					$group: {
+						_id: '$items.feeTypeId',
+						totalAmount: {
+							$sum: '$items.paidAmount',
+						},
+					},
+				},
+				{
+					$lookup: {
+						from: 'feetypes',
+						let: {
+							feeTypeId: '$_id',
+						},
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$eq: ['$_id', '$$feeTypeId'],
+									},
+								},
+							},
+							{
+								$project: {
+									feeType: 1,
+								},
+							},
+						],
+						as: '_id',
+					},
+				},
+				{
+					$project: {
+						_id: 0,
+						amount: '$totalAmount',
+						feeTypeId: {
+							$first: '$_id',
+						},
+					},
+				},
+			],
+			miscCollected: [
+				{
+					$match: {
+						receiptType: {
+							$in: ['MISCELLANEOUS', 'PREVIOUS_BALANCE', 'APPLICATION'],
+						},
+						issueDate: dateObj,
+					},
+				},
+				{
+					$unwind: {
+						path: '$items',
+						preserveNullAndEmptyArrays: true,
+					},
+				},
+				{
+					$group: {
+						_id: '$items.feeTypeId',
+						totalAmount: {
+							$sum: '$paidAmount',
+						},
+					},
+				},
+				{
+					$lookup: {
+						from: 'feetypes',
+						let: {
+							feeTypeId: '$_id',
+						},
+						pipeline: [
+							{
+								$match: {
+									$expr: {
+										$eq: ['$_id', '$$feeTypeId'],
+									},
+								},
+							},
+							{
+								$project: {
+									feeType: 1,
+								},
+							},
+						],
+						as: '_id',
+					},
+				},
+				{
+					$project: {
+						_id: 0,
+						amount: '$totalAmount',
+						feeTypeId: {
+							$first: '$_id',
+						},
+					},
+				},
+			],
+			totalIncomeCollected: [
+				{
+					$match: {
+						issueDate: dateObj,
+					},
+				},
+				...current,
+			],
+			...(previous ? { prevIncomeCollected: previous } : {}),
+		},
+	},
+];
 
 exports.GetTransactions = catchAsync(async (req, res, next) => {
 	let {
@@ -1830,286 +2017,103 @@ exports.IncomeDashboard = async (req, res, next) => {
 			startDate = null,
 			endDate = null,
 		} = req.query;
-		let dateObj = null;
-		let prevDateObj = null;
 
-		// START DATE
-		const getStartDate = (date, type) =>
-			date
-				? moment(date, 'MM/DD/YYYY').startOf('day').toDate()
-				: moment().startOf(type).toDate();
-		// END DATE
-		const getEndDate = (date, type) =>
-			date
-				? moment(date, 'MM/DD/YYYY').endOf('day').toDate()
-				: moment().endOf(type).toDate();
+		if (!dateRange && (!startDate || !endDate))
+			return next(new ErrorResponse('Date Range Is Required', 422));
 
-		// PREV START DATE
-		const getPrevStartDate = (date, type, flag) =>
-			date
-				? moment(date, 'MM/DD/YYYY').subtract(1, flag).startOf('day').toDate()
-				: moment().subtract(1, flag).startOf(type).toDate();
-		// PREV END DATE
-		const getPrevEndDate = (date, type, flag) =>
-			date
-				? moment(date, 'MM/DD/YYYY').subtract(1, flag).endOf('day').toDate()
-				: moment().subtract(1, flag).endOf(type).toDate();
+		const incomeData = {
+			miscellaneous: [],
+		};
 
-		switch (dateRange) {
-			case 'daily':
-				dateObj = {
-					$gte: getStartDate(startDate, 'day'),
-					$lte: getEndDate(endDate, 'day'),
-				};
-				prevDateObj = {
-					$gte: getPrevStartDate(startDate, 'day', 'days'),
-					$lte: getPrevEndDate(endDate, 'day', 'days'),
-				};
-				break;
+		const { dateObj, prevDateObj } = getDateRange(
+			dateRange,
+			startDate,
+			endDate
+		);
 
-			case 'weekly':
-				dateObj = {
-					$gte: getStartDate(startDate, 'week'),
-					$lte: getEndDate(endDate, 'week'),
-				};
-				prevDateObj = {
-					$gte: getPrevStartDate(startDate, 'week', 'weeks'),
-					$lte: getPrevEndDate(endDate, 'week', 'weeks'),
-				};
-				break;
-
-			case 'monthly':
-				dateObj = {
-					$gte: getStartDate(startDate, 'month'),
-					$lte: getEndDate(endDate, 'month'),
-				};
-				prevDateObj = {
-					$gte: getPrevStartDate(startDate, 'month', 'months'),
-					$lte: getPrevEndDate(endDate, 'month', 'months'),
-				};
-				break;
-
-			default:
-				dateObj = {
-					$gte: getStartDate(startDate),
-					$lte: getEndDate(endDate),
-				};
-				break;
-		}
-
-		const totalIncomeAggregation = [
-			{
-				$match: {
-					'school.schoolId': mongoose.Types.ObjectId(schoolId),
-					issueDate: dateObj,
-					status: { $ne: 'CANCELLED' },
-				},
-			},
-		];
-		if (dateRange === 'daily') {
-			totalIncomeAggregation.push({
-				$group: {
-					_id: null,
-					totalAmount: {
-						$sum: '$paidAmount',
-					},
-					// push only the issueDate and paidAmount
-					incomeList: {
-						$push: {
-							issueDate: '$issueDate',
-							paidAmount: '$paidAmount',
-						},
-					},
-				},
-			});
-		} else {
-			totalIncomeAggregation.push(
-				{
-					$group: {
-						_id: {
-							$dateToString: {
-								format: '%Y-%m-%d',
-								date: '$issueDate',
-							},
-						},
-						totalAmount: {
-							$sum: '$paidAmount',
-						},
-					},
-				},
-				{
-					$sort: {
-						_id: 1,
-					},
-				},
-				{
-					$group: {
-						_id: null,
-						totalAmount: {
-							$sum: '$totalAmount',
-						},
-						incomeList: {
-							$push: {
-								issueDate: '$_id',
-								paidAmount: '$totalAmount',
-							},
-						},
-					},
-				}
-			);
-		}
-
-		const miscAggregate = [
-			{
-				$facet: {
-					totalCollected: [
-						{
-							$match: {
-								'school.schoolId': mongoose.Types.ObjectId(schoolId),
-								receiptType: 'ACADEMIC',
-								issueDate: dateObj,
-								status: { $ne: 'CANCELLED' },
-							},
-						},
-						{
-							$unwind: {
-								path: '$items',
-								preserveNullAndEmptyArrays: true,
-							},
-						},
+		const tempAggregation =
+			dateRange === 'daily'
+				? [
 						{
 							$group: {
-								_id: '$items.feeTypeId',
+								_id: null,
 								totalAmount: {
-									$sum: '$items.paidAmount',
+									$sum: '$paidAmount',
 								},
-							},
-						},
-						{
-							$lookup: {
-								from: 'feetypes',
-								let: {
-									feeTypeId: '$_id',
-								},
-								pipeline: [
-									{
-										$match: {
-											$expr: {
-												$eq: ['$_id', '$$feeTypeId'],
-											},
-										},
+								// push only the issueDate and paidAmount
+								incomeList: {
+									$push: {
+										issueDate: '$issueDate',
+										paidAmount: '$paidAmount',
 									},
-									{
-										$project: {
-											feeType: 1,
-										},
-									},
-								],
-								as: '_id',
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								amount: '$totalAmount',
-								feeTypeId: {
-									$first: '$_id',
 								},
 							},
 						},
-					],
-					miscCollected: [
-						{
-							$match: {
-								'school.schoolId': mongoose.Types.ObjectId(schoolId),
-								status: {
-									$ne: 'CANCELLED',
-								},
-								issueDate: dateObj,
-								receiptType: {
-									$in: ['MISCELLANEOUS', 'PREVIOUS_BALANCE', 'APPLICATION'],
-								},
-							},
-						},
-						{
-							$unwind: {
-								path: '$items',
-								preserveNullAndEmptyArrays: true,
-							},
-						},
+				  ]
+				: [
 						{
 							$group: {
-								_id: '$items.feeTypeId',
+								_id: {
+									$dateToString: {
+										format: '%Y-%m-%d',
+										date: '$issueDate',
+									},
+								},
 								totalAmount: {
 									$sum: '$paidAmount',
 								},
 							},
 						},
 						{
-							$lookup: {
-								from: 'feetypes',
-								let: {
-									feeTypeId: '$_id',
-								},
-								pipeline: [
-									{
-										$match: {
-											$expr: {
-												$eq: ['$_id', '$$feeTypeId'],
-											},
-										},
-									},
-									{
-										$project: {
-											feeType: 1,
-										},
-									},
-								],
-								as: '_id',
+							$sort: {
+								_id: 1,
 							},
 						},
 						{
-							$project: {
-								_id: 0,
-								amount: '$totalAmount',
-								feeTypeId: {
-									$first: '$_id',
+							$group: {
+								_id: null,
+								totalAmount: {
+									$sum: '$totalAmount',
+								},
+								incomeList: {
+									$push: {
+										issueDate: '$_id',
+										paidAmount: '$totalAmount',
+									},
 								},
 							},
 						},
-					],
-					totalIncomeCollected: totalIncomeAggregation,
+				  ];
+		const previous = [
+			{
+				$match: {
+					issueDate: prevDateObj,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalAmount: {
+						$sum: '$paidAmount',
+					},
 				},
 			},
 		];
-		if (dateRange) {
-			miscAggregate[0].$facet.prevIncomeCollected = [
-				{
-					$match: {
-						'school.schoolId': mongoose.Types.ObjectId(schoolId),
-						issueDate: prevDateObj,
-					},
-				},
-				{
-					$group: {
-						_id: null,
-						totalAmount: {
-							$sum: '$paidAmount',
-						},
-					},
-				},
-			];
-		}
+		const miscAggregate = getIncomeAggregation(
+			schoolId,
+			dateObj,
+			tempAggregation,
+			dateRange ? previous : null
+		);
 
-		const totalIncomeData = await FeeReceipt.aggregate(miscAggregate);
-		const incomeData = {};
-		const {
-			miscCollected,
-			totalIncomeCollected,
-			prevIncomeCollected = [],
-			totalCollected,
-		} = totalIncomeData[0];
-		incomeData.miscellaneous = [];
+		const [
+			{
+				miscCollected,
+				totalIncomeCollected,
+				prevIncomeCollected = [],
+				totalCollected,
+			},
+		] = await FeeReceipt.aggregate(miscAggregate);
 
 		if (miscCollected.length) {
 			incomeData.miscellaneous = {

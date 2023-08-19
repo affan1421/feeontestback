@@ -1,6 +1,5 @@
 const mongoose = require('mongoose');
-const { spawn } = require('child_process');
-const flatted = require('flatted');
+const { runChildProcess, runPipedProcesses } = require('../helpers/process');
 const FeeStructure = require('../models/feeStructure');
 const ErrorResponse = require('../utils/errorResponse');
 const FeeInstallment = require('../models/feeInstallment');
@@ -12,56 +11,6 @@ const SectionDiscount = require('../models/sectionDiscount');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
-
-async function runChildProcess(
-	feeDetails,
-	sectionIds, // treated as studentlist if isStudent is true
-	feeStructure,
-	schoolId,
-	academicYearId,
-	categoryId,
-	isStudent = false
-) {
-	// If isStudent is true, then sectionIds is treated as studentList
-	let studentList = sectionIds;
-	// Fetch the student list from the student API.
-	if (!isStudent) {
-		studentList = await Students.find(
-			{
-				section: { $in: sectionIds },
-				deleted: false,
-				profileStatus: 'APPROVED',
-			},
-			'_id section gender'
-		).toArray();
-	}
-	// Spawn child process to insert data into the database
-	const childSpawn = spawn('node', [
-		'../feeOn-backend/helper/installments.js',
-		flatted.stringify(feeDetails),
-		flatted.stringify(studentList),
-		feeStructure,
-		schoolId,
-		academicYearId,
-		categoryId,
-	]);
-
-	childSpawn.stdout.on('data', data => {
-		console.log(`stdout: ${data}`);
-	});
-
-	childSpawn.stderr.on('data', data => {
-		console.error(`stderr: ${data}`);
-	});
-
-	childSpawn.on('error', error => {
-		console.error(`error: ${error.message}`);
-	});
-
-	childSpawn.on('close', code => {
-		console.log(`child process exited with code ${code}`);
-	});
-}
 
 // CREATE
 exports.create = async (req, res, next) => {
@@ -265,28 +214,23 @@ exports.read = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(feeStructure, 1, 'Fetched Successfully'));
 });
 
-// UPDATE
-// Request payload - Updated student List and rest body.
-// Considerations:
-// 1. If any student is removed from the list, then delete the installment for that student.
-// 2. (Done) If any new student is added, then create the installment for that student.
-// 3. If new section is added append the new section to the classes array and push students in studentList (need to figure out how to recognize them) isNew :true.
-// 4. If any section is removed, then remove the section from the classes array and remove the students from the studentList.
-// 5. (Done) If any new fee is added, then add the fee to the feeDetails array and create the installment for all the students.
-
 exports.updatedFeeStructure = async (req, res, next) => {
 	try {
 		const { id } = req.params;
-		const { studentList, feeStructureName, classes, feeDetails, ...rest } =
+		let { studentList, feeStructureName, classes, feeDetails, ...rest } =
 			req.body;
+		const studMappedList = [];
+		const unMapStudList = [];
 
 		const { studentsToUpdate, studentsToRemove } = studentList.reduce(
 			(acc, student) => {
 				const { isNew, isRemoved } = student;
 				if (isNew) {
 					acc.studentsToUpdate.push(student);
+					studMappedList.push(mongoose.Types.ObjectId(student._id));
 				} else if (isRemoved) {
 					acc.studentsToRemove.push(student);
+					unMapStudList.push(mongoose.Types.ObjectId(student._id));
 				}
 				return acc;
 			},
@@ -295,6 +239,53 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				studentsToRemove: [],
 			}
 		);
+
+		if (rest.isRowAdded) {
+			feeDetails = feeDetails.map(fee => ({
+				...fee,
+				_id: fee._id ?? mongoose.Types.ObjectId(),
+			}));
+
+			const newRows = feeDetails.filter(fee => fee.isNewFieldinEdit);
+
+			const studAggregate = [
+				{
+					$match: { feeStructureId: mongoose.Types.ObjectId(id) },
+				},
+				{
+					$group: {
+						_id: '$studentId',
+						section: { $first: '$sectionId' },
+						gender: { $first: '$gender' },
+					},
+				},
+			];
+			// remove the students who are in unMapStudList array
+			if (unMapStudList.length > 0)
+				studAggregate[0].$match.studentId = { $nin: unMapStudList };
+
+			const existingStudents = await FeeInstallment.aggregate(studAggregate);
+
+			// make payload 1
+			if (studentsToUpdate.length)
+				await runPipedProcesses(
+					[newRows, feeDetails],
+					[existingStudents, studentsToUpdate],
+					id,
+					rest.schoolId,
+					rest.academicYearId,
+					rest.categoryId
+				);
+			else
+				await runChildProcess(
+					newRows,
+					existingStudents,
+					id,
+					rest.schoolId,
+					rest.academicYearId,
+					rest.categoryId
+				);
+		}
 
 		const updatedDocs = await FeeStructure.findOneAndUpdate(
 			{ _id: id },
@@ -306,13 +297,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 					...rest,
 				},
 			}
-		);
-		// Create arrays of ObjectId directly during the mapping process
-		const studMappedList = studentsToUpdate.map(s =>
-			mongoose.Types.ObjectId(s._id)
-		);
-		const unMapStudList = studentsToRemove.map(s =>
-			mongoose.Types.ObjectId(s._id)
 		);
 
 		if (studentsToRemove.length > 0 || studentsToUpdate.length > 0) {
@@ -356,18 +340,20 @@ exports.updatedFeeStructure = async (req, res, next) => {
 				);
 			}
 
-			promises.push(
-				Students.bulkWrite(bulkOperations),
-				runChildProcess(
-					feeDetails,
-					studentsToUpdate,
-					id,
-					rest.schoolId,
-					rest.academicYearId,
-					rest.categoryId,
-					true
-				)
-			);
+			promises.push(Students.bulkWrite(bulkOperations));
+
+			if (!rest.isRowAdded)
+				promises.push(
+					runChildProcess(
+						feeDetails,
+						studentsToUpdate,
+						id,
+						rest.schoolId,
+						rest.academicYearId,
+						rest.categoryId,
+						true
+					)
+				);
 
 			// Use Promise.allSettled to handle both successful and rejected promises
 			await Promise.allSettled(promises);
@@ -387,68 +373,6 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
-
-exports.addFeeStructureRow = catchAsync(async (req, res, next) => {
-	const { id } = req.params;
-	const { feeDetails } = req.body;
-	const { school_id: schoolId } = req.user;
-
-	const foundStructure = await FeeStructure.findOne({ _id: id });
-
-	if (!foundStructure) {
-		return next(new ErrorResponse('Fee Structure Not Found', 404));
-	}
-
-	// Fetch existing students' information using aggregation
-	const existingStudents = await FeeInstallment.aggregate([
-		{
-			$match: { feeStructureId: mongoose.Types.ObjectId(id) },
-		},
-		{
-			$group: {
-				_id: '$studentId',
-				section: { $first: '$sectionId' },
-				gender: { $first: '$gender' },
-			},
-		},
-	]);
-
-	// Calculate the total amount to add and create new fee details with generated _id
-	const amountToAdd = feeDetails.reduce(
-		(acc, curr) => acc + curr.totalAmount,
-		0
-	);
-	const newFeeDetails = feeDetails.map(fee => ({
-		...fee,
-		_id: mongoose.Types.ObjectId(),
-	}));
-
-	// Run child process with necessary information
-	await runChildProcess(
-		newFeeDetails,
-		existingStudents,
-		id,
-		schoolId,
-		foundStructure.academicYearId,
-		foundStructure.categoryId,
-		true
-	);
-
-	// Update the FeeStructure document with new fee details and total amount
-	await FeeStructure.findOneAndUpdate(
-		{ _id: id },
-		{
-			$push: {
-				feeDetails: { $each: newFeeDetails },
-			},
-			$inc: {
-				totalAmount: amountToAdd,
-			},
-		}
-	);
-
-	res.status(200).json(SuccessResponse(null, 1, 'Added Successfully'));
-});
 
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
@@ -740,6 +664,12 @@ exports.getFeeCategory = async (req, res, next) => {
 					sectionId: {
 						$first: '$sectionId',
 					},
+					totalDiscountAmount: {
+						$sum: '$totalDiscountAmount',
+					},
+					paidAmount: {
+						$sum: '$paidAmount',
+					},
 					totalFees: { $sum: '$totalAmount' },
 				},
 			},
@@ -798,6 +728,8 @@ exports.getFeeCategory = async (req, res, next) => {
 					studentName: {
 						$first: '$_id.name',
 					},
+					paidAmount: 1,
+					totalDiscountAmount: 1,
 					studentId: {
 						$first: '$_id._id',
 					},
