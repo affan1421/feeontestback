@@ -71,7 +71,7 @@ exports.create = async (req, res, next) => {
 		studentList = studentList.filter(s => s.isSelected === true);
 
 		sectionList = classes.map(c => mongoose.Types.ObjectId(c.sectionId));
-		const updatedDocs = await Sections.updateMany(
+		await Sections.updateMany(
 			{
 				_id: { $in: sectionList },
 			},
@@ -459,109 +459,58 @@ exports.getByFilter = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 //  unmapped?schoolId=schoolId&categoryId=categoryId
-exports.getUnmappedClassList = async (req, res, next) => {
-	const { schoolId, categoryId, discountId } = req.query;
-	// const mappedClassIds = [];
-	// const payload = {
-	// 	schoolId: mongoose.Types.ObjectId(schoolId),
-	// };
-	// if (categoryId) {
-	// 	payload.categoryId = mongoose.Types.ObjectId(categoryId);
-	// }
-	try {
-		let sectionList = await Sections.aggregate([
-			{
-				$match: {
-					school: mongoose.Types.ObjectId(schoolId),
+exports.getUnmappedClassList = catchAsync(async (req, res, next) => {
+	const { schoolId, discountId } = req.query;
+
+	const pipeline = [
+		{
+			$match: {
+				school: mongoose.Types.ObjectId(schoolId),
+			},
+		},
+		{
+			$lookup: {
+				from: 'classes',
+				localField: 'class_id',
+				foreignField: '_id',
+				as: 'class',
+			},
+		},
+		{
+			$project: {
+				_id: 0,
+				sectionId: '$_id',
+				name: '$className',
+				class_id: 1,
+				sequence_number: {
+					$first: '$class.sequence_number',
 				},
 			},
-			{
-				$project: {
-					_id: 1,
-					name: 1,
-					class_id: 1,
-				},
+		},
+		{
+			$sort: {
+				sequence_number: 1,
 			},
-			{
-				$lookup: {
-					from: 'classes',
-					localField: 'class_id',
-					foreignField: '_id',
-					as: 'class',
-				},
-			},
-			{
-				$unwind: {
-					path: '$class',
-					preserveNullAndEmptyArrays: true,
-				},
-			},
-			{
-				$project: {
-					_id: 0,
-					sectionId: '$_id',
-					name: 1,
-					class_id: 1,
-					className: '$class.name',
-					sequence_number: '$class.sequence_number',
-				},
-			},
-			{
-				$sort: {
-					sequence_number: 1,
-				},
-			},
-		]).toArray();
-		sectionList = sectionList.map(section => ({
-			name: `${section.className} - ${section.name}`,
-			sectionId: section.sectionId.toString(),
-			class_id: section.class_id,
-		}));
-		// if (categoryId) {
-		// 	const mappedClassList = await FeeStructure.aggregate([
-		// 		{
-		// 			$match: payload,
-		// 		},
-		// 		{ $unwind: '$classes' },
-		// 		{ $group: { _id: '$classes.sectionId' } },
-		// 	]);
-		// 	if (mappedClassList.length > 0) {
-		// 		mappedClassIds = mappedClassList.map(c => c._id.toString());
-		// 		sectionList = sectionList.filter(
-		// 			c => !mappedClassIds.includes(c.sectionId)
-		// 		);
-		// 	}
-		// }
-		if (discountId) {
-			const mappedSections = await SectionDiscount.aggregate([
-				{
-					$match: {
-						discountId: mongoose.Types.ObjectId(discountId),
-					},
-				},
-				{
-					$group: {
-						_id: '$sectionId',
-					},
-				},
-			]);
-			if (mappedSections.length > 0) {
-				const mappedSectionIds = mappedSections.map(s => s._id.toString());
-				sectionList = sectionList.filter(
-					section => !mappedSectionIds.includes(section.sectionId)
-				);
-			}
-		}
-		res
-			.status(200)
-			.json(
-				SuccessResponse(sectionList, sectionList.length, 'Fetched Successfully')
-			);
-	} catch (err) {
-		console.log('error while fetching unmapped class list', err.message);
-		return next(new ErrorResponse('Something Went Wrong', 500));
+		},
+	];
+
+	let sectionList = await Sections.aggregate(pipeline).toArray();
+
+	if (discountId) {
+		const mappedSectionIds = await SectionDiscount.distinct('sectionId', {
+			discountId: mongoose.Types.ObjectId(discountId),
+		});
+		sectionList = sectionList.filter(
+			section => !mappedSectionIds.includes(section.sectionId.toString())
+		);
 	}
-};
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(sectionList, sectionList.length, 'Fetched Successfully')
+		);
+});
 
 exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 	const { sectionId, categoryId } = req.params;
