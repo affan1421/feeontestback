@@ -501,6 +501,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		searchTerm = null,
 	} = req.body;
 	let { paymentStatus = null } = req.body;
+	const { paymentStatus: psFilter } = req.body;
 	const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length)
@@ -548,7 +549,14 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	);
 
 	const countStages = [
-		...aggregate.slice(0, paymentStatus ? 4 : 3),
+		...aggregate.slice(
+			0,
+			psFilter &&
+				(psFilter.length === 1 ||
+					(psFilter.length === 2 && psFilter.includes('FULL')))
+				? 4
+				: 3
+		),
 		{ $count: 'count' },
 	];
 
