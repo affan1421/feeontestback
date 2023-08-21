@@ -92,15 +92,17 @@ exports.getAll = catchAsync(async (req, res, next) => {
 	if (scheduleType) {
 		payload.scheduleType = scheduleType;
 	}
-	const feeSchedules = await FeeSchedule.aggregate([
+
+	const aggregate = [
+		{ $match: payload },
 		{
 			$facet: {
-				data: [{ $match: payload }, { $skip: page * limit }, { $limit: limit }],
-				docCount: [{ $match: payload }, { $count: 'count' }],
+				data: [{ $skip: page * limit }, { $limit: limit }],
+				docCount: [{ $count: 'count' }],
 			},
 		},
-	]);
-	const { data, docCount } = feeSchedules[0];
+	];
+	const [{ data, docCount }] = await FeeSchedule.aggregate(aggregate);
 
 	if (docCount.length === 0) {
 		return next(new ErrorResponse('Fee Schedules Not Found', 404));

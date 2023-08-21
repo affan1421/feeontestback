@@ -552,16 +552,16 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		{ $count: 'count' },
 	];
 
-	const [result] = await FeeInstallment.aggregate([
+	const finalAggregation = [
 		{
 			$facet: {
 				data: aggregate,
 				count: countStages,
 			},
 		},
-	]);
+	];
 
-	const { data, count } = result;
+	const [{ data, count }] = await FeeInstallment.aggregate(finalAggregation);
 
 	if (!count.length) {
 		return next(new ErrorResponse('No Dues Found', 404));

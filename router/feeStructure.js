@@ -13,6 +13,11 @@ router.get(
 	feeStructureController.getFeeStructureBySectionId
 );
 
+router.get(
+	'/:id/student/section/:sectionId',
+	feeStructureController.getStudentsBySectionId
+);
+
 // READ
 router.get('/:id', feeStructureController.read);
 
@@ -26,20 +31,5 @@ router.delete('/:id', feeStructureController.deleteFeeStructure);
 router.get('/', feeStructureController.getByFilter);
 
 router.get('/:id/feedetails/:sectionId', feeStructureController.getFeeCategory);
-
-// // ADD FEE DETAIL
-// router.post('/:id/fee-details', feeStructureController.addFeeDetail);
-
-// // UPDATE FEE DETAIL
-// router.put(
-// 	'/:id/fee-details/:feeDetailId',
-// 	feeStructureController.updateFeeDetail
-// );
-
-// // DELETE FEE DETAIL
-// router.delete(
-// 	'/:id/fee-details/:feeDetailId',
-// 	feeStructureController.deleteFeeDetail
-// );
 
 module.exports = router;

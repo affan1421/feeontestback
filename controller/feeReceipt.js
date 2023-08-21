@@ -439,13 +439,14 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 	if (receiptType) {
 		payload.receiptType = receiptType;
 	}
-	const feeReceipts = await FeeReceipt.aggregate([
+
+	const aggregate = [
+		{
+			$match: payload,
+		},
 		{
 			$facet: {
 				data: [
-					{
-						$match: payload,
-					},
 					{
 						$sort: {
 							createdAt: -1,
@@ -516,11 +517,12 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
-				count: [{ $match: payload }, { $count: 'count' }],
+				count: [{ $count: 'count' }],
 			},
 		},
-	]);
-	const { data, count } = feeReceipts[0];
+	];
+
+	const [{ data, count }] = await FeeReceipt.aggregate(aggregate);
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));

@@ -130,14 +130,12 @@ exports.read = catchAsync(async (req, res, next) => {
 	})
 		.populate('academicYearId', 'name')
 		.lean();
-	const { categoryId } = feeStructure;
+	const { categoryId, classes } = feeStructure;
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 
-	const sectionList = feeStructure.classes.map(c =>
-		mongoose.Types.ObjectId(c.sectionId)
-	);
+	const sectionList = classes.map(c => mongoose.Types.ObjectId(c.sectionId));
 	const projection = {
 		_id: 1,
 		name: 1,
@@ -151,30 +149,30 @@ exports.read = catchAsync(async (req, res, next) => {
 		deleted: false,
 		profileStatus: 'APPROVED',
 	};
+	const feeAggregate = [
+		{
+			$match: {
+				sectionId: {
+					$in: sectionList,
+				},
+				schoolId: mongoose.Types.ObjectId(schoolId),
+				categoryId: mongoose.Types.ObjectId(categoryId),
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				feeStructureId: {
+					$first: '$feeStructureId',
+				},
+				installments: { $push: '$$ROOT' },
+			},
+		},
+	];
 
 	const [students, feeInstallments] = await Promise.all([
 		Students.find(query).project(projection).toArray(),
-
-		FeeInstallment.aggregate([
-			{
-				$match: {
-					sectionId: {
-						$in: sectionList,
-					},
-					schoolId: mongoose.Types.ObjectId(schoolId),
-					categoryId: mongoose.Types.ObjectId(categoryId),
-				},
-			},
-			{
-				$group: {
-					_id: '$studentId',
-					feeStructureId: {
-						$first: '$feeStructureId',
-					},
-					installments: { $push: '$$ROOT' },
-				},
-			},
-		]),
+		FeeInstallment.aggregate(feeAggregate),
 	]);
 
 	if (students.length) {
@@ -373,6 +371,48 @@ exports.updatedFeeStructure = async (req, res, next) => {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
 };
+
+exports.getStudentsBySectionId = catchAsync(async (req, res, next) => {
+	const { id, sectionId } = req.params;
+	const { school_id: schoolId } = req.user;
+
+	const query = {
+		section: mongoose.Types.ObjectId(sectionId),
+		deleted: false,
+		profileStatus: 'APPROVED',
+	};
+
+	const projection = {
+		_id: 1,
+		name: 1,
+		profile_image: 1,
+		section: 1,
+		gender: 1,
+	};
+
+	const feeAggregate = [
+		{
+			$match: {
+				sectionId: mongoose.Types.ObjectId(sectionId),
+				feeStructureId: mongoose.Types.ObjectId(id),
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				feeStructureId: {
+					$first: '$feeStructureId',
+				},
+				installments: { $push: '$$ROOT' },
+			},
+		},
+	];
+
+	const [students, feeInstallments] = await Promise.all([
+		Students.find(query).project(projection).toArray(),
+		FeeInstallment.aggregate(feeAggregate),
+	]);
+});
 
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
