@@ -2229,8 +2229,8 @@ exports.reportBySchedules = async (req, res, next) => {
 
 	if (scheduleDates.length) {
 		match.$or = scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,

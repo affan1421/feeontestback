@@ -5,6 +5,12 @@ const SuccessResponse = require('../utils/successResponse');
 const catchAsync = require('../utils/catchAsync');
 const FeeTypes = require('../models/feeType');
 const FeeSchedule = require('../models/feeSchedule');
+
+function parseCustomDate(dateString) {
+	const [day, month, year] = dateString.split('/');
+	return new Date(`${year}-${month}-${day}`);
+}
+
 // Create a new AcademicYear
 const create = async (req, res, next) => {
 	try {
@@ -32,8 +38,8 @@ const create = async (req, res, next) => {
 		}
 
 		const months = [];
-		startDate = new Date(startDate);
-		endDate = new Date(endDate);
+		startDate = parseCustomDate(startDate);
+		endDate = parseCustomDate(endDate);
 		if (startDate > endDate) {
 			return next(
 				new ErrorResponse('Start Date Should Be Less Than End Date', 422)
