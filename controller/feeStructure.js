@@ -76,7 +76,7 @@ exports.create = async (req, res, next) => {
 				_id: { $in: sectionList },
 			},
 			{
-				$set: {
+				$addToSet: {
 					feeStructureId: feeStructure._id,
 				},
 			},
@@ -396,8 +396,8 @@ exports.deleteFeeStructure = async (req, res, next) => {
 				_id: { $in: sectionList },
 			},
 			{
-				$unset: {
-					feeStructureId: null,
+				$pull: {
+					feeStructureId: mongoose.Types.ObjectId(id),
 				},
 			},
 			{
