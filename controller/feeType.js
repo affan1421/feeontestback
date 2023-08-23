@@ -71,7 +71,7 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 		limit = +limit;
 		dataFacet.push({ $skip: page * limit }, { $limit: limit });
 	}
-	const feeTypes = await Feetype.aggregate([
+	const [{ data, count }] = await Feetype.aggregate([
 		{
 			$facet: {
 				data: dataFacet,
@@ -79,7 +79,6 @@ exports.getTypes = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
-	const { data, count } = feeTypes[0];
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('No Fee Type Found', 404));

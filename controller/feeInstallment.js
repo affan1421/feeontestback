@@ -448,37 +448,6 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		profileStatus: 'APPROVED',
 	};
 
-	// let path = 'username';
-
-	// if (Number.isNaN(+search)) {
-	// 	path = 'name';
-	// }
-
-	// const queryObj = {
-	// 	index: 'studentBasicInfo',
-	// 	compound: {
-	// 		must: [
-	// 			{
-	// 				autocomplete: {
-	// 					query: search,
-	// 					path,
-	// 				},
-	// 			},
-	// 		],
-	// 	},
-	// 	count: {
-	// 		type: 'total',
-	// 	},
-	// };
-	// if (schoolId) {
-	// 	queryObj.compound.filter = {
-	// 		equals: {
-	// 			path: 'school_id',
-	// 			value: mongoose.Types.ObjectId(schoolId),
-	// 		},
-	// 	};
-	// }
-
 	if (schoolId) {
 		matchQuery.school_id = mongoose.Types.ObjectId(schoolId);
 	}
@@ -492,165 +461,175 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 		matchQuery.$text = { $search: search };
 	}
 
-	const totalStudents = await Student.countDocuments(matchQuery);
-	const foundStudents = await Student.aggregate([
+	const aggregate = [
 		{
 			$match: matchQuery,
 		},
 		{
-			$skip: limit * page,
-		},
-		{
-			$limit: parseInt(limit),
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: {
-					sectionId: '$section',
-				},
-				as: 'className',
-				pipeline: [
+			$facet: {
+				data: [
 					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
+						$skip: limit * page,
+					},
+					{
+						$limit: parseInt(limit),
+					},
+					{
+						$lookup: {
+							from: 'sections',
+							let: {
+								sectionId: '$section',
 							},
+							as: 'className',
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$sectionId'],
+										},
+									},
+								},
+								{
+									$project: {
+										className: 1,
+									},
+								},
+							],
+						},
+					},
+					{
+						$lookup: {
+							from: 'feeinstallments',
+							let: {
+								studentId: '$_id',
+							},
+							as: 'feeinstallments',
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$and: [
+												{
+													$eq: ['$studentId', '$$studentId'],
+												},
+												{
+													$eq: ['$deleted', false],
+												},
+											],
+										},
+									},
+								},
+								{
+									$group: {
+										_id: null,
+										paidAmount: {
+											$sum: '$paidAmount',
+										},
+										netAmount: {
+											$sum: '$netAmount',
+										},
+									},
+								},
+							],
+						},
+					},
+					{
+						$lookup: {
+							from: 'previousfeesbalances',
+							let: {
+								studentId: '$_id',
+							},
+							as: 'previousfees',
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$studentId', '$$studentId'],
+										},
+									},
+								},
+								{
+									$project: {
+										dueAmount: 1,
+									},
+								},
+							],
+						},
+					},
+					{
+						$lookup: {
+							from: 'parents',
+							let: {
+								parentId: '$parent_id',
+							},
+							as: 'parentId',
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$parentId'],
+										},
+									},
+								},
+								{
+									$project: {
+										name: 1,
+									},
+								},
+							],
 						},
 					},
 					{
 						$project: {
-							className: 1,
-						},
-					},
-				],
-			},
-		},
-		{
-			$lookup: {
-				from: 'feeinstallments',
-				let: {
-					studentId: '$_id',
-				},
-				as: 'feeinstallments',
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$and: [
+							_id: 1,
+							name: 1,
+							className: {
+								$first: '$className.className',
+							},
+							parentName: {
+								$first: '$parentId.name',
+							},
+							pendingAmount: {
+								$add: [
 									{
-										$eq: ['$studentId', '$$studentId'],
+										$ifNull: [
+											{
+												$first: '$previousfees.dueAmount',
+											},
+											0,
+										],
 									},
 									{
-										$eq: ['$deleted', false],
+										$subtract: [
+											{ $first: '$feeinstallments.netAmount' },
+											{ $first: '$feeinstallments.paidAmount' },
+										],
 									},
+								],
+							},
+							admission_no: 1,
+							hasfeeStructure: {
+								$cond: [
+									{
+										$gt: [{ $size: '$feeinstallments' }, 0],
+									},
+									true,
+									false,
 								],
 							},
 						},
 					},
-					{
-						$group: {
-							_id: null,
-							paidAmount: {
-								$sum: '$paidAmount',
-							},
-							netAmount: {
-								$sum: '$netAmount',
-							},
-						},
-					},
 				],
+				count: [{ $count: 'count' }],
 			},
 		},
-		// Look up previous fees
-		{
-			$lookup: {
-				from: 'previousfeesbalances',
-				let: {
-					studentId: '$_id',
-				},
-				as: 'previousfees',
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$studentId', '$$studentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							dueAmount: 1,
-						},
-					},
-				],
-			},
-		},
-		{
-			$lookup: {
-				from: 'parents',
-				let: {
-					parentId: '$parent_id',
-				},
-				as: 'parentId',
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$parentId'],
-							},
-						},
-					},
-					{
-						$project: {
-							name: 1,
-						},
-					},
-				],
-			},
-		},
-		{
-			$project: {
-				_id: 1,
-				name: 1,
-				className: {
-					$first: '$className.className',
-				},
-				parentName: {
-					$first: '$parentId.name',
-				},
-				pendingAmount: {
-					// add the previous fees and feeinstallments
-					$add: [
-						{
-							$ifNull: [
-								{
-									$first: '$previousfees.dueAmount',
-								},
-								0,
-							],
-						},
-						{
-							$subtract: [
-								{ $first: '$feeinstallments.netAmount' },
-								{ $first: '$feeinstallments.paidAmount' },
-							],
-						},
-					],
-				},
-				admission_no: 1,
-				hasfeeStructure: {
-					$cond: {
-						if: { $gt: [{ $size: '$feeinstallments' }, 0] },
-						then: true,
-						else: false,
-					},
-				},
-			},
-		},
-	]).toArray();
+	];
 
-	return res.status(200).json(SuccessResponse(foundStudents, totalStudents));
+	const [{ data, count }] = await Student.aggregate(aggregate).toArray();
+
+	return res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
 exports.StudentSearch = catchAsync(async (req, res, next) => {
@@ -1592,11 +1571,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
-		issueDate = new Date(),
 		feeCategoryName,
 		feeCategoryId,
 		receiptType,
 	} = req.body;
+	const issueDate = req.body.issueDate
+		? moment(req.body.issueDate, 'DD/MM/YYYY')
+		: new Date();
 	const bulkWriteOps = [];
 	const foundStudent = await Student.aggregate([
 		{
@@ -2227,8 +2208,8 @@ exports.reportBySchedules = async (req, res, next) => {
 
 	if (scheduleDates.length) {
 		match.$or = scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,

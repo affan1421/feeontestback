@@ -37,7 +37,7 @@ const findStudentIds = async (schoolId, searchTerm) => {
 /**
  * @desc  Build Payment Status Stages
  * @param {Array} paymentStatus - ['FULL', 'PARTIAL', 'NOT']
- * @param {Array} scheduleDates - ['MM/DD/YYYY']
+ * @param {Array} scheduleDates - ['DD/MM/YYYY']
  * @returns {Array} stages - Array of stages
  */
 const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
@@ -297,8 +297,8 @@ const getSummary = CatchAsync(async (req, res, next) => {
 
 	if (scheduleDates.length) {
 		match.$or = scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -501,6 +501,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		searchTerm = null,
 	} = req.body;
 	let { paymentStatus = null } = req.body;
+	const { paymentStatus: psFilter } = req.body;
 	const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length)
@@ -521,8 +522,8 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		netAmount: { $gt: 0 },
 		$or: scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -548,20 +549,27 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	);
 
 	const countStages = [
-		...aggregate.slice(0, paymentStatus ? 4 : 3),
+		...aggregate.slice(
+			0,
+			psFilter &&
+				(psFilter.length === 1 ||
+					(psFilter.length === 2 && psFilter.includes('FULL')))
+				? 4
+				: 3
+		),
 		{ $count: 'count' },
 	];
 
-	const [result] = await FeeInstallment.aggregate([
+	const finalAggregation = [
 		{
 			$facet: {
 				data: aggregate,
 				count: countStages,
 			},
 		},
-	]);
+	];
 
-	const { data, count } = result;
+	const [{ data, count }] = await FeeInstallment.aggregate(finalAggregation);
 
 	if (!count.length) {
 		return next(new ErrorResponse('No Dues Found', 404));
@@ -594,8 +602,8 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		netAmount: { $gt: 0 },
 		$or: scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -695,8 +703,8 @@ const getClassList = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,
@@ -929,8 +937,8 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,
@@ -1141,8 +1149,8 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,

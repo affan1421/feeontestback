@@ -29,7 +29,7 @@ exports.create = async (req, res, next) => {
 		transactionDetails,
 	} = req.body;
 
-	const date = moment(expenseDate, 'MM-DD-YYYY').format('DDMMYY');
+	const date = moment(expenseDate, 'DD/MM/YYYY').format('DDMMYY');
 
 	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -67,7 +67,7 @@ exports.create = async (req, res, next) => {
 		.toUpperCase()}${date}${newCount}`;
 
 	// const currentDate = new Date();
-	const expenseDateDate = moment(expenseDate, 'MM-DD-YYYY').format(
+	const expenseDateDate = moment(expenseDate, 'DD/MM/YYYY').format(
 		'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'
 	);
 	// const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
@@ -349,14 +349,14 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 	paymentMethod ? (match.paymentMethod = paymentMethod) : null;
 
 	if (date) {
-		const fromDate = moment(date).startOf('day').toDate();
-		const tillDate = moment(date).endOf('day').toDate();
+		const fromDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const tillDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		match.expenseDate = { $gte: fromDate, $lte: tillDate };
 	}
 	if (startDate && endDate) {
 		match.expenseDate = {
-			$gte: moment(startDate).startOf('day').toDate(),
-			$lte: moment(endDate).endOf('day').toDate(),
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
 		};
 	}
 	if (expenseTypeId) {
@@ -829,8 +829,8 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 
 	if (startDate && endDate) {
 		match.expenseDate = {
-			$gte: moment(startDate, 'MM/DD/YYYY').startOf('day').toDate(),
-			$lte: moment(endDate, 'MM/DD/YYYY').endOf('day').toDate(),
+			$gte: moment(startDate, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(endDate, 'DD/MM/YYYY').endOf('day').toDate(),
 		};
 	}
 
