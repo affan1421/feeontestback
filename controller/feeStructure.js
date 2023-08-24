@@ -372,46 +372,114 @@ exports.updatedFeeStructure = async (req, res, next) => {
 	}
 };
 
-exports.getStudentsBySectionId = catchAsync(async (req, res, next) => {
+exports.getStudentsBySection = catchAsync(async (req, res, next) => {
 	const { id, sectionId } = req.params;
-	const { school_id: schoolId } = req.user;
+	const { page = 0, limit = 5, searchTerm = null } = req.query;
+	let studentIds = null;
 
-	const query = {
-		section: mongoose.Types.ObjectId(sectionId),
-		deleted: false,
-		profileStatus: 'APPROVED',
+	const match = {
+		feeStructureId: mongoose.Types.ObjectId(id),
+		sectionId: mongoose.Types.ObjectId(sectionId),
 	};
 
-	const projection = {
-		_id: 1,
-		name: 1,
-		profile_image: 1,
-		section: 1,
-		gender: 1,
-	};
+	if (searchTerm) {
+		const searchQuery = {
+			name: { $regex: searchTerm, $options: 'i' },
+			section: mongoose.Types.ObjectId(sectionId),
+			deleted: false,
+			profileStatus: 'APPROVED',
+		};
+		studentIds = await Students.distinct('_id', searchQuery);
+		match.studentId = {
+			$in: studentIds,
+		};
+	}
 
-	const feeAggregate = [
+	const aggregate = [
 		{
-			$match: {
-				sectionId: mongoose.Types.ObjectId(sectionId),
-				feeStructureId: mongoose.Types.ObjectId(id),
-			},
+			$match: match,
 		},
 		{
 			$group: {
 				_id: '$studentId',
-				feeStructureId: {
-					$first: '$feeStructureId',
+				totalFees: {
+					$sum: '$totalAmount',
 				},
-				installments: { $push: '$$ROOT' },
+				netFees: {
+					$sum: '$netAmount',
+				},
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
+				feeDetails: {
+					$push: {
+						feeType: '$feeType',
+						totalFees: '$totalAmount',
+						netAmount: '$netAmount',
+						paidAmount: '$paidAmount',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
+				},
+			},
+		},
+		{
+			$skip: +page * +limit,
+		},
+		{
+			$limit: +limit,
+		},
+		{
+			$lookup: {
+				from: 'students',
+				localField: '_id',
+				foreignField: '_id',
+				as: 'studentData',
+			},
+		},
+		{
+			$unwind: '$studentData',
+		},
+		{
+			$project: {
+				_id: 0,
+				studentId: '$_id',
+				studentName: '$studentData.name',
+				totalFees: 1,
+				netFees: 1,
+				totalDiscountAmount: 1,
+				paidAmount: 1,
+				feeDetails: 1,
 			},
 		},
 	];
 
-	const [students, feeInstallments] = await Promise.all([
-		Students.find(query).project(projection).toArray(),
-		FeeInstallment.aggregate(feeAggregate),
-	]);
+	const studentList = await feeInstallment.aggregate(aggregate);
+
+	if (!studentList.length) {
+		return next(new ErrorResponse('Student Not Found', 404));
+	}
+
+	res.status(200).json(SuccessResponse(studentList, 1, 'Fetched Successfully'));
+});
+
+exports.getFeeDetails = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+
+	const { feeDetails } = await FeeStructure.findOne({
+		_id: id,
+	}).populate('feeDetails.feeTypeId', 'feeType');
+	if (!feeDetails.length) {
+		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(feeDetails, feeDetails.length, 'Fetched Successfully')
+		);
 });
 
 // DELETE

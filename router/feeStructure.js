@@ -13,10 +13,14 @@ router.get(
 	feeStructureController.getFeeStructureBySectionId
 );
 
+// Discount New Flow
+router.get('/:id/feeDetails', feeStructureController.getFeeDetails);
+
 router.get(
 	'/:id/student/section/:sectionId',
-	feeStructureController.getStudentsBySectionId
+	feeStructureController.getStudentsBySection
 );
+// END
 
 // READ
 router.get('/:id', feeStructureController.read);

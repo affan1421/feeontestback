@@ -13,6 +13,10 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'FeeSchedule',
 			required: true,
 		}, // populate
+		feeType: {
+			_id: { type: Schema.Types.ObjectId, ref: 'Feetype', required: true },
+			name: { type: String, required: true },
+		},
 		rowId: {
 			type: Schema.Types.ObjectId, // feeDetails _id
 			required: true,

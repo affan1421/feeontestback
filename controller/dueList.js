@@ -9,31 +9,6 @@ const getSections = require('../helpers/section');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
-
-/**
- * @desc    Get Summary
- * @param   {ObjectId} schoolId - School Id
- * @param   {String} searchTerm - Search Term
- * @description This method is used to get studentIds from student collection
- * @returns {Array} studentIds - Array of studentIds
- * */
-
-const findStudentIds = async (schoolId, searchTerm) => {
-	const searchPayload = {
-		school_id: mongoose.Types.ObjectId(schoolId),
-		name: {
-			$regex: searchTerm,
-			$options: 'i',
-		},
-		deleted: false,
-		profileStatus: 'APPROVED',
-	};
-	const studentIds = await Students.find(searchPayload)
-		.project({ _id: 1 })
-		.toArray();
-	return studentIds.map(student => mongoose.Types.ObjectId(student._id));
-};
-
 /**
  * @desc  Build Payment Status Stages
  * @param {Array} paymentStatus - ['FULL', 'PARTIAL', 'NOT']
@@ -534,7 +509,16 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	};
 
 	if (searchTerm) {
-		const studentIds = await findStudentIds(school_id, searchTerm);
+		const searchPayload = {
+			school: mongoose.Types.ObjectId(school_id),
+			name: {
+				$regex: searchTerm,
+				$options: 'i',
+			},
+			deleted: false,
+			profileStatus: 'APPROVED',
+		};
+		const studentIds = await Students.distinct('_id', searchPayload);
 		match.studentId = {
 			$in: studentIds,
 		};
@@ -721,11 +705,9 @@ const getClassList = CatchAsync(async (req, res, next) => {
 				$options: 'i',
 			},
 		};
-		sectionIds = await Sections.find(searchPayload)
-			.project({ _id: 1 })
-			.toArray();
+		sectionIds = await Sections.distinct('_id', searchPayload);
 		match.sectionId = {
-			$in: sectionIds.map(section => mongoose.Types.ObjectId(section._id)),
+			$in: sectionIds,
 		};
 	}
 
