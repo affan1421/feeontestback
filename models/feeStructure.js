@@ -10,7 +10,7 @@ const { Schema, model } = mongoose;
 const feeDetailsSchema = new Schema({
 	feeTypeId: {
 		type: Schema.Types.ObjectId,
-		ref: 'FeeType',
+		ref: 'Feetype',
 		required: [true, 'Fee Type is Mandatory'],
 	},
 	scheduleTypeId: {

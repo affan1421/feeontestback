@@ -20,12 +20,16 @@ async function insertFeeInstallments() {
 		const feeInstallments = [];
 		const now = new Date();
 		for (const fee of feeDetails) {
-			const { feeTypeId, scheduleTypeId, _id } = fee;
+			const { feeTypeId, scheduleTypeId, _id, feeTypeName } = fee;
 			for (const scheduledDate of fee.scheduledDates) {
 				const { date, amount } = scheduledDate;
 				const newFee = {
 					rowId: _id,
 					feeTypeId,
+					feeType: {
+						_id: feeTypeId,
+						name: feeTypeName,
+					},
 					scheduleTypeId,
 					academicYearId: academicYear,
 					scheduledDate: date,
@@ -50,6 +54,7 @@ async function insertFeeInstallments() {
 				sectionId: student.section,
 				rowId: fee.rowId,
 				feeTypeId: fee.feeTypeId,
+				feeType: fee.feeType,
 				date: fee.scheduledDate,
 				status: fee.status,
 				categoryId,
