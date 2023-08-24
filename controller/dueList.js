@@ -501,6 +501,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		searchTerm = null,
 	} = req.body;
 	let { paymentStatus = null } = req.body;
+	const { paymentStatus: psFilter } = req.body;
 	const { school_id } = req.user;
 
 	if (!scheduleId || !scheduleDates.length)
@@ -533,7 +534,16 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	};
 
 	if (searchTerm) {
-		const studentIds = await findStudentIds(school_id, searchTerm);
+		const searchPayload = {
+			school: mongoose.Types.ObjectId(school_id),
+			name: {
+				$regex: searchTerm,
+				$options: 'i',
+			},
+			deleted: false,
+			profileStatus: 'APPROVED',
+		};
+		const studentIds = await Students.distinct('_id', searchPayload);
 		match.studentId = {
 			$in: studentIds,
 		};
@@ -548,20 +558,27 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	);
 
 	const countStages = [
-		...aggregate.slice(0, paymentStatus ? 4 : 3),
+		...aggregate.slice(
+			0,
+			psFilter &&
+				(psFilter.length === 1 ||
+					(psFilter.length === 2 && psFilter.includes('FULL')))
+				? 4
+				: 3
+		),
 		{ $count: 'count' },
 	];
 
-	const [result] = await FeeInstallment.aggregate([
+	const finalAggregation = [
 		{
 			$facet: {
 				data: aggregate,
 				count: countStages,
 			},
 		},
-	]);
+	];
 
-	const { data, count } = result;
+	const [{ data, count }] = await FeeInstallment.aggregate(finalAggregation);
 
 	if (!count.length) {
 		return next(new ErrorResponse('No Dues Found', 404));
