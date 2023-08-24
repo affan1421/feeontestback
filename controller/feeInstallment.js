@@ -1947,14 +1947,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			bankName,
 			chequeDate: chequeDate ? moment(chequeDate, 'DD/MM/YYYY') : null,
 			chequeNumber,
-			transactionDate: transactionDate
-				? moment(transactionDate, 'DD/MM/YYYY')
-				: null,
+			transactionDate,
 			transactionId,
 			upiId,
 			payerName,
 			ddNumber,
-			ddDate: ddDate ? moment(ddDate, 'DD/MM/YYYY') : null,
+			ddDate,
 		},
 		issueDate,
 		items,
