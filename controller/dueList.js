@@ -44,11 +44,7 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 			},
 		},
 	};
-	if (
-		!paymentStatus ||
-		paymentStatus === 'NOT,PARTIAL' ||
-		paymentStatus === 'FULL,NOT,PARTIAL'
-	) {
+	if (!paymentStatus || paymentStatus === 'FULL,NOT,PARTIAL') {
 		return [addFieldStage, groupByStudent];
 	}
 
@@ -60,52 +56,56 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 		],
 		PARTIAL: [
 			addFieldStage,
-			{ $match: { $expr: { $lt: ['$dueAmount', '$netAmount'] } } },
 			groupByStudent,
+			{
+				$match: {
+					$expr: {
+						$and: [
+							{ $ne: ['$dueAmount', 0] },
+							{ $lt: ['$dueAmount', '$totalNetAmount'] },
+						],
+					},
+				},
+			},
 		],
 		NOT: [
-			{ $match: { $expr: { $eq: ['$paidAmount', 0] } } },
 			addFieldStage,
 			groupByStudent,
+			{ $match: { $expr: { $eq: ['$paidAmount', 0] } } },
 		],
 		'FULL,PARTIAL': [
-			// NO STATUS FILTER
-			{ $match: { $expr: { $ne: ['$paidAmount', 0] } } },
 			addFieldStage,
 			groupByStudent,
+			{ $match: { $expr: { $ne: ['$paidAmount', 0] } } },
 		],
 		'FULL,NOT': [
+			addFieldStage,
+			groupByStudent,
 			{
 				$match: {
 					$expr: {
 						$or: [
 							{
-								$and: [
-									{
-										$in: ['$status', ['Late', 'Paid']],
-									},
-									{
-										$gt: ['$paidAmount', 0],
-									},
-								],
+								$eq: ['$totalNetAmount', '$paidAmount'],
 							},
 							{
-								$and: [
-									{
-										$in: ['$status', ['Upcoming', 'Due']],
-									},
-									{
-										$eq: ['$paidAmount', 0],
-									},
-								],
+								$eq: ['$totalNetAmount', '$dueAmount'],
 							},
 						],
 					},
 				},
 			},
+		],
+		'NOT,PARTIAL': [
 			addFieldStage,
-
 			groupByStudent,
+			{
+				$match: {
+					$expr: {
+						$lt: ['$paidAmount', '$totalNetAmount'],
+					},
+				},
+			},
 		],
 	};
 
@@ -232,13 +232,7 @@ const buildGeneralStages = (page, limit) => {
 const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
 	const aggregation = [
 		{
-			$match:
-				paymentStatus === 'FULL' ||
-				paymentStatus === 'FULL,PARTIAL' ||
-				paymentStatus === 'FULL,NOT' ||
-				paymentStatus === 'FULL,NOT,PARTIAL'
-					? match
-					: { ...match, status: { $in: ['Due', 'Upcoming'] } },
+			$match: match,
 		},
 		...buildPaymentStatusStages(paymentStatus, scheduleDates),
 		...buildGeneralStages(page, limit),
@@ -533,14 +527,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	);
 
 	const countStages = [
-		...aggregate.slice(
-			0,
-			psFilter &&
-				(psFilter.length === 1 ||
-					(psFilter.length === 2 && psFilter.includes('FULL')))
-				? 4
-				: 3
-		),
+		...aggregate.slice(0, psFilter && psFilter.length < 3 ? 4 : 3),
 		{ $count: 'count' },
 	];
 
