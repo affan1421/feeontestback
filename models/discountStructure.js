@@ -39,11 +39,6 @@ const discountStructureSchema = new Schema({
 		ref: 'FeeStructure',
 		required: true,
 	},
-	sectionId: {
-		type: Schema.Types.ObjectId,
-		ref: 'Section',
-		required: true,
-	},
 	totalFeesAmount: Number,
 	feeDetails: [feeDetailSchema],
 });

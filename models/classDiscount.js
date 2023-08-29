@@ -37,6 +37,9 @@ const classDiscountSchema = new Schema({
 	totalApprovedAmount: Number,
 });
 
+classDiscountSchema.index({ 'discount.id': 1 });
+classDiscountSchema.index({ schoolId: 1, categoryId: 1 });
+
 const ClassDiscount = model('classDiscount', classDiscountSchema);
 
 module.exports = ClassDiscount;

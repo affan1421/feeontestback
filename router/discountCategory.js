@@ -15,11 +15,26 @@ const {
 	getStudentsByFilter,
 	addStudentToDiscount,
 	getStudentForApproval,
+	getGraphBySection,
 	getStudentsByStructure,
+	getDiscountGraph,
 	revokeStudentDiscount,
+	getDiscountSummary,
+	getSectionWiseDiscount,
+	getDiscountBySchool,
 } = require('../controller/discountCategory');
 
 router.post('/:id/revoke', revokeStudentDiscount);
+
+router.get('/school/:schoolId', getDiscountBySchool);
+
+router.get('/summary', getDiscountSummary);
+
+router.get('/graph', getDiscountGraph);
+
+router.get('/graphBySection', getGraphBySection);
+
+router.get('/sections', getSectionWiseDiscount);
 
 router.route('/').get(getDiscountCategory).post(createDiscountCategory);
 
@@ -39,10 +54,9 @@ router.get('/:id/mappedStructure/:feeStructureId', getSectionDiscount);
 // discount analytics
 router.get('/report', discountReport);
 
-router
-	.route('/:discountId/approval')
-	.get(getStudentForApproval)
-	.post(approveStudentDiscount);
+router.route('/:discountId/approval').post(approveStudentDiscount);
+
+router.route('/approval').get(getStudentForApproval);
 
 router.post('/addAttachment', addAttachment);
 

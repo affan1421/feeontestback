@@ -6,11 +6,6 @@ module.exports = {
 			.collection('sectiondiscounts')
 			.aggregate([
 				{
-					$match: {
-						schoolId: mongoose.Types.ObjectId('62849114bb0c8eeb5104737f'),
-					},
-				},
-				{
 					$lookup: {
 						from: 'feetypes',
 						localField: 'feeTypeId',
@@ -106,6 +101,8 @@ module.exports = {
 						fd => fd.feeTypeId.toString() === feeType.feeTypeId.toString()
 					);
 
+					if (!feeDetail) console.log('feeDetail', fsId, feeType.feeTypeId);
+
 					const perBreakdownAmount = value / feeDetail.scheduledDates.length;
 
 					const tempBreakdown = feeDetail.scheduledDates.map(scheduledDate => {
@@ -139,6 +136,7 @@ module.exports = {
 				.aggregate([
 					{
 						$match: {
+							deleted: false,
 							feeStructureId: mongoose.Types.ObjectId(fsId),
 							sectionId: mongoose.Types.ObjectId(secId),
 							'discounts.discountId': mongoose.Types.ObjectId(disId),
