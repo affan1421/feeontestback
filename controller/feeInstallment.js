@@ -1592,11 +1592,13 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
-		issueDate = new Date(),
 		feeCategoryName,
 		feeCategoryId,
 		receiptType,
 	} = req.body;
+	const issueDate = req.body.issueDate
+		? moment(req.body.issueDate, 'DD/MM/YYYY')
+		: new Date();
 	const bulkWriteOps = [];
 	const foundStudent = await Student.aggregate([
 		{
