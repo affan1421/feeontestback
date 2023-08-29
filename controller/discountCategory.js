@@ -5,8 +5,10 @@ const FeeInstallment = require('../models/feeInstallment');
 const FeeStructure = require('../models/feeStructure');
 const SectionDiscount = require('../models/sectionDiscount');
 const ClassDiscount = require('../models/classDiscount');
+const DiscountStructure = require('../models/discountStructure');
 
 const Students = mongoose.connection.db.collection('students');
+
 const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
@@ -322,9 +324,25 @@ const getDiscountCategory = catchAsync(async (req, res, next) => {
 
 const getDiscountCategoryById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const discount = await DiscountCategory.findOne({
-		_id: id,
-	});
+
+	const projection = {
+		name: 1,
+		description: 1,
+		totalBudget: 1,
+		totalDiscount: {
+			$subtract: ['$totalBudget', '$budgetRemaining'],
+		},
+		budgetRemaining: 1,
+		classesAssociated: 1,
+		totalStudents: 1,
+	};
+
+	const discount = await DiscountCategory.findOne(
+		{
+			_id: id,
+		},
+		projection
+	);
 	if (!discount) {
 		return next(new ErrorResponse('Discount Not Found', 404));
 	}
@@ -1282,81 +1300,20 @@ const getSectionDiscount = catchAsync(async (req, res, next) => {
 		discountId: mongoose.Types.ObjectId(id),
 		feeStructureId: mongoose.Types.ObjectId(feeStructureId),
 	};
-	const projections = {
-		_id: 0,
-		feeType: {
-			$arrayElemAt: ['$feeType', 0],
-		},
-		totalAmount: 1,
-		isPercentage: 1,
-		value: 1,
-		breakdown: 1,
-	};
-	const discountCategory = await DiscountCategory.findOne(
-		{
-			_id: mongoose.Types.ObjectId(id),
-		},
-		'totalBudget budgetAlloted budgetRemaining'
-	);
-	// find in sectionDiscount
-	const sectionDiscount = await SectionDiscount.aggregate([
-		{
-			$match: filter,
-		},
-		{
-			$group: {
-				_id: '$feeTypeId',
-				feeType: {
-					$first: '$feeTypeId',
-				},
-				totalAmount: {
-					$first: '$totalAmount',
-				},
-				isPercentage: {
-					$first: '$isPercentage',
-				},
-				value: {
-					$first: '$value',
-				},
-				breakdown: {
-					$first: '$breakdown',
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'feetypes',
-				let: { feeTypeId: '$feeType' },
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$feeTypeId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							feeType: 1,
-						},
-					},
-				],
-				as: 'feeType',
-			},
-		},
-		{
-			$project: projections,
-		},
-	]);
-	if (!sectionDiscount.length) {
+	const structure = await DiscountStructure.findOne(
+		filter,
+		'feeDetails discountId'
+	).populate('discountId', 'totalBudget budgetAlloted budgetRemaining');
+
+	if (!structure) {
 		return next(new ErrorResponse('No Discount Found', 404));
 	}
+	const { feeDetails, discountId } = structure;
 
 	res.json(
 		SuccessResponse(
-			{ discountDetails: discountCategory, feeDetails: sectionDiscount },
-			sectionDiscount.length,
+			{ discountDetails: discountId, feeDetails },
+			feeDetails.length,
 			'Fetched Successfully'
 		)
 	);
@@ -1564,11 +1521,40 @@ const getDiscountBySchool = catchAsync(async (req, res, next) => {
 
 const getDiscountSummary = catchAsync(async (req, res, next) => {
 	const { school_id } = req.user;
+	const { sectionId } = req.query;
+
+	if (sectionId) {
+		const classData = await ClassDiscount.find(
+			{
+				'section.id': sectionId,
+			},
+			{
+				_id: 0,
+				section: 1,
+				discount: 1,
+				totalApprovedAmount: 1,
+			}
+		).lean();
+
+		if (!classData.length) return next(new ErrorResponse('No Data Found', 404));
+
+		const discountCount = new Set(classData.map(doc => doc.discount.id));
+
+		const totalAmount = classData.reduce(
+			(total, doc) => total + doc.totalApprovedAmount,
+			0
+		);
+
+		const response = {
+			totalAmount,
+			totalDiscount: discountCount.size,
+		};
+
+		return res.json(SuccessResponse(response, 1, 'Fetched Successfully'));
+	}
 
 	const discountData = await DiscountCategory.find(
-		{
-			schoolId: school_id,
-		},
+		{ schoolId: school_id },
 		{
 			totalBudget: 1,
 			budgetAlloted: {

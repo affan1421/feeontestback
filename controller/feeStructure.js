@@ -8,6 +8,7 @@ const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 const feeInstallment = require('../models/feeInstallment');
 const SectionDiscount = require('../models/sectionDiscount');
+const DiscountStructure = require('../models/discountStructure');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -374,6 +375,7 @@ exports.updatedFeeStructure = async (req, res, next) => {
 
 exports.getStudentsBySection = catchAsync(async (req, res, next) => {
 	const { id, sectionId } = req.params;
+	const { discountId } = req.query;
 	const { page = 0, limit = 5, searchTerm = null } = req.query;
 	let studentIds = null;
 
@@ -466,13 +468,35 @@ exports.getStudentsBySection = catchAsync(async (req, res, next) => {
 });
 
 exports.getFeeDetails = catchAsync(async (req, res, next) => {
-	const { id } = req.params;
+	const { id, discountId } = req.params;
+	let feeDetails = null;
 
-	const { feeDetails } = await FeeStructure.findOne({
-		_id: id,
-	}).populate('feeDetails.feeTypeId', 'feeType');
-	if (!feeDetails.length) {
-		return next(new ErrorResponse('Fee Structure Not Found', 404));
+	const query = {
+		discountId,
+		feeStructureId: id,
+	};
+
+	const isMapped = await DiscountStructure.findOne(query, 'feeDetails');
+
+	if (!isMapped) {
+		const feeStructure = await FeeStructure.findOne({
+			_id: id,
+		}).populate('feeDetails.feeTypeId', 'feeType');
+
+		feeDetails = feeStructure.feeDetails.map(fee => {
+			const { feeTypeId, scheduledDates, totalAmount } = fee;
+			return {
+				_id: id,
+				feeType: {
+					id: feeTypeId._id,
+					name: feeTypeId.feeType,
+				},
+				amount: totalAmount,
+				breakdown: scheduledDates,
+			};
+		});
+	} else {
+		feeDetails = isMapped.feeDetails;
 	}
 
 	res

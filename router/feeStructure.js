@@ -14,8 +14,10 @@ router.get(
 );
 
 // Discount New Flow
-router.get('/:id/feeDetails', feeStructureController.getFeeDetails);
+// TODO: Make this as common API for both structures fetching (ADD CLASS and EDIT CLASS)
+router.get('/:id/discount/:discountId', feeStructureController.getFeeDetails);
 
+// TODO: Make this as common API for both students fetching (New Student and Edit Student)
 router.get(
 	'/:id/student/section/:sectionId',
 	feeStructureController.getStudentsBySection
