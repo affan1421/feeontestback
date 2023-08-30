@@ -283,12 +283,35 @@ const getDiscountCategory = catchAsync(async (req, res, next) => {
 
 	const aggregate = [
 		{
-			$match: query,
-		},
-		{
 			$facet: {
-				data: [{ $skip: +page * +limit }, { $limit: +limit }],
-				count: [{ $count: 'count' }],
+				data: [
+					{
+						$match: query,
+					},
+					{
+						$project: {
+							name: 1,
+							classesAssociated: 1,
+							totalBudget: 1,
+							budgetAlloted: 1,
+							totalDiscount: {
+								$subtract: ['$totalBudget', '$budgetRemaining'],
+							},
+							budgetRemaining: 1,
+							totalStudents: 1,
+							totalApproved: 1,
+							totalPending: 1,
+						},
+					},
+					{ $skip: +page * +limit },
+					{ $limit: +limit },
+				],
+				count: [
+					{
+						$match: query,
+					},
+					{ $count: 'count' },
+				],
 			},
 		},
 	];
