@@ -127,7 +127,8 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 	const { attachments = {} } = await DiscountCategory.findOne({
 		_id: id,
 	});
-	let students = await FeeInstallment.aggregate([
+
+	const aggregate = [
 		{
 			$match: {
 				feeStructureId: mongoose.Types.ObjectId(structureId),
@@ -137,8 +138,21 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		{
 			$group: {
 				_id: '$studentId',
-				sectionId: {
-					$first: '$sectionId',
+				matchedDiscount: {
+					$push: {
+						$arrayElemAt: [
+							{
+								$filter: {
+									input: '$discounts',
+									as: 'discount',
+									cond: {
+										$eq: ['$$discount.discountId', mongoose.Types.ObjectId(id)],
+									},
+								},
+							},
+							0,
+						],
+					},
 				},
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
@@ -149,51 +163,30 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				totalFees: {
 					$sum: '$totalAmount',
 				},
-				discounts: {
+				feeDetails: {
 					$push: {
-						$filter: {
-							input: '$discounts',
-							as: 'discount',
-							cond: {
-								$eq: ['$$discount.discountId', mongoose.Types.ObjectId(id)],
-							},
-						},
+						feeType: '$feeType',
+						totalFees: '$totalAmount',
+						netAmount: '$netAmount',
+						paidAmount: '$paidAmount',
+						totalDiscountAmount: '$totalDiscountAmount',
 					},
 				},
 			},
 		},
 		{
-			$lookup: {
-				from: 'sections',
-				let: { sectionId: '$sectionId' },
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							className: 1,
-						},
-					},
-				],
-				as: 'section',
-			},
-		},
-		{
 			$addFields: {
-				discounts: {
-					$reduce: {
-						input: '$discounts',
-						initialValue: [],
-						in: {
-							$concatArrays: ['$$value', '$$this'],
+				discountApplied: {
+					$sum: {
+						$map: {
+							input: '$matchedDiscount',
+							as: 'obj',
+							in: '$$obj.discountAmount',
 						},
 					},
+				},
+				discountStatus: {
+					$arrayElemAt: ['$matchedDiscount.status', 0],
 				},
 			},
 		},
@@ -210,31 +203,19 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		},
 		{
 			$project: {
-				_id: 0,
 				studentName: '$student.name',
 				paidAmount: 1,
-				studentId: '$student._id',
 				admission_no: '$student.admission_no',
 				totalDiscountAmount: 1,
 				totalFees: 1,
-				discountApplied: {
-					$sum: {
-						$map: {
-							input: '$discounts',
-							as: 'obj',
-							in: '$$obj.discountAmount',
-						},
-					},
-				},
-				discountStatus: {
-					$arrayElemAt: ['$discounts.status', 0],
-				},
-				sectionName: {
-					$first: '$section.className',
-				},
+				discountApplied: 1,
+				discountStatus: 1,
+				feeDetails: 1,
 			},
 		},
-	]);
+	];
+
+	let students = await FeeInstallment.aggregate(aggregate);
 	if (students.length === 0) {
 		return next(new ErrorResponse('No Discounts Found', 404));
 	}
@@ -245,8 +226,8 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 		} else {
 			student.isSelected = false;
 		}
-		if (attachments[student.studentId.toString()]) {
-			student.attachments = attachments[student.studentId.toString()];
+		if (attachments[student._id.toString()]) {
+			student.attachments = attachments[student._id.toString()];
 		}
 		return student;
 	});
@@ -1519,6 +1500,12 @@ const getDiscountBySchool = catchAsync(async (req, res, next) => {
 	);
 });
 
+const getStudentsWithDiscount = catchAsync(async (req, res, next) => {
+	const { school_id } = req.user;
+
+	const studentList = await Students.aggregate();
+});
+
 const getDiscountSummary = catchAsync(async (req, res, next) => {
 	const { school_id } = req.user;
 	const { sectionId } = req.query;
@@ -1611,13 +1598,11 @@ const getDiscountGraph = catchAsync(async (req, res, next) => {
 
 const getGraphBySection = catchAsync(async (req, res, next) => {
 	const { school_id } = req.user;
-	const { categoryId } = req.query;
 
 	const aggregate = [
 		{
 			$match: {
 				schoolId: mongoose.Types.ObjectId(school_id),
-				categoryId: mongoose.Types.ObjectId(categoryId),
 			},
 		},
 		{
@@ -1649,13 +1634,12 @@ const getGraphBySection = catchAsync(async (req, res, next) => {
 
 const getSectionWiseDiscount = catchAsync(async (req, res, next) => {
 	const { school_id } = req.user;
-	const { categoryId, page = 0, limit = 5 } = req.query;
+	const { page = 0, limit = 5 } = req.query;
 
 	const aggregate = [
 		{
 			$match: {
 				schoolId: mongoose.Types.ObjectId(school_id),
-				categoryId: mongoose.Types.ObjectId(categoryId),
 			},
 		},
 		{
@@ -1727,6 +1711,7 @@ module.exports = {
 	deleteDiscountCategory,
 	mapDiscountCategory,
 	getDiscountCategoryByClass,
+	getStudentsWithDiscount,
 	getDiscountBySchool,
 	addAttachment,
 	getSectionDiscount,

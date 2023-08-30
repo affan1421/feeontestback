@@ -22,11 +22,14 @@ const {
 	getDiscountSummary,
 	getSectionWiseDiscount,
 	getDiscountBySchool,
+	getStudentsWithDiscount,
 } = require('../controller/discountCategory');
 
 router.post('/:id/revoke', revokeStudentDiscount);
 
 router.get('/school/:schoolId', getDiscountBySchool);
+
+router.get('/studentList', getStudentsWithDiscount);
 
 router.get('/summary', getDiscountSummary);
 
