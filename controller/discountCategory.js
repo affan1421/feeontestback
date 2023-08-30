@@ -1525,8 +1525,196 @@ const getDiscountBySchool = catchAsync(async (req, res, next) => {
 
 const getStudentsWithDiscount = catchAsync(async (req, res, next) => {
 	const { school_id } = req.user;
+	const {
+		sectionId = null,
+		searchTerm = null,
+		page = 0,
+		limit = 5,
+	} = req.query;
 
-	const studentList = await Students.aggregate();
+	const match = {
+		school_id: mongoose.Types.ObjectId(school_id),
+		deleted: false,
+		profileStatus: 'APPROVED',
+	};
+
+	if (sectionId) match.section = mongoose.Types.ObjectId(sectionId);
+	if (searchTerm) match.name = { $regex: searchTerm, $options: 'i' };
+
+	const studAggregate = [
+		{
+			$match: match,
+		},
+		{
+			$sort: {
+				name: 1,
+			},
+		},
+		{
+			$facet: {
+				students: [
+					{
+						$skip: +page * +limit,
+					},
+					{
+						$limit: +limit,
+					},
+					{
+						$lookup: {
+							from: 'sections',
+							localField: 'section',
+							foreignField: '_id',
+							as: 'section',
+						},
+					},
+					{
+						$lookup: {
+							from: 'feeinstallments',
+							let: {
+								studId: '$_id',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$and: [
+												{
+													$eq: ['$studentId', '$$studId'],
+												},
+												{
+													$eq: ['$deleted', false],
+												},
+											],
+										},
+									},
+								},
+							],
+							as: 'fee',
+						},
+					},
+					{
+						$lookup: {
+							from: 'previousfeesbalances',
+							localField: '_id',
+							foreignField: 'studentId',
+							as: 'prev',
+						},
+					},
+					{
+						$project: {
+							name: 1,
+							profile_image: 1,
+							className: {
+								$first: '$section.className',
+							},
+							totalFees: {
+								$sum: {
+									$concatArrays: ['$fee.totalAmount', '$prev.totalAmount'],
+								},
+							},
+						},
+					},
+				],
+				totalCount: [
+					{
+						$count: 'count',
+					},
+				],
+			},
+		},
+	];
+
+	const [{ students, totalCount }] = await Students.aggregate(
+		studAggregate
+	).toArray();
+
+	if (!students.length)
+		return next(new ErrorResponse('No Students Found', 404));
+
+	const disAggregate = [
+		{
+			$match: {
+				studentId: {
+					$in: students.map(({ _id }) => mongoose.Types.ObjectId(_id)),
+				},
+				$expr: {
+					$gt: [
+						{
+							$size: '$discounts',
+						},
+						0,
+					],
+				},
+			},
+		},
+		{
+			$unwind: {
+				path: '$discounts',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$match: {
+				'discounts.status': 'Approved',
+			},
+		},
+		{
+			$group: {
+				_id: {
+					stud: '$studentId',
+					discountId: '$discounts.discountId',
+				},
+				amount: {
+					$sum: '$discounts.discountAmount',
+				},
+			},
+		},
+		{
+			$lookup: {
+				from: 'discountcategories',
+				localField: '_id.discountId',
+				foreignField: '_id',
+				as: 'discount',
+			},
+		},
+		{
+			$unwind: {
+				path: '$discount',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$group: {
+				_id: '$_id.stud',
+				discountList: {
+					$push: {
+						_id: '$_id.discountId',
+						name: '$discount.name',
+						amount: '$amount',
+					},
+				},
+			},
+		},
+	];
+
+	const discountData = await FeeInstallment.aggregate(disAggregate);
+
+	if (discountData.length) {
+		students.forEach(student => {
+			const matchedDiscount = discountData.find(
+				({ _id }) => _id.toString() === student._id.toString()
+			);
+			if (matchedDiscount) {
+				student.discounts = matchedDiscount.discountList;
+			}
+		});
+	}
+
+	res
+		.status(200)
+		.json(
+			SuccessResponse(students, totalCount[0].count, 'Fetched Successfully')
+		);
 });
 
 const getDiscountSummary = catchAsync(async (req, res, next) => {

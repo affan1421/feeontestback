@@ -646,9 +646,8 @@ exports.getUnmappedClassList = catchAsync(async (req, res, next) => {
 
 exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 	const { sectionId, categoryId } = req.params;
-	let { isMapped, discountId } = req.query;
-	isMapped = isMapped === 'true';
-	let foundStructure = await FeeStructure.find(
+
+	const foundStructure = await FeeStructure.find(
 		{
 			classes: { $elemMatch: { sectionId } },
 			categoryId,
@@ -656,35 +655,6 @@ exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 		},
 		'feeStructureName'
 	).lean();
-	const mappedStructures = await SectionDiscount.aggregate([
-		{
-			$match: {
-				discountId: mongoose.Types.ObjectId(discountId),
-				sectionId: mongoose.Types.ObjectId(sectionId),
-				categoryId: mongoose.Types.ObjectId(categoryId),
-			},
-		},
-		{
-			$group: {
-				_id: '$feeStructureId',
-			},
-		},
-	]);
-
-	if (isMapped) {
-		// filter the fee structure which is mapped to the discount
-
-		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
-		foundStructure = foundStructure.filter(s =>
-			mappedStructureIds.includes(s._id.toString())
-		);
-	} else {
-		// filter the fee structure which is not mapped to the discount
-		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
-		foundStructure = foundStructure.filter(
-			s => !mappedStructureIds.includes(s._id.toString())
-		);
-	}
 
 	if (!foundStructure.length) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
