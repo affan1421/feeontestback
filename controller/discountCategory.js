@@ -665,20 +665,20 @@ const mapDiscountCategory = async (req, res, next) => {
 
 const getStudentForApproval = catchAsync(async (req, res, next) => {
 	const {
-		sectionId,
-		status = 'Pending',
+		sectionId = null,
 		page = 0,
 		limit = 5,
-		discountId,
+		discountId = null,
+		searchTerm = null,
 	} = req.query;
 	const { school_id } = req.user;
 
 	// Create payload for the query
 	const payload = {
-		schoolId: school_id,
+		schoolId: mongoose.Types.ObjectId(school_id),
 		discounts: {
 			$elemMatch: {
-				status,
+				status: 'Pending',
 			},
 		},
 	};
@@ -687,204 +687,196 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		payload.discounts.$elemMatch.discountId =
 			mongoose.Types.ObjectId(discountId);
 
-	// Need to push the sectionName in the student array
-	// Get the aggregated data of the students from feeInstallments
-	const students = await FeeInstallment.aggregate([
+	if (searchTerm) {
+		const match = {
+			name: {
+				$regex: searchTerm,
+				$options: 'i',
+			},
+		};
+		// eslint-disable-next-line no-unused-expressions
+		sectionId ? (match.section = mongoose.Types.ObjectId(sectionId)) : null;
+		const studentIds = await Students.distinct('_id', match);
+		payload.studentId = {
+			$in: studentIds,
+		};
+	}
+
+	const aggregate = [
 		{
 			$match: payload,
 		},
 		{
+			$unwind: {
+				path: '$discounts',
+				preserveNullAndEmptyArrays: true,
+			},
+		},
+		{
+			$match: {
+				'discounts.status': 'Pending',
+			},
+		},
+		{
 			$group: {
 				_id: {
-					feeStructureId: '$feeStructureId',
-					studentId: '$studentId',
+					studId: '$studentId',
+					disId: '$discounts.discountId',
 				},
-				sectionId: {
-					$first: '$sectionId',
+				discountAmount: {
+					$sum: '$discounts.discountAmount',
 				},
-				totalFees: {
-					$sum: '$totalAmount',
-				},
-				totalDiscountAmount: {
-					$sum: '$discountAmount',
-				},
-				totalPendingAmount: {
-					$sum: {
-						$reduce: {
-							input: '$discounts',
-							initialValue: 0,
-							in: {
-								$cond: [
+			},
+		},
+		{
+			$facet: {
+				data: [
+					{
+						$skip: +page * +limit,
+					},
+					{
+						$limit: +limit,
+					},
+					{
+						$lookup: {
+							from: 'feeinstallments',
+							let: {
+								studId: '$_id.studId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$and: [
+												{
+													$eq: ['$studentId', '$$studId'],
+												},
+												{
+													$eq: ['$deleted', false],
+												},
+											],
+										},
+									},
+								},
+								{
+									$project: {
+										totalAmount: 1,
+									},
+								},
+							],
+							as: 'fee',
+						},
+					},
+					{
+						$addFields: {
+							fee: {
+								$sum: '$fee.totalAmount',
+							},
+						},
+					},
+					{
+						$lookup: {
+							from: 'previousfeesbalances',
+							localField: '_id.studId',
+							foreignField: 'studentId',
+							as: 'prev',
+						},
+					},
+					{
+						$lookup: {
+							from: 'discountcategories',
+							localField: '_id.disId',
+							foreignField: '_id',
+							as: 'discount',
+						},
+					},
+					{
+						$lookup: {
+							from: 'students',
+							localField: '_id.studId',
+							foreignField: '_id',
+							as: 'student',
+						},
+					},
+					{
+						$unwind: {
+							path: '$student',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$lookup: {
+							from: 'sections',
+							localField: 'student.section',
+							foreignField: '_id',
+							as: 'section',
+						},
+					},
+					{
+						$project: {
+							_id: 0,
+							studentId: '$_id.studId',
+							studentName: '$student.name',
+							sectionId: '$section_id',
+							className: {
+								$first: '$section.className',
+							},
+							profile_image: '$student.profile_image',
+							totalFees: {
+								$add: [
+									'$fee',
 									{
-										$and: [
+										$ifNull: [
 											{
-												$eq: [
-													'$$this.discountId',
-													mongoose.Types.ObjectId(discountId),
-												],
+												$first: '$prev.totalAmount',
 											},
-											{
-												$eq: ['$$this.status', 'Pending'],
-											},
+											0,
 										],
 									},
-									{ $add: ['$$value', '$$this.discountAmount'] },
-									'$$value',
 								],
 							},
-						},
-					},
-				},
-				totalApprovedAmount: {
-					$sum: {
-						$reduce: {
-							input: '$discounts',
-							initialValue: 0,
-							in: {
-								$cond: [
-									{
-										$and: [
-											{
-												$eq: [
-													'$$this.discountId',
-													mongoose.Types.ObjectId(discountId),
-												],
-											},
-											{
-												$eq: ['$$this.status', 'Approved'],
-											},
-										],
-									},
-									{ $add: ['$$value', '$$this.discountAmount'] },
-									'$$value',
-								],
+							discountId: {
+								$first: '$discount._id',
 							},
-						},
-					},
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'students',
-				let: {
-					studentId: '$_id.studentId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$studentId'],
+							discountAmount: 1,
+							discountName: {
+								$first: '$discount.name',
 							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							name: 1,
-							admission_no: 1,
 						},
 					},
 				],
-				as: 'student',
-			},
-		},
-		{
-			$lookup: {
-				from: 'sections',
-				let: { sectionId: '$sectionId' },
-				pipeline: [
+				totalCount: [
 					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$sectionId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							className: 1,
-						},
+						$count: 'count',
 					},
 				],
-				as: 'section',
 			},
 		},
-		{
-			$lookup: {
-				from: 'feestructures',
-				let: {
-					structureId: '$_id.feeStructureId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$eq: ['$_id', '$$structureId'],
-							},
-						},
-					},
-					{
-						$project: {
-							_id: 1,
-							totalAmount: 1,
-						},
-					},
-				],
-				as: 'feeStructure',
-			},
-		},
-		{
-			$project: {
-				_id: 0,
-				studentId: '$_id.studentId',
-				studentName: {
-					$first: '$student.name',
-				},
-				sectionName: {
-					$first: '$section.className',
-				},
-				admission_no: {
-					$first: '$student.admission_no',
-				},
-				isPending: {
-					$cond: [
-						{
-							$gt: ['$totalPendingAmount', 0],
-						},
-						true,
-						false,
-					],
-				},
-				totalPendingAmount: 1,
-				totalDiscountAmount: 1,
-				totalApprovedAmount: 1,
-				totalFees: {
-					$first: '$feeStructure.totalAmount',
-				},
-			},
-		},
-	]);
-	if (!students.length) {
+	];
+
+	const [{ data, totalCount }] = await FeeInstallment.aggregate(aggregate);
+
+	if (!data.length) {
 		return next(new ErrorResponse('No Students Found', 404));
 	}
 
 	res
 		.status(200)
-		.json(SuccessResponse(students, students.length, 'Fetched SuccessFully'));
+		.json(SuccessResponse(data, totalCount[0].count, 'Fetched SuccessFully'));
 });
 
 const approveStudentDiscount = async (req, res, next) => {
 	// TODO: Need to take confirmation from the approver with the amount that can be approved.
 	const { discountId } = req.params;
-	const { studentId, status, sectionName } = req.body;
+	const { studentId, status, sectionId } = req.body;
+	const bulkOps = [];
+	const bulkUpdatePromise = null;
 
 	// input validation
 	if (
 		!studentId ||
 		(status !== 'Approved' && status !== 'Rejected') ||
-		!sectionName ||
+		!sectionId ||
 		!discountId
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
@@ -921,11 +913,6 @@ const approveStudentDiscount = async (req, res, next) => {
 		}
 		const { feeStructureId } = feeInstallments[0];
 
-		// find the unique feeTypeId
-		const feeTypeIds = [
-			...new Set(feeInstallments.map(({ feeTypeId }) => feeTypeId)),
-		];
-
 		for (const {
 			_id,
 			discounts,
@@ -933,6 +920,16 @@ const approveStudentDiscount = async (req, res, next) => {
 			netAmount,
 			status: installmentStatus,
 		} of feeInstallments) {
+			const query = {
+				_id,
+				discounts: {
+					$elemMatch: {
+						discountId: mongoose.Types.ObjectId(discountId),
+						status: 'Pending',
+					},
+				},
+			};
+
 			// find the discount amount in the discounts array
 			const discount = discounts.find(
 				d => d.discountId.toString() === discountId.toString()
@@ -959,34 +956,28 @@ const approveStudentDiscount = async (req, res, next) => {
 					updateObj.$set.status = installmentStatus === 'Due' ? 'Late' : 'Paid';
 				}
 
-				await FeeInstallment.findOneAndUpdate(
-					{
-						_id,
-						discounts: {
-							$elemMatch: {
-								discountId: mongoose.Types.ObjectId(discountId),
-								status: 'Pending',
-							},
-						},
+				bulkOps.push({
+					updateOne: {
+						filter: query,
+						update: updateObj,
 					},
-					updateObj
-				);
+				});
 			} else {
 				amountToSub += discountAmount; // to be subtracted from the budget alloted
 				// remove that match from the discounts array
-				await FeeInstallment.findOneAndUpdate(
-					{
-						_id,
-						'discounts.discountId': discountId,
-					},
-					{
-						$pull: {
-							discounts: {
-								discountId: mongoose.Types.ObjectId(discountId),
+
+				bulkOps.push({
+					updateOne: {
+						filter: query,
+						update: {
+							$pull: {
+								discounts: {
+									discountId: mongoose.Types.ObjectId(discountId),
+								},
 							},
 						},
-					}
-				);
+					},
+				});
 			}
 		}
 
@@ -1018,24 +1009,33 @@ const approveStudentDiscount = async (req, res, next) => {
 			finalUpdate.$set = { attachments };
 		}
 
+		if (bulkOps.length) {
+			await FeeInstallment.bulkWrite(bulkOps);
+		}
+
 		// Update the totalPending and totalApproved in DiscountCategory
-		await DiscountCategory.updateOne({ _id: discountId }, finalUpdate);
+		const discountPromise = DiscountCategory.updateOne(
+			{ _id: discountId },
+			finalUpdate
+		);
 
 		// update the totalApproved and totalPending in sectionDiscount
 
-		await SectionDiscount.updateMany(
+		const classPromise = ClassDiscount.updateMany(
 			{
-				discountId: mongoose.Types.ObjectId(discountId),
-				sectionName,
+				'discount.id': discountId,
+				'section.id': sectionId,
 				feeStructureId,
-				feeTypeId: { $in: feeTypeIds },
 			},
 			{
 				$inc: {
 					...sectionUpdate,
+					totalApprovedAmount: updatedAmount, // if rejected, then 0 is added
 				},
 			}
 		);
+
+		await Promise.all([discountPromise, classPromise]);
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
 	} catch (err) {
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -1449,16 +1449,17 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 	// Update the totalApproved and totalPending in sectionDiscount
 
 	promises.push(
-		SectionDiscount.updateMany(
+		ClassDiscount.updateMany(
 			{
-				discountId: mongoose.Types.ObjectId(id),
-				sectionId: mongoose.Types.ObjectId(sectionId),
+				'discountId.id': mongoose.Types.ObjectId(id),
+				'sectionId.id': mongoose.Types.ObjectId(sectionId),
 				feeStructureId: mongoose.Types.ObjectId(feeStructureId),
 			},
 			{
 				$inc: {
 					totalStudents: -1,
 					totalApproved: -1,
+					totalApprovedAmount: -totalDiscountAmount,
 				},
 			}
 		),

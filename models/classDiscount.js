@@ -39,6 +39,11 @@ const classDiscountSchema = new Schema({
 
 classDiscountSchema.index({ 'discount.id': 1 });
 classDiscountSchema.index({ schoolId: 1, categoryId: 1 });
+classDiscountSchema.index({
+	'discount.id': 1,
+	'section.id': 1,
+	feeStructureId: 1,
+});
 
 const ClassDiscount = model('classDiscount', classDiscountSchema);
 

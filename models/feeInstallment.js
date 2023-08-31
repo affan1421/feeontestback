@@ -111,6 +111,10 @@ FeeInstallmentSchema.index({
 	'discounts.discountId': 1,
 	'discounts.status': 1,
 });
+FeeInstallmentSchema.index({
+	schoolId: 1,
+	'discounts.status': 1,
+});
 
 FeeInstallmentSchema.plugin(mongoose_delete, {
 	deletedAt: true,
