@@ -3,17 +3,20 @@ const mongoose = require('mongoose');
 const { Schema, model } = mongoose;
 
 const breakdownSchema = new Schema({
+	_id: false,
 	date: Date,
 	amount: Number,
 	value: Number,
 });
 
 const feeTypeSchema = new Schema({
+	_id: false,
 	id: Schema.Types.ObjectId,
 	name: String,
 });
 
 const feeDetailSchema = new Schema({
+	_id: false,
 	feeType: feeTypeSchema,
 	amount: Number, // Fee amount
 	isPercentage: Boolean,

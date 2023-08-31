@@ -123,6 +123,10 @@ const getDiscountCategoryByClass = catchAsync(async (req, res, next) => {
 const getStudentsByStructure = catchAsync(async (req, res, next) => {
 	const { id, structureId } = req.params;
 	const { sectionId } = req.query;
+
+	if (!sectionId)
+		return next(new ErrorResponse('Please Provide Section Id', 422));
+
 	// Fetch attachments object from discount
 	const { attachments = {} } = await DiscountCategory.findOne({
 		_id: id,
@@ -217,7 +221,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 
 	let students = await FeeInstallment.aggregate(aggregate);
 	if (students.length === 0) {
-		return next(new ErrorResponse('No Discounts Found', 404));
+		return next(new ErrorResponse('No Students Found', 404));
 	}
 	// check if status field exists if yes then isSelected = true else false
 	students = students.map(student => {
@@ -398,43 +402,14 @@ const deleteDiscountCategory = catchAsync(async (req, res, next) => {
 	res.status(200).json(SuccessResponse(null, 1, 'Deleted Successfully'));
 });
 
-// TODO:
-/*
-1. Save the discount category in the fee installment of assigned students discount array of feeInstallment: 
-{
-	discountId: 'discountId',
-	amount: 'amount',
-	isPercentage: true,
-	value: 10,
-}
-2. Update the budget remaining of the discount category
-3. Update the discount amount of the fee installment
-4. Add the classList objects in the array.
-{
-	feeTypeId: 'feeTypeId',
-	totalFee: 'totalFee',
-	sectionId: 'sectionId',
-	categoryId: 'categoryId',
-	feeStructureId: 'feeStructureId',
-	amount: 'amount',
-	breakdown: 1,
-	isPercentage: true,
-	value: 10,
-	discountAmount: 'discountAmount',
-}
-Payload: 
-{
-	sectionId: 'sectionId',
-	categoryId: 'categoryId',
-	rows: [{
-		rowId: 'rowId',
-		breakdown: 1,
-		isPercentage: true,
-		value: 10,
-	}],
-	studentList: ['studentId', 'studentId']
-}
-*/
+// * Since in the new discount flow each student will have its fee details in which the amount will be there for each distribution.
+// * So we need to fetch the fee details and then calculate the discount amount for each installment and then update the discount amount in the fee installment.
+// * Also we need to handle the refund amount if the discount amount is excess.
+// * Also we need to update the total discount amount in the student collection.
+// * Also we need to update/create discountStructure document.
+// * Also we need to update the total discount amount in the classDiscount collection.
+// * Also we need to update the total discount amount in the discountCategory collection.
+
 const mapDiscountCategory = async (req, res, next) => {
 	try {
 		const {
@@ -638,8 +613,10 @@ const mapDiscountCategory = async (req, res, next) => {
 			await Students.bulkWrite(refundBulkOps);
 		}
 
+		// TODO: Update ClassDiscount Collection for TS, TA, TP and totalApprovedAmount.
 		await SectionDiscount.insertMany(classList);
 
+		// TODO: classesAssociated should be verified in the above db call. if exists, then don't increment.
 		await DiscountCategory.updateOne(
 			{
 				_id: discountId,
@@ -1904,11 +1881,115 @@ const getSectionWiseDiscount = catchAsync(async (req, res, next) => {
 	res.json(SuccessResponse(data, totalCount[0].count, 'Fetched Successfully'));
 });
 
+/**
+ * {
+  "_id": {
+    "$oid": "64ed5e608a293583962a2110"
+  },
+  "schoolId": {
+    "$oid": "62849114bb0c8eeb5104737f"
+  },
+
+  "categoryId": {
+    "$oid": "64565a7923b727b3b7d8975e"
+  },
+  "feeStructureId": {
+    "$oid": "6456624123b727b3b7d8982c"
+  },
+  "discountId": {
+    "$oid": "6458790623b727b3b7d8ad5c"
+  },
+  "totalFeesAmount": 22400,
+  "feeDetails": [
+    {
+      "feeType": {
+        "id": {
+          "$oid": "64565aaf23b727b3b7d8976b"
+        },
+        "name": "Term Fee"
+      },
+      "amount": 22400,
+      "isPercentage": false,
+      "value": 1866,
+      "discountAmount": 1866,
+      "breakdown": [
+        {
+          "date": {
+            "$date": "2023-05-01T00:00:00.000Z"
+          },
+          "amount": 5600,
+          "value": 466.5
+        },
+        {
+          "date": {
+            "$date": "2023-08-01T00:00:00.000Z"
+          },
+          "amount": 5600,
+          "value": 466.5
+        },
+        {
+          "date": {
+            "$date": "2023-11-01T00:00:00.000Z"
+          },
+          "amount": 5600,
+          "value": 466.5
+        },
+        {
+          "date": {
+            "$date": "2024-02-01T00:00:00.000Z"
+          },
+          "amount": 5600,
+          "value": 466.5
+        }
+      ]
+    }
+  ]
+}
+ */
+const createDiscountTemplate = catchAsync(async (req, res, next) => {
+	const requiredFields = [
+		'schoolId',
+		'categoryId',
+		'feeStructureId',
+		'discountId',
+		'feeDetails',
+		'totalFeesAmount',
+	];
+
+	const missingFields = requiredFields.filter(field => !(field in req.body));
+	if (missingFields.length > 0) {
+		return next(new ErrorResponse('Please Provide All Required Fields', 422));
+	}
+
+	const {
+		schoolId,
+		categoryId,
+		feeStructureId,
+		discountId,
+		feeDetails,
+		totalFeesAmount,
+	} = req.body;
+
+	const createObj = {
+		schoolId,
+		categoryId,
+		feeStructureId,
+		discountId,
+		totalFeesAmount,
+		feeDetails,
+	};
+
+	const createdTemplate = await DiscountStructure.create(createObj);
+
+	res.json(SuccessResponse(createdTemplate, 1, 'Created Successfully'));
+});
+
 module.exports = {
 	getStudentForApproval,
 	addStudentToDiscount,
 	getSectionWiseDiscount,
 	getDiscountGraph,
+	createDiscountTemplate,
 	getDiscountSummary,
 	revokeStudentDiscount,
 	getGraphBySection,

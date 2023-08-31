@@ -476,6 +476,8 @@ exports.getFeeDetails = catchAsync(async (req, res, next) => {
 		feeStructureId: id,
 	};
 
+	let response = {};
+
 	const isMapped = await DiscountStructure.findOne(query, 'feeDetails');
 
 	if (!isMapped) {
@@ -495,15 +497,18 @@ exports.getFeeDetails = catchAsync(async (req, res, next) => {
 				breakdown: scheduledDates,
 			};
 		});
+		response = {
+			isMapped: false,
+			feeDetails,
+		};
 	} else {
-		feeDetails = isMapped.feeDetails;
+		response = {
+			isMapped: true,
+			feeDetails: isMapped.feeDetails,
+		};
 	}
 
-	res
-		.status(200)
-		.json(
-			SuccessResponse(feeDetails, feeDetails.length, 'Fetched Successfully')
-		);
+	res.status(200).json(SuccessResponse(response, 1, 'Fetched Successfully'));
 });
 
 // DELETE

@@ -18,7 +18,6 @@ const FeeStructure = require('../models/feeStructure');
 const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
 
-const Sections = mongoose.connection.db.collection('sections');
 const School = mongoose.connection.db.collection('schools');
 const Student = mongoose.connection.db.collection('students');
 
@@ -1926,14 +1925,14 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payment: {
 			method: paymentMethod,
 			bankName,
-			chequeDate,
+			chequeDate, // dd/mm/yyyy
 			chequeNumber,
-			transactionDate,
+			transactionDate, // dd/mm/yyyy
 			transactionId,
 			upiId,
 			payerName,
 			ddNumber,
-			ddDate,
+			ddDate, // dd/mm/yyyy
 		},
 		issueDate,
 		items,

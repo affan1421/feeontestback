@@ -19,6 +19,7 @@ const {
 	getStudentsByStructure,
 	getDiscountGraph,
 	revokeStudentDiscount,
+	createDiscountTemplate,
 	getDiscountSummary,
 	getSectionWiseDiscount,
 	getDiscountBySchool,
@@ -37,10 +38,13 @@ router.get('/graph', getDiscountGraph);
 
 router.get('/graphBySection', getGraphBySection);
 
+router.post('/createTemplate', createDiscountTemplate);
+
 router.get('/sections', getSectionWiseDiscount);
 
 router.route('/').get(getDiscountCategory).post(createDiscountCategory);
 
+//! To be removed
 router.post('/:discountId/map', mapDiscountCategory);
 
 router.get('/:id/class', getDiscountCategoryByClass);
@@ -49,12 +53,13 @@ router.get('/:id/structure/:structureId', getStudentsByStructure);
 
 router.get('/:id/studentFilter', getStudentsByFilter);
 
+// TODO: Update this to add student to discount
 router.post('/:discountId/addStudent', addStudentToDiscount);
 
-// Fetch only the section Discount.
+//! To be removed
 router.get('/:id/mappedStructure/:feeStructureId', getSectionDiscount);
 
-// discount analytics
+//! To be removed
 router.get('/report', discountReport);
 
 router.route('/:discountId/approval').post(approveStudentDiscount);
