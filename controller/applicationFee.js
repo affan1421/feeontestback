@@ -29,6 +29,7 @@ const createApplicationFee = async (req, res, next) => {
 			amount,
 			schoolId,
 			paymentMode = 'CASH',
+			createdBy,
 		} = req.body;
 
 		if (
@@ -41,7 +42,8 @@ const createApplicationFee = async (req, res, next) => {
 			!gender ||
 			!phoneNumber ||
 			!amount ||
-			!schoolId
+			!schoolId ||
+			!createdBy
 		) {
 			return next(new ErrorResponse('Please Provide All Field', 422));
 		}
@@ -150,6 +152,7 @@ const createApplicationFee = async (req, res, next) => {
 					paidAmount: amount,
 				},
 			],
+			createdBy,
 		};
 
 		let receipt = await FeeReceipt.create(receiptPayload);

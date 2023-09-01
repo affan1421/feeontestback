@@ -1573,7 +1573,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		feeCategoryName,
 		feeCategoryId,
 		receiptType,
+		createdBy,
 	} = req.body;
+
+	if (!createdBy)
+		return next(new ErrorResponse('Please Provide Created By', 422));
+
 	const issueDate = req.body.issueDate
 		? moment(req.body.issueDate, 'DD/MM/YYYY')
 		: new Date();
@@ -1936,6 +1941,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		},
 		issueDate,
 		items,
+		createdBy,
 	};
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);
