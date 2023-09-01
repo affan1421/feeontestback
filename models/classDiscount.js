@@ -8,7 +8,7 @@ const classDiscountSchema = new Schema({
 			type: Schema.Types.ObjectId,
 			required: true,
 		},
-		sectionName: String,
+		name: String,
 	},
 	discount: {
 		id: {
