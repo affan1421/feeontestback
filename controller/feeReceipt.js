@@ -972,9 +972,16 @@ const createReceipt = async (req, res, next) => {
 		ddDate,
 		issueDate = new Date(),
 		feeTypeId,
+		createdBy,
 	} = req.body;
 
-	if (!studentId || !totalFeeAmount || !paymentMethod || !feeTypeId) {
+	if (
+		!studentId ||
+		!totalFeeAmount ||
+		!paymentMethod ||
+		!feeTypeId ||
+		!createdBy
+	) {
 		return next(new ErrorResponse('All Fields Are Mandatory', 422));
 	}
 
@@ -1247,6 +1254,7 @@ const createReceipt = async (req, res, next) => {
 		},
 		issueDate,
 		items,
+		createdBy,
 	});
 
 	res.status(201).json(
