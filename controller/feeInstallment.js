@@ -258,7 +258,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		},
 		{
 			$sort: {
-				issueDate: -1,
+				createdAt: -1,
 			},
 		},
 		{

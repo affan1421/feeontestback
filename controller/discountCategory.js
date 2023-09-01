@@ -706,6 +706,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		sectionId = null,
 		page = 0,
 		limit = 5,
+		status = 'Pending',
 		discountId = null,
 		searchTerm = null,
 	} = req.query;
@@ -716,7 +717,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		schoolId: mongoose.Types.ObjectId(school_id),
 		discounts: {
 			$elemMatch: {
-				status: 'Pending',
+				status,
 			},
 		},
 	};
