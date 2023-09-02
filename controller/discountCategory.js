@@ -887,7 +887,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 							_id: 0,
 							studentId: '$_id.studId',
 							studentName: '$student.name',
-							sectionId: '$section_id',
+							sectionId: '$student.section',
 							className: {
 								$first: '$section.className',
 							},
@@ -1324,7 +1324,6 @@ const discountReport = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(sectionDiscounts, 1, 'Fetched Successfully'));
 });
 
-// TODO: while revoking check for the refund amount of this discount and remove it from the refund amount of the student
 const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { studentId } = req.body;
@@ -1466,7 +1465,32 @@ const revokeStudentDiscount = catchAsync(async (req, res, next) => {
 		);
 	}
 
-	await Promise.allSettled(promises);
+	await Promise.all(promises);
+
+	// Get boolean if there are any discounts still associated.
+	const associated = await FeeInstallment.exists({
+		studentId: mongoose.Types.ObjectId(studentId),
+		discounts: {
+			$elemMatch: {
+				status: 'Approved',
+			},
+		},
+	});
+
+	if (!associated) {
+		// set hasDiscount false in student
+		await Students.updateOne(
+			{
+				_id: mongoose.Types.ObjectId(studentId),
+			},
+			{
+				$set: {
+					hasDiscount: false,
+				},
+			}
+		);
+	}
+
 	res.status(200).json(SuccessResponse(null, 1, 'Revoked Successfully'));
 });
 
