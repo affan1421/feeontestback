@@ -197,11 +197,27 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			$match: {
 				feeStructureId: mongoose.Types.ObjectId(structureId),
 				sectionId: mongoose.Types.ObjectId(sectionId),
+				deleted: false,
 			},
 		},
 		{
 			$group: {
-				_id: '$studentId',
+				_id: {
+					studentId: '$studentId',
+					feeType: '$feeType',
+				},
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
+				totalFees: {
+					$sum: '$totalAmount',
+				},
+				netAmount: {
+					$sum: '$netAmount',
+				},
 				matchedDiscount: {
 					$push: {
 						$arrayElemAt: [
@@ -218,6 +234,36 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 						],
 					},
 				},
+				breakdown: {
+					$push: {
+						_id: '$_id',
+						date: '$date',
+						totalAmount: '$totalAmount',
+						netAmount: '$netAmount',
+						paidAmount: '$paidAmount',
+					},
+				},
+			},
+		},
+		{
+			$group: {
+				_id: '$_id.studentId',
+				discountApplied: {
+					$sum: {
+						$reduce: {
+							input: '$matchedDiscount',
+							initialValue: 0,
+							in: {
+								$add: ['$$value', '$$this.discountAmount'],
+							},
+						},
+					},
+				},
+				discountStatus: {
+					$first: {
+						$arrayElemAt: ['$matchedDiscount.status', 0],
+					},
+				},
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
 				},
@@ -225,33 +271,15 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 					$sum: '$paidAmount',
 				},
 				totalFees: {
-					$sum: '$totalAmount',
+					$sum: '$totalFees',
 				},
 				feeDetails: {
 					$push: {
-						installmentId: '$_id',
-						feeType: '$feeType',
-						totalFees: '$totalAmount',
-						netAmount: '$netAmount',
-						paidAmount: '$paidAmount',
-						totalDiscountAmount: '$totalDiscountAmount',
+						feeType: '$_id.feeType',
+						totalFees: '$totalFees',
+						netFees: '$netAmount',
+						breakdown: '$breakdown',
 					},
-				},
-			},
-		},
-		{
-			$addFields: {
-				discountApplied: {
-					$sum: {
-						$map: {
-							input: '$matchedDiscount',
-							as: 'obj',
-							in: '$$obj.discountAmount',
-						},
-					},
-				},
-				discountStatus: {
-					$arrayElemAt: ['$matchedDiscount.status', 0],
 				},
 			},
 		},
@@ -711,6 +739,9 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		searchTerm = null,
 	} = req.query;
 	const { school_id } = req.user;
+	const secMatch = {
+		'discounts.status': status,
+	};
 
 	// Create payload for the query
 	const payload = {
@@ -722,9 +753,11 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 		},
 	};
 	if (sectionId) payload.sectionId = mongoose.Types.ObjectId(sectionId);
-	if (discountId)
+	if (discountId) {
 		payload.discounts.$elemMatch.discountId =
 			mongoose.Types.ObjectId(discountId);
+		secMatch['discounts.discountId'] = mongoose.Types.ObjectId(discountId);
+	}
 
 	if (searchTerm) {
 		const match = {
@@ -752,9 +785,7 @@ const getStudentForApproval = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$match: {
-				'discounts.status': 'Pending',
-			},
+			$match: secMatch,
 		},
 		{
 			$group: {
