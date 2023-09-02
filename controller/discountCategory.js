@@ -909,7 +909,7 @@ const approveStudentDiscount = async (req, res, next) => {
 	const { discountId } = req.params;
 	const { studentId, status, sectionId } = req.body;
 	const bulkOps = [];
-	const bulkUpdatePromise = null;
+	const promises = [];
 
 	// input validation
 	if (
@@ -925,8 +925,6 @@ const approveStudentDiscount = async (req, res, next) => {
 	let amountToSub = 0;
 	let installmentLoopCount = 0;
 	try {
-		// update.$inc.totalStudents = -1;
-		// sectionUpdate.$inc.totalStudents = -1;
 		const update = {
 			totalPending: -1,
 			totalApproved: status === 'Approved' ? 1 : 0,
@@ -1052,29 +1050,43 @@ const approveStudentDiscount = async (req, res, next) => {
 			await FeeInstallment.bulkWrite(bulkOps);
 		}
 
+		// Update hasDiscount Field in Students
+		if (installmentLoopCount > 0) {
+			promises.push(
+				Students.updateOne(
+					{
+						_id: mongoose.Types.ObjectId(studentId),
+						deleted: false,
+						profileStatus: 'APPROVED',
+					},
+					{
+						$set: {
+							hasDiscount: true,
+						},
+					}
+				)
+			);
+		}
+
 		// Update the totalPending and totalApproved in DiscountCategory
-		const discountPromise = DiscountCategory.updateOne(
-			{ _id: discountId },
-			finalUpdate
-		);
-
-		// update the totalApproved and totalPending in sectionDiscount
-
-		const classPromise = ClassDiscount.updateMany(
-			{
-				'discount.id': discountId,
-				'section.id': sectionId,
-				feeStructureId,
-			},
-			{
-				$inc: {
-					...sectionUpdate,
-					totalApprovedAmount: updatedAmount, // if rejected, then 0 is added
+		promises.push(
+			DiscountCategory.updateOne({ _id: discountId }, finalUpdate),
+			ClassDiscount.updateMany(
+				{
+					'discount.id': discountId,
+					'section.id': sectionId,
+					feeStructureId,
 				},
-			}
+				{
+					$inc: {
+						...sectionUpdate,
+						totalApprovedAmount: updatedAmount, // if rejected, then 0 is added
+					},
+				}
+			)
 		);
 
-		await Promise.all([discountPromise, classPromise]);
+		await Promise.all([...promises]);
 		res.json(SuccessResponse(null, 1, 'Updated Successfully'));
 	} catch (err) {
 		return next(new ErrorResponse('Something Went Wrong', 500));
@@ -1460,6 +1472,7 @@ const getStudentsWithDiscount = catchAsync(async (req, res, next) => {
 		school_id: mongoose.Types.ObjectId(school_id),
 		deleted: false,
 		profileStatus: 'APPROVED',
+		hasDiscount: true,
 	};
 
 	if (sectionId) match.section = mongoose.Types.ObjectId(sectionId);
