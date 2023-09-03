@@ -5,6 +5,23 @@ const mongoose_delete = require('mongoose-delete');
 const { Schema, model } = mongoose;
 // TODO: Make indexes for filters:
 
+const discountSchema = new Schema({
+	_id: 0,
+	discountId: {
+		type: Schema.Types.ObjectId,
+		ref: 'DiscountCategory',
+		required: true,
+	},
+	isPercentage: { type: Boolean, required: true },
+	value: { type: Number, required: true },
+	discountAmount: { type: Number, required: false, default: 0 }, // 80
+	status: {
+		type: String,
+		enum: ['Pending', 'Approved', 'Rejected'],
+		default: 'Pending',
+	},
+});
+
 const FeeInstallmentSchema = new Schema(
 	{
 		feeTypeId: { type: Schema.Types.ObjectId, ref: 'Feetype', required: true }, // populate
@@ -61,24 +78,7 @@ const FeeInstallmentSchema = new Schema(
 		totalAmount: { type: Number, required: true },
 		discounts: {
 			// 80
-			type: [
-				{
-					_id: 0,
-					discountId: {
-						type: Schema.Types.ObjectId,
-						ref: 'DiscountCategory',
-						required: true,
-					},
-					isPercentage: { type: Boolean, required: true },
-					value: { type: Number, required: true },
-					discountAmount: { type: Number, required: false, default: 0 }, // 80
-					status: {
-						type: String,
-						enum: ['Pending', 'Approved', 'Rejected'],
-						default: 'Pending',
-					},
-				},
-			],
+			type: [discountSchema],
 			required: false,
 			default: [],
 		},
@@ -95,7 +95,6 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'FeeCategory',
 			required: true,
 		},
-		// feeReceiptId: { type: Schema.Types.ObjectId, ref: 'FeeReceipt' },
 	},
 	{ timestamps: true }
 );
@@ -109,6 +108,10 @@ FeeInstallmentSchema.index({
 });
 FeeInstallmentSchema.index({
 	'discounts.discountId': 1,
+	'discounts.status': 1,
+});
+FeeInstallmentSchema.index({
+	schoolId: 1,
 	'discounts.status': 1,
 });
 

@@ -18,7 +18,6 @@ const FeeStructure = require('../models/feeStructure');
 const FeeReceipt = require('../models/feeReceipt.js');
 const AcademicYear = require('../models/academicYear');
 
-const Sections = mongoose.connection.db.collection('sections');
 const School = mongoose.connection.db.collection('schools');
 const Student = mongoose.connection.db.collection('students');
 
@@ -259,7 +258,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		},
 		{
 			$sort: {
-				issueDate: -1,
+				createdAt: -1,
 			},
 		},
 		{
@@ -1574,7 +1573,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		feeCategoryName,
 		feeCategoryId,
 		receiptType,
+		createdBy,
 	} = req.body;
+
+	if (!createdBy)
+		return next(new ErrorResponse('Please Provide Created By', 422));
+
 	const issueDate = req.body.issueDate
 		? moment(req.body.issueDate, 'DD/MM/YYYY')
 		: new Date();
@@ -1926,17 +1930,18 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		payment: {
 			method: paymentMethod,
 			bankName,
-			chequeDate,
+			chequeDate, // dd/mm/yyyy
 			chequeNumber,
-			transactionDate,
+			transactionDate, // dd/mm/yyyy
 			transactionId,
 			upiId,
 			payerName,
 			ddNumber,
-			ddDate,
+			ddDate, // dd/mm/yyyy
 		},
 		issueDate,
 		items,
+		createdBy,
 	};
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);

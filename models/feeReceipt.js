@@ -186,6 +186,10 @@ const feeReceiptSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			ref: 'FeeReceipt',
 		},
+		createdBy: {
+			type: Schema.Types.ObjectId,
+			required: [true, 'createdBy is required'],
+		},
 	},
 	{
 		timestamps: true,

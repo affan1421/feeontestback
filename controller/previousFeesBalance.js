@@ -122,10 +122,14 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		payerName,
 		ddNumber,
 		ddDate,
+		createdBy,
 	} = req.body;
 	let student;
 	let admission_no;
 	const receipt_id = mongoose.Types.ObjectId();
+
+	if (!createdBy)
+		return next(new ErrorResponse('Please Provide Created By', 422));
 
 	const previousBalance = await PreviousBalance.findOne({ _id: prevBalId });
 
@@ -243,6 +247,7 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 			netAmount: totalAmount,
 			paidAmount,
 		},
+		createdBy,
 	};
 
 	const updatePayload = {
