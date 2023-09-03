@@ -13,14 +13,20 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
-function processInstallmentsAndRefunds(
+async function processInstallmentsAndRefunds(
 	installmentList,
 	refundList,
 	discountId
 ) {
 	const studentSet = new Set();
-	const installmentBulkOps = installmentList.map(
-		({ installmentId, studentId, isPercentage, value, discountAmount }) => {
+	const installmentBulkOps = [];
+	const refundBulkOps = [];
+
+	for (const installment of installmentList) {
+		if (installment.discountAmount) {
+			const { installmentId, studentId, isPercentage, value, discountAmount } =
+				installment;
+
 			if (!studentSet.has(studentId)) {
 				studentSet.add(studentId);
 			}
@@ -37,40 +43,48 @@ function processInstallmentsAndRefunds(
 				},
 			};
 
-			return {
+			installmentBulkOps.push({
 				updateOne: {
 					filter: {
 						_id: installmentId,
 					},
 					update: updateObj,
 				},
-			};
+			});
 		}
-	);
+	}
 
-	const refundBulkOps = refundList.map(({ studentId, amount }) => ({
-		updateOne: {
-			filter: {
-				_id: mongoose.Types.ObjectId(studentId),
-			},
-			update: {
-				$inc: {
-					'refund.totalAmount': amount,
+	for (const refund of refundList) {
+		const { studentId, amount } = refund;
+
+		refundBulkOps.push({
+			updateOne: {
+				filter: {
+					_id: mongoose.Types.ObjectId(studentId),
 				},
-				$push: {
-					'refund.history': {
-						id: mongoose.Types.ObjectId(discountId),
-						amount,
-						date: new Date(),
-						reason: 'Discount Refund',
-						status: 'PENDING',
+				update: {
+					$inc: {
+						'refund.totalAmount': amount,
+					},
+					$push: {
+						'refund.history': {
+							id: mongoose.Types.ObjectId(discountId),
+							amount,
+							date: new Date(),
+							reason: 'Discount Refund',
+							status: 'PENDING',
+						},
 					},
 				},
 			},
-		},
-	}));
+		});
+	}
 
-	return { installmentBulkOps, refundBulkOps, updatedStudentSet: studentSet };
+	return Promise.resolve({
+		installmentBulkOps,
+		refundBulkOps,
+		updatedStudentSet: studentSet,
+	});
 }
 
 function groupDiscounts(data) {
@@ -1198,7 +1212,11 @@ const addStudentToDiscount = async (req, res, next) => {
 		}).lean();
 
 		const { installmentBulkOps, refundBulkOps, updatedStudentSet } =
-			processInstallmentsAndRefunds(installmentList, refundList, discountId);
+			await processInstallmentsAndRefunds(
+				installmentList,
+				refundList,
+				discountId
+			);
 
 		if (installmentBulkOps.length)
 			await FeeInstallment.bulkWrite(installmentBulkOps);
