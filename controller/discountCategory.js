@@ -965,7 +965,7 @@ const approveStudentDiscount = async (req, res, next) => {
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
-	let attachments = null;
+	let attachments = {};
 	let updatedAmount = 0;
 	let amountToSub = 0;
 	let installmentLoopCount = 0;
@@ -1084,7 +1084,7 @@ const approveStudentDiscount = async (req, res, next) => {
 			const discountCategory = await DiscountCategory.findOne({
 				_id: discountId,
 			});
-			attachments = discountCategory.attachments;
+			attachments = discountCategory.attachments ?? {};
 			if (attachments[studentId.toString()]) {
 				delete attachments[studentId.toString()];
 			}
@@ -1197,7 +1197,7 @@ const addStudentToDiscount = async (req, res, next) => {
 		if (!installmentList.length)
 			return next(new ErrorResponse('No Students Selected', 422));
 
-		const { totalAmount } = await FeeStructure.findOne(
+		const structureDoc = await FeeStructure.findOne(
 			{ _id: feeStructureId },
 			{ totalAmount: 1 }
 		);
@@ -1253,7 +1253,7 @@ const addStudentToDiscount = async (req, res, next) => {
 				totalApprovedAmount: 0,
 				totalPending: updatedStudentSet.size,
 				totalApproved: 0,
-				totalFeesAmount: totalAmount,
+				totalFeesAmount: structureDoc.totalAmount,
 			};
 			await ClassDiscount.create(classDiscountObj);
 			discountUpdate.$inc.classesAssociated = 1;
