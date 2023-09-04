@@ -211,7 +211,6 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			$match: {
 				feeStructureId: mongoose.Types.ObjectId(structureId),
 				sectionId: mongoose.Types.ObjectId(sectionId),
-				deleted: false,
 			},
 		},
 		{
@@ -234,18 +233,34 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				},
 				matchedDiscount: {
 					$push: {
-						$arrayElemAt: [
-							{
-								$filter: {
-									input: '$discounts',
-									as: 'discount',
-									cond: {
-										$eq: ['$$discount.discountId', mongoose.Types.ObjectId(id)],
+						$cond: {
+							if: {
+								$eq: [
+									{
+										$size: '$discounts',
 									},
-								},
+									0,
+								],
 							},
-							0,
-						],
+							then: '$$REMOVE',
+							else: {
+								$arrayElemAt: [
+									{
+										$filter: {
+											input: '$discounts',
+											as: 'discount',
+											cond: {
+												$eq: [
+													'$$discount.discountId',
+													mongoose.Types.ObjectId(id),
+												],
+											},
+										},
+									},
+									0,
+								],
+							},
+						},
 					},
 				},
 				breakdown: {
@@ -274,8 +289,14 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 					},
 				},
 				discountStatus: {
-					$first: {
-						$arrayElemAt: ['$matchedDiscount.status', 0],
+					$push: {
+						$cond: {
+							if: {
+								$eq: ['$matchedDiscount', []],
+							},
+							then: '$$REMOVE',
+							else: '$matchedDiscount.status',
+						},
 					},
 				},
 				totalDiscountAmount: {
@@ -316,7 +337,14 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				totalDiscountAmount: 1,
 				totalFees: 1,
 				discountApplied: 1,
-				discountStatus: 1,
+				discountStatus: {
+					$arrayElemAt: [
+						{
+							$first: '$discountStatus',
+						},
+						0,
+					],
+				},
 				feeDetails: 1,
 			},
 		},
