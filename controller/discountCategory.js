@@ -1231,7 +1231,7 @@ const addStudentToDiscount = async (req, res, next) => {
 		);
 
 		const totalAllottedDiscount = installmentList.reduce(
-			(total, installment) => total + installment.discountAmount,
+			(total, installment) => total + (installment.discountAmount || 0),
 			0
 		);
 		const classDiscount = await ClassDiscount.find({
