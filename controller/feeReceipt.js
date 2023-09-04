@@ -15,14 +15,7 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const AcademicYear = require('../models/academicYear');
 
-const getWorkSheet = (
-	worksheet,
-	receiptDetails,
-	methodMap,
-	style,
-	commonBorderStyle,
-	mergedCellCenter
-) =>
+const getWorkSheet = (worksheet, receiptDetails, methodMap, mergedCellCenter) =>
 	new Promise((resolve, reject) => {
 		try {
 			let rowIndex = 2; // Start from row 2
@@ -85,28 +78,18 @@ const getWorkSheet = (
 			// add total row
 			let totalRow = rowIndex + 1;
 			methodMap.forEach((value, key) => {
-				worksheet.cell(totalRow, 7).string(key).style(style);
-				worksheet.cell(totalRow, 8).number(value).style(style);
+				worksheet.cell(totalRow, 7).string(key);
+				worksheet.cell(totalRow, 8).number(value);
 				totalRow += 1;
 			});
 
 			// Grant Total
-			worksheet.cell(totalRow, 7).string('Grant Total').style(style);
+			worksheet.cell(totalRow, 7).string('Grant Total');
 			worksheet
 				.cell(totalRow, 8)
 				.number(
 					Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0)
-				)
-				.style(style);
-
-			worksheet.cell(1, 1, totalRow, 8).style({
-				border: {
-					left: commonBorderStyle,
-					right: commonBorderStyle,
-					top: commonBorderStyle,
-					bottom: commonBorderStyle,
-				},
-			});
+				);
 
 			resolve();
 		} catch (error) {
@@ -1484,22 +1467,9 @@ const getExcel = catchAsync(async (req, res, next) => {
 	if (!receiptDetails.length)
 		return next(new ErrorResponse('No Receipts Found', 404));
 
-	const commonBorderStyle = {
-		style: 'thin',
-		color: '#000000',
-	};
-
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Income Details');
-	const style = workbook.createStyle({
-		font: {
-			bold: true,
-			color: '#000000',
-			size: 12,
-		},
-		numberFormat: '₹#,##0.00; ($#,##0.00); -',
-	});
 
 	const mergedCellCenter = {
 		alignment: {
@@ -1519,20 +1489,10 @@ const getExcel = catchAsync(async (req, res, next) => {
 	];
 
 	header.forEach((item, index) => {
-		worksheet
-			.cell(1, index + 1)
-			.string(item)
-			.style(style);
+		worksheet.cell(1, index + 1).string(item);
 	});
 
-	await getWorkSheet(
-		worksheet,
-		receiptDetails,
-		methodMap,
-		style,
-		commonBorderStyle,
-		mergedCellCenter
-	);
+	await getWorkSheet(worksheet, receiptDetails, methodMap, mergedCellCenter);
 
 	// workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
