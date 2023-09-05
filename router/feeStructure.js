@@ -13,6 +13,17 @@ router.get(
 	feeStructureController.getFeeStructureBySectionId
 );
 
+// Discount New Flow
+// TODO: Make this as common API for both structures fetching (ADD CLASS and EDIT CLASS)
+router.get('/:id/discount/:discountId', feeStructureController.getFeeDetails);
+
+// TODO: Make this as common API for both students fetching (New Student and Edit Student)
+router.get(
+	'/:id/student/section/:sectionId',
+	feeStructureController.getStudentsBySection
+);
+// END
+
 // READ
 router.get('/:id', feeStructureController.read);
 
@@ -26,20 +37,5 @@ router.delete('/:id', feeStructureController.deleteFeeStructure);
 router.get('/', feeStructureController.getByFilter);
 
 router.get('/:id/feedetails/:sectionId', feeStructureController.getFeeCategory);
-
-// // ADD FEE DETAIL
-// router.post('/:id/fee-details', feeStructureController.addFeeDetail);
-
-// // UPDATE FEE DETAIL
-// router.put(
-// 	'/:id/fee-details/:feeDetailId',
-// 	feeStructureController.updateFeeDetail
-// );
-
-// // DELETE FEE DETAIL
-// router.delete(
-// 	'/:id/fee-details/:feeDetailId',
-// 	feeStructureController.deleteFeeDetail
-// );
 
 module.exports = router;

@@ -8,6 +8,7 @@ const FeeType = require('../models/feeType');
 const SuccessResponse = require('../utils/successResponse');
 const feeInstallment = require('../models/feeInstallment');
 const SectionDiscount = require('../models/sectionDiscount');
+const DiscountStructure = require('../models/discountStructure');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
@@ -76,7 +77,7 @@ exports.create = async (req, res, next) => {
 				_id: { $in: sectionList },
 			},
 			{
-				$set: {
+				$addToSet: {
 					feeStructureId: feeStructure._id,
 				},
 			},
@@ -130,14 +131,12 @@ exports.read = catchAsync(async (req, res, next) => {
 	})
 		.populate('academicYearId', 'name')
 		.lean();
-	const { categoryId } = feeStructure;
+	const { categoryId, classes } = feeStructure;
 	if (!feeStructure) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));
 	}
 
-	const sectionList = feeStructure.classes.map(c =>
-		mongoose.Types.ObjectId(c.sectionId)
-	);
+	const sectionList = classes.map(c => mongoose.Types.ObjectId(c.sectionId));
 	const projection = {
 		_id: 1,
 		name: 1,
@@ -151,30 +150,30 @@ exports.read = catchAsync(async (req, res, next) => {
 		deleted: false,
 		profileStatus: 'APPROVED',
 	};
+	const feeAggregate = [
+		{
+			$match: {
+				sectionId: {
+					$in: sectionList,
+				},
+				schoolId: mongoose.Types.ObjectId(schoolId),
+				categoryId: mongoose.Types.ObjectId(categoryId),
+			},
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				feeStructureId: {
+					$first: '$feeStructureId',
+				},
+				installments: { $push: '$$ROOT' },
+			},
+		},
+	];
 
 	const [students, feeInstallments] = await Promise.all([
 		Students.find(query).project(projection).toArray(),
-
-		FeeInstallment.aggregate([
-			{
-				$match: {
-					sectionId: {
-						$in: sectionList,
-					},
-					schoolId: mongoose.Types.ObjectId(schoolId),
-					categoryId: mongoose.Types.ObjectId(categoryId),
-				},
-			},
-			{
-				$group: {
-					_id: '$studentId',
-					feeStructureId: {
-						$first: '$feeStructureId',
-					},
-					installments: { $push: '$$ROOT' },
-				},
-			},
-		]),
+		FeeInstallment.aggregate(feeAggregate),
 	]);
 
 	if (students.length) {
@@ -283,7 +282,8 @@ exports.updatedFeeStructure = async (req, res, next) => {
 					id,
 					rest.schoolId,
 					rest.academicYearId,
-					rest.categoryId
+					rest.categoryId,
+					true
 				);
 		}
 
@@ -374,6 +374,144 @@ exports.updatedFeeStructure = async (req, res, next) => {
 	}
 };
 
+exports.getStudentsBySection = catchAsync(async (req, res, next) => {
+	const { id, sectionId } = req.params;
+	const { discountId } = req.query;
+	const { page = 0, limit = 5, searchTerm = null } = req.query;
+	let studentIds = null;
+
+	const match = {
+		feeStructureId: mongoose.Types.ObjectId(id),
+		sectionId: mongoose.Types.ObjectId(sectionId),
+	};
+
+	if (searchTerm) {
+		const searchQuery = {
+			name: { $regex: searchTerm, $options: 'i' },
+			section: mongoose.Types.ObjectId(sectionId),
+			deleted: false,
+			profileStatus: 'APPROVED',
+		};
+		studentIds = await Students.distinct('_id', searchQuery);
+		match.studentId = {
+			$in: studentIds,
+		};
+	}
+
+	const aggregate = [
+		{
+			$match: match,
+		},
+		{
+			$group: {
+				_id: '$studentId',
+				totalFees: {
+					$sum: '$totalAmount',
+				},
+				netFees: {
+					$sum: '$netAmount',
+				},
+				totalDiscountAmount: {
+					$sum: '$totalDiscountAmount',
+				},
+				paidAmount: {
+					$sum: '$paidAmount',
+				},
+				feeDetails: {
+					$push: {
+						feeType: '$feeType',
+						totalFees: '$totalAmount',
+						netAmount: '$netAmount',
+						paidAmount: '$paidAmount',
+						totalDiscountAmount: '$totalDiscountAmount',
+					},
+				},
+			},
+		},
+		{
+			$skip: +page * +limit,
+		},
+		{
+			$limit: +limit,
+		},
+		{
+			$lookup: {
+				from: 'students',
+				localField: '_id',
+				foreignField: '_id',
+				as: 'studentData',
+			},
+		},
+		{
+			$unwind: '$studentData',
+		},
+		{
+			$project: {
+				_id: 0,
+				studentId: '$_id',
+				studentName: '$studentData.name',
+				totalFees: 1,
+				netFees: 1,
+				totalDiscountAmount: 1,
+				paidAmount: 1,
+				feeDetails: 1,
+			},
+		},
+	];
+
+	const studentList = await feeInstallment.aggregate(aggregate);
+
+	if (!studentList.length) {
+		return next(new ErrorResponse('Student Not Found', 404));
+	}
+
+	res.status(200).json(SuccessResponse(studentList, 1, 'Fetched Successfully'));
+});
+
+exports.getFeeDetails = catchAsync(async (req, res, next) => {
+	const { id, discountId } = req.params;
+	let feeDetails = null;
+
+	const query = {
+		discountId,
+		feeStructureId: id,
+	};
+
+	let response = {};
+
+	const isMapped = await DiscountStructure.findOne(query, 'feeDetails');
+
+	if (!isMapped) {
+		const feeStructure = await FeeStructure.findOne({
+			_id: id,
+		}).populate('feeDetails.feeTypeId', 'feeType');
+
+		feeDetails = feeStructure.feeDetails.map(fee => {
+			const { feeTypeId, scheduledDates, totalAmount } = fee;
+			return {
+				_id: id,
+				feeType: {
+					id: feeTypeId._id,
+					name: feeTypeId.feeType,
+				},
+				amount: totalAmount,
+				breakdown: scheduledDates,
+			};
+		});
+		response = {
+			isMapped: false,
+			feeDetails,
+		};
+	} else {
+		response = {
+			isMapped: true,
+			feeDetails: isMapped.feeDetails,
+		};
+	}
+
+	res.status(200).json(SuccessResponse(response, 1, 'Fetched Successfully'));
+});
+
 // DELETE
 exports.deleteFeeStructure = async (req, res, next) => {
 	const { id } = req.params;
@@ -396,8 +534,8 @@ exports.deleteFeeStructure = async (req, res, next) => {
 				_id: { $in: sectionList },
 			},
 			{
-				$unset: {
-					feeStructureId: null,
+				$pull: {
+					feeStructureId: mongoose.Types.ObjectId(id),
 				},
 			},
 			{
@@ -514,9 +652,8 @@ exports.getUnmappedClassList = catchAsync(async (req, res, next) => {
 
 exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 	const { sectionId, categoryId } = req.params;
-	let { isMapped, discountId } = req.query;
-	isMapped = isMapped === 'true';
-	let foundStructure = await FeeStructure.find(
+
+	const foundStructure = await FeeStructure.find(
 		{
 			classes: { $elemMatch: { sectionId } },
 			categoryId,
@@ -524,35 +661,6 @@ exports.getFeeStructureBySectionId = catchAsync(async (req, res, next) => {
 		},
 		'feeStructureName'
 	).lean();
-	const mappedStructures = await SectionDiscount.aggregate([
-		{
-			$match: {
-				discountId: mongoose.Types.ObjectId(discountId),
-				sectionId: mongoose.Types.ObjectId(sectionId),
-				categoryId: mongoose.Types.ObjectId(categoryId),
-			},
-		},
-		{
-			$group: {
-				_id: '$feeStructureId',
-			},
-		},
-	]);
-
-	if (isMapped) {
-		// filter the fee structure which is mapped to the discount
-
-		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
-		foundStructure = foundStructure.filter(s =>
-			mappedStructureIds.includes(s._id.toString())
-		);
-	} else {
-		// filter the fee structure which is not mapped to the discount
-		const mappedStructureIds = mappedStructures.map(s => s._id.toString());
-		foundStructure = foundStructure.filter(
-			s => !mappedStructureIds.includes(s._id.toString())
-		);
-	}
 
 	if (!foundStructure.length) {
 		return next(new ErrorResponse('Fee Structure Not Found', 404));

@@ -61,11 +61,11 @@ const getFeeCategoryByFilter = catchAsync(async (req, res, next) => {
 	if (schoolId) {
 		payload.schoolId = mongoose.Types.ObjectId(schoolId);
 	}
-	const feeTypes = await FeeCategory.aggregate([
+	const aggregate = [
+		{ $match: payload },
 		{
 			$facet: {
 				data: [
-					{ $match: payload },
 					{
 						$lookup: {
 							from: 'academicyears',
@@ -77,11 +77,11 @@ const getFeeCategoryByFilter = catchAsync(async (req, res, next) => {
 					{ $skip: page * limit },
 					{ $limit: limit },
 				],
-				count: [{ $match: payload }, { $count: 'count' }],
+				count: [{ $count: 'count' }],
 			},
 		},
-	]);
-	const { data, count } = feeTypes[0];
+	];
+	const [{ data, count }] = await FeeCategory.aggregate(aggregate);
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('Fee Category Not Found', 404));

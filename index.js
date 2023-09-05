@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 require('dotenv').config({ path: `.${NODE_ENV}.env` });
 require('./jobs/installmentDue');
 const fileUpload = require('express-fileupload');
+const compression = require('compression');
 
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
@@ -37,6 +38,19 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 app.use(cors());
+
+app.use(
+	compression({
+		level: 6,
+		threshold: 1000, // 1kb
+		filter: (req, res) => {
+			if (req.headers['x-no-compression']) {
+				return false;
+			}
+			return compression.filter(req, res);
+		},
+	})
+);
 
 const options = {
 	explorer: true,

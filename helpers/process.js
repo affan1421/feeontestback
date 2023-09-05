@@ -28,7 +28,7 @@ const runChildProcess = async (
 	}
 	// Spawn child process to insert data into the database
 	const childSpawn = spawn('node', [
-		'../feeOn-backend/helper/installments.js',
+		'../feeOn-backend/helpers/installments.js',
 		flatted.stringify(feeDetails),
 		flatted.stringify(studentList),
 		feeStructure,
@@ -63,7 +63,7 @@ const runPipedProcesses = async (
 	categoryId
 ) => {
 	const childSpawn = spawn('node', [
-		'../feeOn-backend/helper/installments.js',
+		'../feeOn-backend/helpers/installments.js',
 		flatted.stringify(feeDetails[0]),
 		flatted.stringify(studentList[0]),
 		feeStructure,
@@ -73,7 +73,7 @@ const runPipedProcesses = async (
 	]);
 
 	const childSpawn2 = spawn('node', [
-		'../feeOn-backend/helper/installments.js',
+		'../feeOn-backend/helpers/installments.js',
 		flatted.stringify(feeDetails[1]),
 		flatted.stringify(studentList[1]),
 		feeStructure,

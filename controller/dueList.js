@@ -9,35 +9,10 @@ const getSections = require('../helpers/section');
 
 const Sections = mongoose.connection.db.collection('sections');
 const Students = mongoose.connection.db.collection('students');
-
-/**
- * @desc    Get Summary
- * @param   {ObjectId} schoolId - School Id
- * @param   {String} searchTerm - Search Term
- * @description This method is used to get studentIds from student collection
- * @returns {Array} studentIds - Array of studentIds
- * */
-
-const findStudentIds = async (schoolId, searchTerm) => {
-	const searchPayload = {
-		school_id: mongoose.Types.ObjectId(schoolId),
-		name: {
-			$regex: searchTerm,
-			$options: 'i',
-		},
-		deleted: false,
-		profileStatus: 'APPROVED',
-	};
-	const studentIds = await Students.find(searchPayload)
-		.project({ _id: 1 })
-		.toArray();
-	return studentIds.map(student => mongoose.Types.ObjectId(student._id));
-};
-
 /**
  * @desc  Build Payment Status Stages
  * @param {Array} paymentStatus - ['FULL', 'PARTIAL', 'NOT']
- * @param {Array} scheduleDates - ['MM/DD/YYYY']
+ * @param {Array} scheduleDates - ['DD/MM/YYYY']
  * @returns {Array} stages - Array of stages
  */
 const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
@@ -69,11 +44,7 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 			},
 		},
 	};
-	if (
-		!paymentStatus ||
-		paymentStatus === 'NOT,PARTIAL' ||
-		paymentStatus === 'FULL,NOT,PARTIAL'
-	) {
+	if (!paymentStatus || paymentStatus === 'FULL,NOT,PARTIAL') {
 		return [addFieldStage, groupByStudent];
 	}
 
@@ -85,52 +56,56 @@ const buildPaymentStatusStages = (paymentStatus, scheduleDates) => {
 		],
 		PARTIAL: [
 			addFieldStage,
-			{ $match: { $expr: { $lt: ['$dueAmount', '$netAmount'] } } },
 			groupByStudent,
+			{
+				$match: {
+					$expr: {
+						$and: [
+							{ $ne: ['$dueAmount', 0] },
+							{ $lt: ['$dueAmount', '$totalNetAmount'] },
+						],
+					},
+				},
+			},
 		],
 		NOT: [
-			{ $match: { $expr: { $eq: ['$paidAmount', 0] } } },
 			addFieldStage,
 			groupByStudent,
+			{ $match: { $expr: { $eq: ['$paidAmount', 0] } } },
 		],
 		'FULL,PARTIAL': [
-			// NO STATUS FILTER
-			{ $match: { $expr: { $ne: ['$paidAmount', 0] } } },
 			addFieldStage,
 			groupByStudent,
+			{ $match: { $expr: { $ne: ['$paidAmount', 0] } } },
 		],
 		'FULL,NOT': [
+			addFieldStage,
+			groupByStudent,
 			{
 				$match: {
 					$expr: {
 						$or: [
 							{
-								$and: [
-									{
-										$in: ['$status', ['Late', 'Paid']],
-									},
-									{
-										$gt: ['$paidAmount', 0],
-									},
-								],
+								$eq: ['$totalNetAmount', '$paidAmount'],
 							},
 							{
-								$and: [
-									{
-										$in: ['$status', ['Upcoming', 'Due']],
-									},
-									{
-										$eq: ['$paidAmount', 0],
-									},
-								],
+								$eq: ['$totalNetAmount', '$dueAmount'],
 							},
 						],
 					},
 				},
 			},
+		],
+		'NOT,PARTIAL': [
 			addFieldStage,
-
 			groupByStudent,
+			{
+				$match: {
+					$expr: {
+						$lt: ['$paidAmount', '$totalNetAmount'],
+					},
+				},
+			},
 		],
 	};
 
@@ -257,13 +232,7 @@ const buildGeneralStages = (page, limit) => {
 const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
 	const aggregation = [
 		{
-			$match:
-				paymentStatus === 'FULL' ||
-				paymentStatus === 'FULL,PARTIAL' ||
-				paymentStatus === 'FULL,NOT' ||
-				paymentStatus === 'FULL,NOT,PARTIAL'
-					? match
-					: { ...match, status: { $in: ['Due', 'Upcoming'] } },
+			$match: match,
 		},
 		...buildPaymentStatusStages(paymentStatus, scheduleDates),
 		...buildGeneralStages(page, limit),
@@ -297,8 +266,8 @@ const getSummary = CatchAsync(async (req, res, next) => {
 
 	if (scheduleDates.length) {
 		match.$or = scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -522,8 +491,8 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		netAmount: { $gt: 0 },
 		$or: scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -611,8 +580,8 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 		scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
 		netAmount: { $gt: 0 },
 		$or: scheduleDates.map(date => {
-			const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-			const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+			const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+			const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 			return {
 				date: {
 					$gte: startDate,
@@ -712,8 +681,8 @@ const getClassList = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,
@@ -730,11 +699,9 @@ const getClassList = CatchAsync(async (req, res, next) => {
 				$options: 'i',
 			},
 		};
-		sectionIds = await Sections.find(searchPayload)
-			.project({ _id: 1 })
-			.toArray();
+		sectionIds = await Sections.distinct('_id', searchPayload);
 		match.sectionId = {
-			$in: sectionIds.map(section => mongoose.Types.ObjectId(section._id)),
+			$in: sectionIds,
 		};
 	}
 
@@ -946,8 +913,8 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,
@@ -1158,8 +1125,8 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
 	};
 
 	match.$or = scheduleDates.map(date => {
-		const startDate = moment(date, 'MM/DD/YYYY').startOf('day').toDate();
-		const endDate = moment(date, 'MM/DD/YYYY').endOf('day').toDate();
+		const startDate = moment(date, 'DD/MM/YYYY').startOf('day').toDate();
+		const endDate = moment(date, 'DD/MM/YYYY').endOf('day').toDate();
 		return {
 			date: {
 				$gte: startDate,

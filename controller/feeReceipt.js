@@ -15,6 +15,54 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const AcademicYear = require('../models/academicYear');
 
+const getWorkSheet = (worksheet, receiptDetails, methodMap) =>
+	new Promise((resolve, reject) => {
+		try {
+			let rowIndex = 2; // Start from row 2
+			receiptDetails.forEach((receipt, index) => {
+				worksheet.cell(index + 2, 1).string(receipt.student);
+				worksheet
+					.cell(index + 2, 2)
+					.string(`${receipt.class} - ${receipt.section}`);
+				worksheet.cell(index + 2, 3).string(receipt.description.join(','));
+				worksheet.cell(index + 2, 4).string(receipt.receiptId);
+				// 20-05-2023
+				worksheet
+					.cell(index + 2, 5)
+					.string(moment(receipt.issueDate).format('DD-MM-YYYY'));
+				worksheet.cell(index + 2, 6).string(receipt.method);
+				worksheet.cell(index + 2, 7).number(receipt.amount);
+
+				methodMap.set(
+					receipt.method,
+					(methodMap.get(receipt.method) || 0) + receipt.amount
+				);
+
+				rowIndex += 1;
+			});
+
+			// add total row
+			let totalRow = rowIndex + 1;
+			methodMap.forEach((value, key) => {
+				worksheet.cell(totalRow, 6).string(key);
+				worksheet.cell(totalRow, 7).number(value);
+				totalRow += 1;
+			});
+
+			// Grant Total
+			worksheet.cell(totalRow, 6).string('Grant Total');
+			worksheet
+				.cell(totalRow, 7)
+				.number(
+					Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0)
+				);
+
+			resolve();
+		} catch (error) {
+			reject(error);
+		}
+	});
+
 const getIncomeAggregation = (dateObj, school_id, tempAggregation) => [
 	{
 		$match: {
@@ -439,13 +487,14 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 	if (receiptType) {
 		payload.receiptType = receiptType;
 	}
-	const feeReceipts = await FeeReceipt.aggregate([
+
+	const aggregate = [
+		{
+			$match: payload,
+		},
 		{
 			$facet: {
 				data: [
-					{
-						$match: payload,
-					},
 					{
 						$sort: {
 							createdAt: -1,
@@ -516,11 +565,12 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 						},
 					},
 				],
-				count: [{ $match: payload }, { $count: 'count' }],
+				count: [{ $count: 'count' }],
 			},
 		},
-	]);
-	const { data, count } = feeReceipts[0];
+	];
+
+	const [{ data, count }] = await FeeReceipt.aggregate(aggregate);
 
 	if (count.length === 0) {
 		return next(new ErrorResponse('No Fee Receipts Found', 404));
@@ -871,9 +921,16 @@ const createReceipt = async (req, res, next) => {
 		ddDate,
 		issueDate = new Date(),
 		feeTypeId,
+		createdBy,
 	} = req.body;
 
-	if (!studentId || !totalFeeAmount || !paymentMethod || !feeTypeId) {
+	if (
+		!studentId ||
+		!totalFeeAmount ||
+		!paymentMethod ||
+		!feeTypeId ||
+		!createdBy
+	) {
 		return next(new ErrorResponse('All Fields Are Mandatory', 422));
 	}
 
@@ -1146,6 +1203,7 @@ const createReceipt = async (req, res, next) => {
 		},
 		issueDate,
 		items,
+		createdBy,
 	});
 
 	res.status(201).json(
@@ -1229,7 +1287,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 		};
 	}
 	const methodMap = new Map();
-
 	const receiptDetails = await FeeReceipt.aggregate([
 		{
 			$match: payload,
@@ -1238,83 +1295,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 			$unwind: {
 				path: '$items',
 				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$set: {
-				insId: {
-					$ifNull: ['$items.installmentId', []],
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'feeinstallments',
-				let: {
-					insId: '$insId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$and: [
-									{
-										$eq: ['$_id', '$$insId'],
-									},
-									{
-										$eq: ['$deleted', false],
-									},
-								],
-							},
-						},
-					},
-					{
-						$project: {
-							month: {
-								$month: '$date',
-							},
-						},
-					},
-				],
-				as: 'insResult',
-			},
-		},
-		{
-			$unwind: {
-				path: '$insResult',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$addFields: {
-				month: {
-					$let: {
-						vars: {
-							monthsInString: [
-								'Jan',
-								'Feb',
-								'Mar',
-								'Apr',
-								'May',
-								'Jun',
-								'Jul',
-								'Aug',
-								'Sep',
-								'Oct',
-								'Nov',
-								'Dec',
-							],
-						},
-						in: {
-							$arrayElemAt: [
-								'$$monthsInString',
-								{
-									$subtract: ['$insResult.month', 1],
-								},
-							],
-						},
-					},
-				},
 			},
 		},
 		{
@@ -1340,25 +1320,9 @@ const getExcel = catchAsync(async (req, res, next) => {
 				amount: {
 					$first: '$paidAmount',
 				},
-				items: {
-					$push: {
-						feeType: {
-							$ifNull: [
-								{
-									$concat: [
-										{
-											$first: '$feetypes.feeType',
-										},
-										' - ',
-										'$month',
-									],
-								},
-								{
-									$first: '$feetypes.feeType',
-								},
-							],
-						},
-						amount: '$items.paidAmount',
+				description: {
+					$addToSet: {
+						$first: '$feetypes.feeType',
 					},
 				},
 				receiptId: {
@@ -1378,124 +1342,30 @@ const getExcel = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
-
 	if (!receiptDetails.length)
 		return next(new ErrorResponse('No Receipts Found', 404));
-
-	const commonBorderStyle = {
-		style: 'thin',
-		color: '#000000',
-	};
 
 	const workbook = new excel.Workbook();
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Income Details');
-	const style = workbook.createStyle({
-		font: {
-			bold: true,
-			color: '#000000',
-			size: 12,
-		},
-		numberFormat: '₹#,##0.00; ($#,##0.00); -',
+
+	const header = [
+		'Name',
+		'Class',
+		'Description',
+		'Receipt ID',
+		'Date',
+		'Payment Mode',
+		'Amount',
+	];
+
+	header.forEach((item, index) => {
+		worksheet.cell(1, index + 1).string(item);
 	});
 
-	const mergedCellCenter = {
-		alignment: {
-			vertical: 'center',
-		},
-	};
-	worksheet.cell(1, 1).string('Name').style(style);
-	worksheet.cell(1, 2).string('Class').style(style);
-	worksheet.cell(1, 3).string('Receipt ID').style(style);
-	worksheet.cell(1, 4).string('Date').style(style);
-	worksheet.cell(1, 5).string('Description').style(style);
-	worksheet.cell(1, 6).string('Amount').style(style);
-	worksheet.cell(1, 7).string('Payment Mode').style(style);
-	worksheet.cell(1, 8).string('Total Amount').style(style);
+	await getWorkSheet(worksheet, receiptDetails, methodMap);
 
-	let rowIndex = 2; // Start from row 2
-	receiptDetails.forEach(receipt => {
-		const {
-			student,
-			class: className,
-			section,
-			amount,
-			items,
-			receiptId,
-			issueDate,
-			method,
-		} = receipt;
-
-		const itemCount = items.length;
-		const rowStart = rowIndex;
-		const rowEnd = rowIndex + itemCount - 1;
-
-		worksheet
-			.cell(rowStart, 1, rowEnd, 1, true)
-			.string(student)
-			.style(mergedCellCenter);
-		worksheet
-			.cell(rowStart, 2, rowEnd, 2, true)
-			.string(`${className} - ${section}`)
-			.style(mergedCellCenter);
-
-		worksheet
-			.cell(rowStart, 3, rowEnd, 3, true)
-			.string(receiptId)
-			.style(mergedCellCenter);
-
-		worksheet
-			.cell(rowStart, 4, rowEnd, 4, true)
-			.string(moment(issueDate).format('DD/MM/YYYY'))
-			.style(mergedCellCenter);
-
-		items.forEach((item, itemIndex) => {
-			const { feeType, amount: itemAmount } = item;
-			const row = rowStart + itemIndex;
-			worksheet.cell(row, 5).string(feeType);
-			worksheet.cell(row, 6).number(itemAmount);
-		});
-
-		worksheet
-			.cell(rowStart, 7, rowEnd, 7, true)
-			.string(method)
-			.style(mergedCellCenter);
-		worksheet
-			.cell(rowStart, 8, rowEnd, 8, true)
-			.number(amount)
-			.style(mergedCellCenter);
-
-		methodMap.set(method, (methodMap.get(method) || 0) + amount);
-
-		rowIndex = rowEnd + 1; // Move the rowIndex to the next available row for the next receipt
-	});
-
-	// add total row
-	let totalRow = rowIndex + 1;
-	const mapRow = totalRow;
-	methodMap.forEach((value, key) => {
-		worksheet.cell(totalRow, 7).string(key).style(style);
-		worksheet.cell(totalRow, 8).number(value).style(style);
-		totalRow += 1;
-	});
-
-	// Grant Total
-	worksheet.cell(totalRow, 7).string('Grant Total').style(style);
-	worksheet
-		.cell(totalRow, 8)
-		.number(Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0))
-		.style(style);
-
-	worksheet.cell(1, 1, totalRow, 8).style({
-		border: {
-			left: commonBorderStyle,
-			right: commonBorderStyle,
-			top: commonBorderStyle,
-			bottom: commonBorderStyle,
-		},
-	});
-
-	// workbook.write('income.xlsx');
+	workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
