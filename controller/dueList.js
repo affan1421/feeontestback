@@ -527,14 +527,7 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 	);
 
 	const countStages = [
-		...aggregate.slice(
-			0,
-			psFilter &&
-				(psFilter.length === 1 ||
-					(psFilter.length === 2 && psFilter.includes('FULL')))
-				? 4
-				: 3
-		),
+		...aggregate.slice(0, psFilter && psFilter.length < 3 ? 4 : 3),
 		{ $count: 'count' },
 	];
 
