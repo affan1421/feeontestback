@@ -15,78 +15,44 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const AcademicYear = require('../models/academicYear');
 
-const getWorkSheet = (worksheet, receiptDetails, methodMap, mergedCellCenter) =>
+const getWorkSheet = (worksheet, receiptDetails, methodMap) =>
 	new Promise((resolve, reject) => {
 		try {
 			let rowIndex = 2; // Start from row 2
-			receiptDetails.forEach(receipt => {
-				const {
-					student,
-					class: className,
-					section,
-					amount,
-					items,
-					receiptId,
-					issueDate,
-					method,
-				} = receipt;
-
-				const itemCount = items.length;
-				const rowStart = rowIndex;
-				const rowEnd = rowIndex + itemCount - 1;
-
+			receiptDetails.forEach((receipt, index) => {
+				worksheet.cell(index + 2, 1).string(receipt.student);
 				worksheet
-					.cell(rowStart, 1, rowEnd, 1, true)
-					.string(student)
-					.style(mergedCellCenter);
+					.cell(index + 2, 2)
+					.string(`${receipt.class} - ${receipt.section}`);
+				worksheet.cell(index + 2, 3).string(receipt.description.join(','));
+				worksheet.cell(index + 2, 4).string(receipt.receiptId);
+				// 20-05-2023
 				worksheet
-					.cell(rowStart, 2, rowEnd, 2, true)
-					.string(`${className} - ${section}`)
-					.style(mergedCellCenter);
+					.cell(index + 2, 5)
+					.string(moment(receipt.issueDate).format('DD-MM-YYYY'));
+				worksheet.cell(index + 2, 6).string(receipt.method);
+				worksheet.cell(index + 2, 7).number(receipt.amount);
 
-				worksheet
-					.cell(rowStart, 3, rowEnd, 3, true)
-					.string(receiptId)
-					.style(mergedCellCenter);
+				methodMap.set(
+					receipt.method,
+					(methodMap.get(receipt.method) || 0) + receipt.amount
+				);
 
-				worksheet
-					.cell(rowStart, 4, rowEnd, 4, true)
-					.string(moment(issueDate).format('DD/MM/YYYY'))
-					.style(mergedCellCenter);
-
-				items.forEach((item, itemIndex) => {
-					const { feeType, amount: itemAmount } = item;
-					const row = rowStart + itemIndex;
-					worksheet.cell(row, 5).string(feeType);
-					worksheet.cell(row, 6).number(itemAmount);
-				});
-
-				worksheet
-					.cell(rowStart, 7, rowEnd, 7, true)
-					.string(method)
-					.style(mergedCellCenter);
-				worksheet
-					.cell(rowStart, 8, rowEnd, 8, true)
-					.number(amount)
-					.style(mergedCellCenter);
-
-				methodMap.set(method, (methodMap.get(method) || 0) + amount);
-
-				rowIndex = rowEnd + 1; // Move the rowIndex to the next available row for the next receipt
+				rowIndex += 1;
 			});
 
 			// add total row
 			let totalRow = rowIndex + 1;
 			methodMap.forEach((value, key) => {
-				worksheet.cell(totalRow, 7).string(key);
-				worksheet.cell(totalRow, 8).number(value);
+				worksheet.cell(totalRow, 6).string(key);
+				worksheet.cell(totalRow, 7).number(value);
 				totalRow += 1;
 			});
 
 			// Grant Total
-			worksheet.cell(totalRow, 7).string('Grant Total');
+			worksheet.cell(totalRow, 6).string('Grant Total');
 			worksheet
-				.cell(totalRow, 8)
+				.cell(totalRow, 7)
 				.number(
 					Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0)
 				);
@@ -1314,7 +1280,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 		};
 	}
 	const methodMap = new Map();
-
 	const receiptDetails = await FeeReceipt.aggregate([
 		{
 			$match: payload,
@@ -1323,83 +1288,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 			$unwind: {
 				path: '$items',
 				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$set: {
-				insId: {
-					$ifNull: ['$items.installmentId', []],
-				},
-			},
-		},
-		{
-			$lookup: {
-				from: 'feeinstallments',
-				let: {
-					insId: '$insId',
-				},
-				pipeline: [
-					{
-						$match: {
-							$expr: {
-								$and: [
-									{
-										$eq: ['$_id', '$$insId'],
-									},
-									{
-										$eq: ['$deleted', false],
-									},
-								],
-							},
-						},
-					},
-					{
-						$project: {
-							month: {
-								$month: '$date',
-							},
-						},
-					},
-				],
-				as: 'insResult',
-			},
-		},
-		{
-			$unwind: {
-				path: '$insResult',
-				preserveNullAndEmptyArrays: true,
-			},
-		},
-		{
-			$addFields: {
-				month: {
-					$let: {
-						vars: {
-							monthsInString: [
-								'Jan',
-								'Feb',
-								'Mar',
-								'Apr',
-								'May',
-								'Jun',
-								'Jul',
-								'Aug',
-								'Sep',
-								'Oct',
-								'Nov',
-								'Dec',
-							],
-						},
-						in: {
-							$arrayElemAt: [
-								'$$monthsInString',
-								{
-									$subtract: ['$insResult.month', 1],
-								},
-							],
-						},
-					},
-				},
 			},
 		},
 		{
@@ -1425,25 +1313,9 @@ const getExcel = catchAsync(async (req, res, next) => {
 				amount: {
 					$first: '$paidAmount',
 				},
-				items: {
-					$push: {
-						feeType: {
-							$ifNull: [
-								{
-									$concat: [
-										{
-											$first: '$feetypes.feeType',
-										},
-										' - ',
-										'$month',
-									],
-								},
-								{
-									$first: '$feetypes.feeType',
-								},
-							],
-						},
-						amount: '$items.paidAmount',
+				description: {
+					$addToSet: {
+						$first: '$feetypes.feeType',
 					},
 				},
 				receiptId: {
@@ -1463,7 +1335,6 @@ const getExcel = catchAsync(async (req, res, next) => {
 			},
 		},
 	]);
-
 	if (!receiptDetails.length)
 		return next(new ErrorResponse('No Receipts Found', 404));
 
@@ -1471,30 +1342,23 @@ const getExcel = catchAsync(async (req, res, next) => {
 	// Add Worksheets to the workbook
 	const worksheet = workbook.addWorksheet('Income Details');
 
-	const mergedCellCenter = {
-		alignment: {
-			vertical: 'center',
-		},
-	};
-
 	const header = [
 		'Name',
 		'Class',
+		'Description',
 		'Receipt ID',
 		'Date',
-		'Description',
-		'Amount',
 		'Payment Mode',
-		'Total Amount',
+		'Amount',
 	];
 
 	header.forEach((item, index) => {
 		worksheet.cell(1, index + 1).string(item);
 	});
 
-	await getWorkSheet(worksheet, receiptDetails, methodMap, mergedCellCenter);
+	await getWorkSheet(worksheet, receiptDetails, methodMap);
 
-	// workbook.write('income.xlsx');
+	workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
