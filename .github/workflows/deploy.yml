@@ -7,18 +7,40 @@ on:
     branches:
       - dev
 jobs:
-  Slack_Approval:
+  # Slack_Approval:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Approval
+  #       uses: varu3/slack-approval@main
+  #       env:
+  #         SLACK_APP_TOKEN: xapp-1-A05QDQ21TSP-5842619626289-bfce7aca7cdf90a63b7926797179bbc046bd5a44c11cd22b61681a830be51295
+  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
+  #         SLACK_SIGNING_SECRET: 979c1831c2fb536a156c48de8a359956
+  #         SLACK_CHANNEL_ID: C05R922D2F2
+  #       timeout-minutes: 1
+  Slack_Notification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify slack success
+        if: success()
+        id: slack # IMPORTANT: reference this step ID value in future Slack steps
+        env:
+          SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
+        uses: voxmedia/github-action-slack-notify-build@v1.1.2
+        with:
+          channel: actions_notification
+          status: STARTING
+          color: 0000FF
+  Approval:
     runs-on: ubuntu-latest
     steps:
       - name: Approval
-        uses: varu3/slack-approval@main
-        env:
-          SLACK_APP_TOKEN: xapp-1-A05QDQ21TSP-5842619626289-bfce7aca7cdf90a63b7926797179bbc046bd5a44c11cd22b61681a830be51295
-          SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-          SLACK_SIGNING_SECRET: 979c1831c2fb536a156c48de8a359956
-          SLACK_CHANNEL_ID: C05R922D2F2
+        uses: trstringer/manual-approval@v1
         timeout-minutes: 1
-
+        with:
+          minimum-approvals: 1
+          secret: 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
+          approvers: yusuf-delvi,hafiz-ikram,nawaz-cumin
   # Code_Analysis:
   #   runs-on: ubuntu-latest
   #   needs: Slack_Notification
@@ -101,7 +123,7 @@ jobs:
 
   # Slack_Notification:
   #   runs-on: ubuntu-latest
-  #   needs: Deployed_To_EC2  
+  #   needs: Deployed_To_EC2
   #   steps:
 
   #    -  name: Notify slack success
@@ -114,7 +136,7 @@ jobs:
   #         status: SUCCESS
   #         color: good
   #         tag: 'DEV'
-      
+
   #    -  name: Notify slack fail
   #       if: failure()
   #       env:
