@@ -211,6 +211,19 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 			$match: {
 				feeStructureId: mongoose.Types.ObjectId(structureId),
 				sectionId: mongoose.Types.ObjectId(sectionId),
+				deleted: false,
+			},
+		},
+		{
+			$addFields: {
+				dueAmount: {
+					$subtract: ['$netAmount', '$paidAmount'],
+				},
+			},
+		},
+		{
+			$sort: {
+				date: 1,
 			},
 		},
 		{
@@ -221,6 +234,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				},
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
+				},
+				dueAmount: {
+					$sum: '$dueAmount',
 				},
 				paidAmount: {
 					$sum: '$paidAmount',
@@ -270,6 +286,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 						totalAmount: '$totalAmount',
 						netAmount: '$netAmount',
 						paidAmount: '$paidAmount',
+						dueAmount: '$dueAmount',
 					},
 				},
 			},
@@ -302,6 +319,9 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				totalDiscountAmount: {
 					$sum: '$totalDiscountAmount',
 				},
+				dueAmount: {
+					$sum: '$dueAmount',
+				},
 				paidAmount: {
 					$sum: '$paidAmount',
 				},
@@ -313,6 +333,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 						feeType: '$_id.feeType',
 						totalFees: '$totalFees',
 						netFees: '$netAmount',
+						dueAmount: '$dueAmount',
 						breakdown: '$breakdown',
 					},
 				},
@@ -336,6 +357,7 @@ const getStudentsByStructure = catchAsync(async (req, res, next) => {
 				admission_no: '$student.admission_no',
 				totalDiscountAmount: 1,
 				totalFees: 1,
+				dueAmount: 1,
 				discountApplied: 1,
 				discountStatus: {
 					$arrayElemAt: [
