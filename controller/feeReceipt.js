@@ -304,7 +304,13 @@ const getStudentData = async schoolId => {
 			},
 		},
 	]).toArray();
-	return studentData;
+	return (
+		studentData ?? {
+			totalCount: 0,
+			boysCount: 0,
+			girlsCount: 0,
+		}
+	);
 };
 
 const getExpenseData = async (schoolId, dateObj, tempExpAggregation) => {
