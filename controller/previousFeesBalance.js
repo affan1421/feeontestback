@@ -249,11 +249,9 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 			paidAmount,
 		},
 		createdBy,
+		status: paymentMode === 'CASH' ? 'APPROVED' : 'PENDING',
 		approvedBy: paymentMode === 'CASH' ? createdBy : null,
 	};
-
-	// eslint-disable-next-line no-unused-expressions
-	paymentMode !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
 
 	if (paymentMode === 'CASH') {
 		const updatePayload = {

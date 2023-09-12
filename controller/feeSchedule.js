@@ -4,7 +4,7 @@ const catchAsync = require('../utils/catchAsync');
 const ErrorResponse = require('../utils/errorResponse');
 const SuccessResponse = require('../utils/successResponse');
 
-function getScheduleDates(months, day) {
+function getScheduleDates(months, day, existMonths) {
 	const currentYear = new Date().getFullYear();
 	const nextYear = currentYear + 1;
 
@@ -12,7 +12,7 @@ function getScheduleDates(months, day) {
 
 	// Loop through each month and create a date string
 	for (const month of months) {
-		const year = month >= months[0] ? currentYear : nextYear;
+		const year = month > existMonths[0] ? currentYear : nextYear;
 		const dateString = new Date(year, month - 1, day);
 		scheduledDates.push(dateString);
 	}
@@ -25,7 +25,7 @@ function getScheduleDates(months, day) {
 // @access  Private
 exports.create = async (req, res, next) => {
 	let feeSchedule = null;
-	let {
+	const {
 		scheduleName,
 		description = '',
 		schoolId,
@@ -45,11 +45,7 @@ exports.create = async (req, res, next) => {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
 
-	months = months.sort(
-		(a, b) => existMonths.indexOf(a) - existMonths.indexOf(b)
-	);
-
-	const scheduledDates = getScheduleDates(months, day);
+	const scheduledDates = getScheduleDates(months, day, existMonths);
 
 	const isExists = await FeeSchedule.findOne({
 		scheduleName,

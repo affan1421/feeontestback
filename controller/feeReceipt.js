@@ -1210,10 +1210,9 @@ const createReceipt = async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
+		status: paymentMethod === 'CASH' ? 'APPROVED' : 'PENDING',
 		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
 	};
-	// eslint-disable-next-line no-unused-expressions
-	paymentMethod !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
@@ -1713,10 +1712,147 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
 });
 
+/**
+ * @param {String} date // DD/MM/YYYY
+ * @param {String} studentId
+ * @param {String} paymentMethod // CHEQUE, UPI, ONLINE_TRANSFER, DD, DEBIT_CARD, CREDIT_CARD
+ * @param {String} receiptStatus // PENDING, DECLINED
+ * @param {String} searchTerm // student name and receipt id
+ * @description Get all the pending requests for the given date, studentId, paymentMethod, receiptStatus
+ * @returns {Array} // Array of objects
+ */
+const GetConfirmations = catchAsync(async (req, res, next) => {
+	const {
+		date = null,
+		studentId,
+		paymentMethod,
+		searchTerm = null,
+		status = 'PENDING',
+		page = 0,
+		limit = 10,
+	} = req.body;
+	const { school_id } = req.user;
+
+	const payload = {
+		'school.schoolId': mongoose.Types.ObjectId(school_id),
+		status,
+	};
+
+	if (studentId) {
+		payload['student.studentId'] = mongoose.Types.ObjectId(studentId);
+	}
+
+	if (paymentMethod) {
+		payload['payment.method'] = paymentMethod;
+	}
+
+	if (searchTerm) {
+		payload.$or = [
+			{ 'student.name': { $regex: `${searchTerm}`, $options: 'i' } },
+			{ receiptId: { $regex: `${searchTerm}`, $options: 'i' } },
+		];
+	}
+
+	if (date)
+		payload.issueDate = {
+			$gte: moment(date, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(date, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
+
+	const aggregate = [
+		{
+			$match: payload,
+		},
+		{
+			$facet: {
+				data: [
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+					{
+						$skip: page * limit,
+					},
+					{
+						$limit: limit,
+					},
+					{
+						$unwind: {
+							path: '$items',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							let: {
+								feeTypeId: '$items.feeTypeId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$feeTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										feeType: 1,
+									},
+								},
+							],
+							as: 'items.feeTypeId',
+						},
+					},
+					{
+						$group: {
+							_id: '$_id',
+							items: {
+								$push: {
+									feeTypeId: {
+										$first: '$items.feeTypeId',
+									},
+									installmentId: '$items.installmentId',
+									netAmount: '$items.netAmount',
+									paidAmount: '$items.paidAmount',
+								},
+							},
+							root: { $first: '$$ROOT' },
+						},
+					},
+					{
+						$replaceRoot: {
+							newRoot: {
+								$mergeObjects: ['$root', { items: '$items' }],
+							},
+						},
+					},
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+				],
+				count: [{ $count: 'count' }],
+			},
+		},
+	];
+
+	const [{ data, count }] = await FeeReceipt.aggregate(aggregate);
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
 	createReceipt,
+	GetConfirmations,
 	getFeeReceiptSummary,
 	receiptByStudentId,
 	getDashboardData,

@@ -1946,12 +1946,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
-		// If cash, then approved by same person else it will be updated during the approval
+		status: paymentMethod === 'CASH' ? 'APPROVED' : 'PENDING',
 		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
 	};
-
-	// eslint-disable-next-line no-unused-expressions
-	paymentMethod !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);
 

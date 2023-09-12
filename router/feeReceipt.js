@@ -9,10 +9,13 @@ const {
 	getDashboardData,
 	receiptByStudentId,
 	getExcel,
+	GetConfirmations,
 	cancelReceipt,
 } = require('../controller/feeReceipt');
 
 router.get('/dashboard', getDashboardData);
+
+router.post('/confirmations', GetConfirmations);
 
 // Update API to accept username and sectionId for left student as unique value.
 router.post('/student', receiptByStudentId);

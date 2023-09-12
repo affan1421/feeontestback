@@ -1,6 +1,18 @@
 const { Schema, model } = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
 
+// PENDING/DECLINED/RESEND is for ONLINE PAYMENT APPROVAL
+// REQUESTED/REJECTED/CANCELLED is for CANCELLATION
+const status = [
+	'REQUESTED',
+	'CANCELLED',
+	'REJECTED',
+	'PENDING',
+	'APPROVED',
+	'DECLINED',
+	'RESEND',
+];
+
 const feeReceiptSchema = new Schema(
 	{
 		student: {
@@ -159,8 +171,7 @@ const feeReceiptSchema = new Schema(
 		// cancellation and approval status
 		status: {
 			type: String,
-			// PENDING/APPROVED is for ONLINE PAYMENT APPROVAL
-			enum: ['REQUESTED', 'CANCELLED', 'REJECTED', 'PENDING', 'APPROVED'],
+			enum: status,
 		},
 		// cancellation reason
 		reasons: {
