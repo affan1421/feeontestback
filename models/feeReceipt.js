@@ -156,10 +156,11 @@ const feeReceiptSchema = new Schema(
 			],
 			default: [],
 		},
-		// cancellation status
+		// cancellation and approval status
 		status: {
 			type: String,
-			enum: ['REQUESTED', 'CANCELLED', 'REJECTED'],
+			// PENDING/APPROVED is for ONLINE PAYMENT APPROVAL
+			enum: ['REQUESTED', 'CANCELLED', 'REJECTED', 'PENDING', 'APPROVED'],
 		},
 		// cancellation reason
 		reasons: {
@@ -170,6 +171,19 @@ const feeReceiptSchema = new Schema(
 					status: {
 						type: String,
 						enum: ['REQUESTED', 'REJECTED'],
+					},
+				},
+			],
+		},
+		// online payment confirmation comments
+		paymentComments: {
+			type: [
+				{
+					comment: String,
+					date: Date,
+					status: {
+						type: String,
+						enum: ['RESEND', 'REJECTED'],
 					},
 				},
 			],
@@ -189,6 +203,10 @@ const feeReceiptSchema = new Schema(
 		createdBy: {
 			type: Schema.Types.ObjectId,
 			required: [true, 'createdBy is required'],
+		},
+		approvedBy: {
+			type: Schema.Types.ObjectId,
+			required: false,
 		},
 	},
 	{

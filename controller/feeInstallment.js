@@ -224,7 +224,9 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Schoolid is required', 400));
 	}
 
-	const matchQuery = {};
+	const matchQuery = {
+		status: { $ne: 'CANCELLED' },
+	};
 
 	if (schoolId) {
 		matchQuery['school.schoolId'] = mongoose.Types.ObjectId(schoolId);
@@ -1841,34 +1843,45 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
 	const items = [];
 	let currentPaidAmount = 0;
-
 	for (const item of feeDetails) {
 		currentPaidAmount += item.paidAmount;
 
-		const foundInstallment = await FeeInstallment.findOne({
-			_id: mongoose.Types.ObjectId(item._id),
-		}).lean();
+		if (paymentMethod === 'CASH') {
+			const foundInstallment = await FeeInstallment.findOne({
+				_id: mongoose.Types.ObjectId(item._id),
+			}).lean();
 
-		const tempDueAmount =
-			foundInstallment.netAmount -
-			(item.paidAmount + foundInstallment.paidAmount);
+			const tempDueAmount =
+				foundInstallment.netAmount -
+				(item.paidAmount + foundInstallment.paidAmount);
 
-		if (tempDueAmount < 0) {
-			return next(
-				new ErrorResponse(
-					`Overpayment for ${item.feeTypeId.feeType} detected.`,
-					400
-				)
-			);
-		}
+			if (tempDueAmount < 0) {
+				return next(
+					new ErrorResponse(
+						`Overpayment for ${item.feeTypeId.feeType} detected.`,
+						400
+					)
+				);
+			}
 
-		const updateData = {
-			paidDate: issueDate,
-			paidAmount: item.paidAmount + foundInstallment.paidAmount,
-		};
+			const updateData = {
+				paidDate: issueDate,
+				paidAmount: item.paidAmount + foundInstallment.paidAmount,
+			};
 
-		if (tempDueAmount === 0) {
-			updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
+			if (tempDueAmount === 0) {
+				updateData.status = foundInstallment.status == 'Due' ? 'Late' : 'Paid';
+			}
+
+			// make bulkwrite query
+			bulkWriteOps.push({
+				updateOne: {
+					filter: { _id: item._id },
+					update: {
+						$set: updateData,
+					},
+				},
+			});
 		}
 
 		items.push({
@@ -1876,15 +1889,6 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 			feeTypeId: item.feeTypeId._id,
 			netAmount: item.netAmount,
 			paidAmount: item.paidAmount,
-		});
-		// make bulkwrite query
-		bulkWriteOps.push({
-			updateOne: {
-				filter: { _id: item._id },
-				update: {
-					$set: updateData,
-				},
-			},
 		});
 	}
 
@@ -1942,15 +1946,21 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
+		// If cash, then approved by same person else it will be updated during the approval
+		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
 	};
+
+	// eslint-disable-next-line no-unused-expressions
+	paymentMethod !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
 	if (!createdReceipt) {
 		return next(new ErrorResponse('Receipt Not Generated', 500));
 	}
-	await FeeInstallment.bulkWrite(bulkWriteOps);
-
+	if (bulkWriteOps.length) {
+		await FeeInstallment.bulkWrite(bulkWriteOps);
+	}
 	return res.status(201).json(
 		SuccessResponse(
 			{

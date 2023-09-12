@@ -127,6 +127,7 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 	let student;
 	let admission_no;
 	const receipt_id = mongoose.Types.ObjectId();
+	const updateBalancePromise = [];
 
 	if (!createdBy)
 		return next(new ErrorResponse('Please Provide Created By', 422));
@@ -248,36 +249,44 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 			paidAmount,
 		},
 		createdBy,
+		approvedBy: paymentMode === 'CASH' ? createdBy : null,
 	};
 
-	const updatePayload = {
-		lastPaidDate: new Date(),
-		$push: {
-			receiptId: receipt_id,
-		},
-	};
+	// eslint-disable-next-line no-unused-expressions
+	paymentMode !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
 
-	if (dueAmount - paidAmount === 0) {
-		updatePayload.status = 'Paid';
+	if (paymentMode === 'CASH') {
+		const updatePayload = {
+			lastPaidDate: new Date(),
+			$push: {
+				receiptId: receipt_id,
+			},
+		};
+
+		if (dueAmount - paidAmount === 0) {
+			updatePayload.status = 'Paid';
+		}
+
+		updateBalancePromise.push(
+			PreviousBalance.updateOne(
+				{ _id: prevBalId },
+				{
+					$set: { ...updatePayload },
+					$inc: {
+						paidAmount,
+						dueAmount: -paidAmount,
+					},
+					$push: {
+						receiptIds: receipt_id,
+					},
+				}
+			)
+		);
 	}
 
-	const updateBalancePromise = PreviousBalance.updateOne(
-		{ _id: prevBalId },
-		{
-			$set: { ...updatePayload },
-			$inc: {
-				paidAmount,
-				dueAmount: -paidAmount,
-			},
-			$push: {
-				receiptIds: receipt_id,
-			},
-		}
-	);
+	updateBalancePromise.push(FeeReceipt.create(receiptPayload));
 
-	const createReceiptPromise = FeeReceipt.create(receiptPayload);
-
-	await Promise.all([updateBalancePromise, createReceiptPromise]);
+	await Promise.all(updateBalancePromise);
 
 	res
 		.status(200)

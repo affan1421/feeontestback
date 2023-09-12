@@ -915,7 +915,7 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
-		comment,
+		comment = '',
 		bankName,
 		chequeDate,
 		chequeNumber,
@@ -1161,7 +1161,7 @@ const createReceipt = async (req, res, next) => {
 		},
 	];
 
-	const createdReceipt = await FeeReceipt.create({
+	const receiptPayload = {
 		student: {
 			name: studentName,
 			studentId,
@@ -1210,7 +1210,12 @@ const createReceipt = async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
-	});
+		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
+	};
+	// eslint-disable-next-line no-unused-expressions
+	paymentMethod !== 'CASH' ? (receiptPayload.status = 'PENDING') : null;
+
+	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
 	res.status(201).json(
 		SuccessResponse(
@@ -1552,7 +1557,7 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { reason = '', status, today = new Date() } = req.body;
 
-	const reasonObj = { reason, status, today };
+	const reasonObj = { reason, status, date: today };
 	const update = { $set: { status } };
 
 	if (status !== 'CANCELLED') {
