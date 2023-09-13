@@ -79,7 +79,9 @@ const getIncomeAggregation = (schoolId, dateObj, current, previous) => [
 	{
 		$match: {
 			'school.schoolId': mongoose.Types.ObjectId(schoolId),
-			status: { $ne: 'CANCELLED' },
+			status: {
+				$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+			},
 		},
 	},
 	{
@@ -225,7 +227,7 @@ exports.GetTransactions = catchAsync(async (req, res, next) => {
 	}
 
 	const matchQuery = {
-		status: { $ne: 'CANCELLED' },
+		status: { $in: ['APPROVED', 'REQUESTED', 'REJECTED'] },
 	};
 
 	if (schoolId) {

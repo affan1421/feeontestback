@@ -238,6 +238,9 @@ feeReceiptSchema.index({
 // index the student.name field as search text
 feeReceiptSchema.index({ 'student.name': 'text' });
 
+// index the status
+feeReceiptSchema.index({ status: 1 });
+
 feeReceiptSchema.plugin(mongoose_delete, {
 	deletedAt: true,
 	deletedBy: true,

@@ -67,7 +67,9 @@ const getIncomeAggregation = (dateObj, school_id, tempAggregation) => [
 	{
 		$match: {
 			'school.schoolId': mongoose.Types.ObjectId(school_id),
-			status: { $ne: 'CANCELLED' },
+			status: {
+				$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+			},
 			issueDate: dateObj,
 		},
 	},
@@ -690,7 +692,11 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	} = req.query;
 	page = +page;
 	limit = +limit;
-	const payload = { status: { $ne: 'CANCELLED' } };
+	const payload = {
+		status: {
+			$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+		},
+	};
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
@@ -1264,7 +1270,9 @@ const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
 	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
 	const payload = {
-		status: { $ne: 'CANCELLED' },
+		status: {
+			$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+		},
 	};
 	// find the active academic year
 
@@ -1726,16 +1734,17 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 		date = null,
 		studentId,
 		paymentMethod,
+		sectionId,
 		searchTerm = null,
-		status = 'PENDING',
+		status = null,
 		page = 0,
 		limit = 10,
 	} = req.body;
 	const { school_id } = req.user;
 
 	const payload = {
+		status: { $in: status ? [status] : ['PENDING', 'RESEND', 'DECLINED'] },
 		'school.schoolId': mongoose.Types.ObjectId(school_id),
-		status,
 	};
 
 	if (studentId) {
@@ -1752,6 +1761,9 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 			{ receiptId: { $regex: `${searchTerm}`, $options: 'i' } },
 		];
 	}
+
+	if (sectionId)
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
 
 	if (date)
 		payload.issueDate = {
@@ -1875,6 +1887,9 @@ const UpdateConfirmations = catchAsync(async (req, res, next) => {
 	const { _id } = req.user;
 
 	if (!status) return next(new ErrorResponse('Status is required', 422));
+
+	if (status === 'APPROVED')
+		return next(new ErrorResponse('Cannot Approve Receipt', 422));
 
 	const match = {
 		_id: id,
