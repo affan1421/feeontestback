@@ -1820,19 +1820,40 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 									paidAmount: '$items.paidAmount',
 								},
 							},
-							root: { $first: '$$ROOT' },
+							root: {
+								$first: '$$ROOT',
+							},
 						},
 					},
 					{
 						$replaceRoot: {
 							newRoot: {
-								$mergeObjects: ['$root', { items: '$items' }],
+								$mergeObjects: [
+									'$root',
+									{
+										items: '$items',
+									},
+								],
 							},
 						},
 					},
 					{
-						$sort: {
-							createdAt: -1,
+						$project: {
+							items: 1,
+							payment: 1,
+							issueDate: 1,
+							receiptId: 1,
+							studentName: '$student.name',
+							className: {
+								$concat: [
+									'$student.class.name',
+									' - ',
+									'$student.section.name',
+								],
+							},
+							status: 1,
+							paidAmount: 1,
+							paymentComments: 1,
 						},
 					},
 				],

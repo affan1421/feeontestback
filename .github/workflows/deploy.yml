@@ -18,19 +18,19 @@ jobs:
   #         SLACK_SIGNING_SECRET: 979c1831c2fb536a156c48de8a359956
   #         SLACK_CHANNEL_ID: C05R922D2F2
   #       timeout-minutes: 1
-  Slack_Notification:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify slack success
-        if: success()
-        id: slack # IMPORTANT: reference this step ID value in future Slack steps
-        env:
-          SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-        uses: voxmedia/github-action-slack-notify-build@v1.1.2
-        with:
-          channel: actions_notification
-          status: STARTING
-          color: 0000FF
+  # Slack_Notification:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Notify slack success
+  #       if: success()
+  #       id: slack # IMPORTANT: reference this step ID value in future Slack steps
+  #       env:
+  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
+  #       uses: voxmedia/github-action-slack-notify-build@v1.1.2
+  #       with:
+  #         channel: actions_notification
+  #         status: STARTING
+  #         color: 0000FF
   Approval:
     runs-on: ubuntu-latest
     steps:
