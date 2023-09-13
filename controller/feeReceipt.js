@@ -1742,9 +1742,13 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 	} = req.body;
 	const { school_id } = req.user;
 
+	if (paymentMethod === 'CASH')
+		return next(new ErrorResponse('Select Online Payment Methods', 422));
+
 	const payload = {
 		status: { $in: status ? [status] : ['PENDING', 'RESEND', 'DECLINED'] },
 		'school.schoolId': mongoose.Types.ObjectId(school_id),
+		paymentMethod: paymentMethod || { $ne: 'CASH' },
 	};
 
 	if (studentId) {
