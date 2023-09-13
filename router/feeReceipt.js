@@ -8,6 +8,7 @@ const {
 	getFeeReceiptById,
 	getDashboardData,
 	receiptByStudentId,
+	UpdateConfirmations,
 	getExcel,
 	GetConfirmations,
 	cancelReceipt,
@@ -16,6 +17,8 @@ const {
 router.get('/dashboard', getDashboardData);
 
 router.post('/confirmations', GetConfirmations);
+
+router.post('/:id/confirmations', UpdateConfirmations);
 
 // Update API to accept username and sectionId for left student as unique value.
 router.post('/student', receiptByStudentId);

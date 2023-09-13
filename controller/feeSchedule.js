@@ -128,7 +128,7 @@ exports.getFeeSchedule = catchAsync(async (req, res, next) => {
 // @access  Private
 exports.update = async (req, res, next) => {
 	const { id } = req.params;
-	let {
+	const {
 		scheduleName,
 		description,
 		schoolId,
@@ -141,11 +141,8 @@ exports.update = async (req, res, next) => {
 	if (!feeSchedule) {
 		return next(new ErrorResponse('Fee Schedule Not Found', 404));
 	}
-	months = months.sort(
-		(a, b) => existMonths.indexOf(a) - existMonths.indexOf(b)
-	);
 
-	const scheduledDates = getScheduleDates(months, day);
+	const scheduledDates = getScheduleDates(months, day, existMonths);
 	try {
 		feeSchedule = await FeeSchedule.findOneAndUpdate(
 			{ _id: id },

@@ -1848,9 +1848,56 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
 });
 
+const UpdateConfirmations = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { status, comment = '', attachments = [] } = req.body;
+	const { _id } = req.user;
+
+	if (!status) return next(new ErrorResponse('Status is required', 422));
+
+	const match = {
+		_id: id,
+	};
+
+	if (status === 'APPROVED' || status === 'DECLINED') {
+		match.status = {
+			$in: ['PENDING', 'RESEND'],
+		};
+	}
+
+	const payload = {
+		$set: {
+			status, // APPROVED, DECLINED, RESEND
+			approvedBy: _id,
+		},
+		$push: {
+			paymentComments: {
+				comment,
+				date: new Date(),
+				status,
+				attachments,
+			},
+		},
+	};
+
+	const updatedReceipt = await FeeReceipt.findOneAndUpdate(
+		{ _id: id },
+		payload
+	);
+
+	if (!updatedReceipt) {
+		return next(new ErrorResponse('Receipt Not Found', 404));
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
+	UpdateConfirmations,
 	createReceipt,
 	GetConfirmations,
 	getFeeReceiptSummary,

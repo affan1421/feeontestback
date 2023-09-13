@@ -177,6 +177,7 @@ const feeReceiptSchema = new Schema(
 		reasons: {
 			type: [
 				{
+					_id: false,
 					reason: String,
 					date: Date,
 					status: {
@@ -190,12 +191,14 @@ const feeReceiptSchema = new Schema(
 		paymentComments: {
 			type: [
 				{
+					_id: false,
 					comment: String,
 					date: Date,
 					status: {
 						type: String,
-						enum: ['RESEND', 'REJECTED'],
+						enum: ['RESEND', 'DECLINED', 'APPROVED'],
 					},
+					attachments: [String],
 				},
 			],
 		},
