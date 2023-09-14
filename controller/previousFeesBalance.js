@@ -256,9 +256,6 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 	if (paymentMode === 'CASH') {
 		const updatePayload = {
 			lastPaidDate: new Date(),
-			$push: {
-				receiptId: receipt_id,
-			},
 		};
 
 		if (dueAmount - paidAmount === 0) {
@@ -279,6 +276,17 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 					},
 				}
 			)
+		);
+	} else {
+		// just update the receipt id
+		const updatePayload = {
+			$push: {
+				receiptIds: receipt_id,
+			},
+		};
+
+		updateBalancePromise.push(
+			PreviousBalance.updateOne({ _id: prevBalId }, updatePayload)
 		);
 	}
 

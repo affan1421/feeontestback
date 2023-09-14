@@ -24,6 +24,7 @@ exports.create = async (req, res, next) => {
 		studentList = [],
 		categoryId,
 		totalAmount,
+		academicYearId,
 	} = req.body;
 	let sectionList = null;
 
@@ -34,7 +35,8 @@ exports.create = async (req, res, next) => {
 		!totalAmount ||
 		!schoolId ||
 		!categoryId ||
-		!studentList
+		!studentList ||
+		!academicYearId
 	) {
 		return next(new ErrorResponse('Please Provide All Required Fields', 422));
 	}
@@ -92,7 +94,7 @@ exports.create = async (req, res, next) => {
 			studentList,
 			feeStructure._id,
 			schoolId,
-			feeStructure.academicYearId,
+			academicYearId,
 			categoryId,
 			true
 		);

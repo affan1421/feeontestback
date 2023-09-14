@@ -462,6 +462,82 @@ const getDateRange = (dateRange, startDate, endDate) => {
 	}
 };
 
+const handleError = (next, message, status = 422) =>
+	next(new ErrorResponse(message, status));
+
+const updateInstallment = async (installmentId, paidAmount) => {
+	const installment = await FeeInstallment.findOne({
+		_id: installmentId,
+	}).lean();
+
+	if (!installment) {
+		return null;
+	}
+
+	const {
+		paidAmount: insPaidAmount,
+		netAmount,
+		status: insStatus,
+	} = installment;
+	const dueAmount = netAmount - insPaidAmount;
+
+	if (paidAmount > dueAmount) {
+		return null;
+	}
+
+	const newStatus =
+		// eslint-disable-next-line no-nested-ternary
+		dueAmount - paidAmount === 0
+			? insStatus === 'Upcoming'
+				? 'Paid'
+				: 'Late'
+			: insStatus;
+
+	return {
+		filter: { _id: installmentId },
+		update: {
+			$set: {
+				status: newStatus,
+				paidAmount: insPaidAmount + paidAmount,
+				paidDate: new Date(),
+			},
+		},
+	};
+};
+
+const updatePreviousBalance = async (id, paidAmount) => {
+	const prevBalance = await PreviousBalance.findOne({ receiptIds: id }).lean();
+
+	if (!prevBalance) {
+		return null;
+	}
+
+	const {
+		paidAmount: prevPaidAmount,
+		dueAmount,
+		status: prevStatus,
+		_id: prevBalanceId,
+	} = prevBalance;
+
+	if (paidAmount > dueAmount) {
+		return null;
+	}
+
+	const newStatus = dueAmount - paidAmount === 0 ? 'Paid' : prevStatus;
+
+	return {
+		filter: { _id: prevBalanceId },
+		update: {
+			$set: {
+				status: newStatus,
+				paidAmount: prevPaidAmount + paidAmount,
+				dueAmount: dueAmount - paidAmount,
+				lastPaidDate: new Date(),
+			},
+		},
+	};
+};
+
 // Filter BY 'student.class.classId' and 'payment.method
 const getFeeReceipt = catchAsync(async (req, res, next) => {
 	let {
@@ -1878,7 +1954,12 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 		},
 	];
 
-	const [{ data, count }] = await FeeReceipt.aggregate(aggregate);
+	const receipts = await FeeReceipt.aggregate(aggregate);
+
+	if (!receipts.length)
+		return next(new ErrorResponse('No Receipts Found', 404));
+
+	const [{ data, count }] = receipts;
 
 	res
 		.status(200)
@@ -1890,33 +1971,66 @@ const UpdateConfirmations = catchAsync(async (req, res, next) => {
 	const { status, comment = '', attachments = [] } = req.body;
 	const { _id } = req.user;
 
-	if (!status) return next(new ErrorResponse('Status is required', 422));
+	if (!status) {
+		return handleError(next, 'Status is required');
+	}
 
-	if (status === 'APPROVED')
-		return next(new ErrorResponse('Cannot Approve Receipt', 422));
-
-	const match = {
-		_id: id,
-	};
+	const match = { _id: id };
 
 	if (status === 'APPROVED' || status === 'DECLINED') {
-		match.status = {
-			$in: ['PENDING', 'RESEND'],
-		};
+		match.status = { $in: ['PENDING', 'RESEND'] };
+	}
+
+	const bulkOps = [];
+
+	if (status === 'APPROVED') {
+		const receipt = await FeeReceipt.findById(id).lean();
+
+		if (!receipt) {
+			return handleError(next, 'Receipt Not Found', 404);
+		}
+
+		const { items, receiptType } = receipt;
+
+		if (receiptType === 'ACADEMIC') {
+			for (const item of items) {
+				const { installmentId, paidAmount } = item;
+				const update = await updateInstallment(installmentId, paidAmount);
+
+				if (!update) {
+					return handleError(
+						next,
+						`Cannot Approve Receipt. Paid Amount is more than Due Amount.`,
+						422
+					);
+				}
+
+				bulkOps.push({ updateOne: update });
+			}
+
+			await FeeInstallment.bulkWrite(bulkOps);
+		} else if (receiptType === 'PREVIOUS_BALANCE') {
+			const { paidAmount } = items[0];
+			const update = await updatePreviousBalance(id, paidAmount);
+
+			if (!update) {
+				return handleError(
+					next,
+					'Cannot Approve Receipt. Paid Amount is more than Due Amount',
+					422
+				);
+			}
+
+			const { filter, update: updateObj } = update;
+
+			await PreviousBalance.findOneAndUpdate(filter, updateObj);
+		}
 	}
 
 	const payload = {
-		$set: {
-			status, // APPROVED, DECLINED, RESEND
-			approvedBy: _id,
-		},
+		$set: { status, approvedBy: _id },
 		$push: {
-			paymentComments: {
-				comment,
-				date: new Date(),
-				status,
-				attachments,
-			},
+			paymentComments: { comment, date: new Date(), status, attachments },
 		},
 	};
 
@@ -1926,7 +2040,7 @@ const UpdateConfirmations = catchAsync(async (req, res, next) => {
 	);
 
 	if (!updatedReceipt) {
-		return next(new ErrorResponse('Receipt Not Found', 404));
+		return handleError(next, 'Receipt Not Found', 404);
 	}
 
 	res
