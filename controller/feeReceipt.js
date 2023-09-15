@@ -1956,7 +1956,7 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 
 	const receipts = await FeeReceipt.aggregate(aggregate);
 
-	if (!receipts.length)
+	if (!receipts || !receipts.length)
 		return next(new ErrorResponse('No Receipts Found', 404));
 
 	const [{ data, count }] = receipts;
