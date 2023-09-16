@@ -1824,17 +1824,12 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 	const payload = {
 		status: { $in: status ? [status] : ['PENDING', 'RESEND', 'DECLINED'] },
 		'school.schoolId': mongoose.Types.ObjectId(school_id),
-		paymentMethod: paymentMethod || { $ne: 'CASH' },
+		'payment.method': paymentMethod || { $ne: 'CASH' },
 	};
 
 	if (studentId) {
 		payload['student.studentId'] = mongoose.Types.ObjectId(studentId);
 	}
-
-	if (paymentMethod) {
-		payload['payment.method'] = paymentMethod;
-	}
-
 	if (searchTerm) {
 		payload.$or = [
 			{ 'student.name': { $regex: `${searchTerm}`, $options: 'i' } },
