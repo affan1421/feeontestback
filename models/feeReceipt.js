@@ -1,6 +1,18 @@
 const { Schema, model } = require('mongoose');
 const mongoose_delete = require('mongoose-delete');
 
+// PENDING/DECLINED/RESEND is for ONLINE PAYMENT APPROVAL
+// REQUESTED/REJECTED/CANCELLED is for CANCELLATION
+const status = [
+	'REQUESTED',
+	'CANCELLED',
+	'REJECTED',
+	'PENDING',
+	'APPROVED',
+	'DECLINED',
+	'RESEND',
+];
+
 const feeReceiptSchema = new Schema(
 	{
 		student: {
@@ -156,21 +168,37 @@ const feeReceiptSchema = new Schema(
 			],
 			default: [],
 		},
-		// cancellation status
+		// cancellation and approval status
 		status: {
 			type: String,
-			enum: ['REQUESTED', 'CANCELLED', 'REJECTED'],
+			enum: status,
 		},
 		// cancellation reason
 		reasons: {
 			type: [
 				{
+					_id: false,
 					reason: String,
 					date: Date,
 					status: {
 						type: String,
 						enum: ['REQUESTED', 'REJECTED'],
 					},
+				},
+			],
+		},
+		// online payment confirmation comments
+		paymentComments: {
+			type: [
+				{
+					_id: false,
+					comment: String,
+					date: Date,
+					status: {
+						type: String,
+						enum: ['RESEND', 'DECLINED', 'APPROVED'],
+					},
+					attachments: [String],
 				},
 			],
 		},
@@ -190,6 +218,10 @@ const feeReceiptSchema = new Schema(
 			type: Schema.Types.ObjectId,
 			required: [true, 'createdBy is required'],
 		},
+		approvedBy: {
+			type: Schema.Types.ObjectId,
+			required: false,
+		},
 	},
 	{
 		timestamps: true,
@@ -205,6 +237,9 @@ feeReceiptSchema.index({
 
 // index the student.name field as search text
 feeReceiptSchema.index({ 'student.name': 'text' });
+
+// index the status
+feeReceiptSchema.index({ status: 1 });
 
 feeReceiptSchema.plugin(mongoose_delete, {
 	deletedAt: true,

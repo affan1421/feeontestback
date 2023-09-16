@@ -10,7 +10,7 @@ const {
 	totalExpenses,
 	totalExpenseFilter,
 	getExcel,
-	getDashboardData,
+	getNewDashboardData,
 	expensesList,
 } = require('../controller/expense');
 
@@ -22,7 +22,7 @@ router.post('/totalExpenseFilter', totalExpenseFilter);
 router.post('/expenseList', expensesList);
 
 // Expense Dashboard
-router.get('/dashboard', getDashboardData);
+router.get('/dashboard', getNewDashboardData);
 
 router.get('/:id', read).put('/:id', update).delete('/:id', expenseDelete);
 
