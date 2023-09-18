@@ -1325,6 +1325,7 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 		if (item.installmentId) {
 			const ins = await FeeInstallment.findOne({
 				_id: item.installmentId,
+				deleted: false,
 			});
 			item.date = ins.date;
 		}
