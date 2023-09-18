@@ -1317,29 +1317,24 @@ const createReceipt = async (req, res, next) => {
 
 const getFeeReceiptById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feeReceipt = await FeeReceipt.findById(id).lean();
-	const feeIds = feeReceipt.items.map(item => item.feeTypeId);
-	const feetype = await FeeType.find(
-		{ _id: { $in: feeIds } },
-		{ feeType: 1 }
-	).lean();
-	const feeTypeMap = feetype.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
+	const feeReceipt = await FeeReceipt.findById(id)
+		.populate('items.feeTypeId', 'feeType')
+		.lean();
 
-	const data = {
-		...JSON.parse(JSON.stringify(feeReceipt)),
-		items: feeReceipt.items.map(item => ({
-			...item,
-			feeTypeId: feeTypeMap[item.feeTypeId],
-		})),
-	};
+	for (const item of feeReceipt.items) {
+		if (item.installmentId) {
+			const ins = await FeeInstallment.findOne({
+				_id: item.installmentId,
+			});
+			item.date = ins.date;
+		}
+	}
+
 	if (!feeReceipt) {
 		return next(new ErrorResponse('Fee Receipt Not Found', 404));
 	}
 
-	res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(feeReceipt, 1, 'Fetched Successfully'));
 });
 
 const getExcel = catchAsync(async (req, res, next) => {
