@@ -1801,6 +1801,8 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
  * @description Get all the pending requests for the given date, studentId, paymentMethod, receiptStatus
  * @returns {Array} // Array of objects
  */
+
+const statusList = ['PENDING', 'RESEND', 'DECLINED', 'APPROVED'];
 const GetConfirmations = catchAsync(async (req, res, next) => {
 	const {
 		date = null,
@@ -1818,7 +1820,9 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
 		return next(new ErrorResponse('Select Online Payment Methods', 422));
 
 	const payload = {
-		status: { $in: status ? [status] : ['PENDING', 'RESEND', 'DECLINED'] },
+		status: {
+			$in: status ? [status] : statusList,
+		},
 		'school.schoolId': mongoose.Types.ObjectId(school_id),
 		'payment.method': paymentMethod || { $ne: 'CASH' },
 	};
