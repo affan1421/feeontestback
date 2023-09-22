@@ -90,8 +90,15 @@ async function changeStatus(req, res, next) {
 		// Update transfer status
 		transfer.status = status;
 		await transfer.save();
-
-		res.json({ message: 'Transfer certificate status updated successfully' });
+		res
+			.status(200)
+			.json(
+				SuccessResponse(
+					null,
+					1,
+					'Transfer certificate status updated successfully'
+				)
+			);
 	} catch (error) {
 		console.error('Error on update status:', error);
 		console.log('error', error.message);
