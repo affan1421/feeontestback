@@ -52,13 +52,7 @@ async function getUsers(req, res, next) {
 		const result = await studentsCollection.find(query).toArray();
 		res
 			.status(200)
-			.json(
-				SuccessResponse(
-					result,
-					1,
-					'Student transfer record created successfully'
-				)
-			);
+			.json(SuccessResponse(result, 1, 'Student details fetch successfully'));
 	} catch (error) {
 		console.error('Error creating student transfer record:', error);
 		console.log('error', error.message);
