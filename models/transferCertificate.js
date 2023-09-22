@@ -35,3 +35,4 @@ const studentTransferSchema = new Schema(
 const StudentTransfer = model("StudentTransfer", studentTransferSchema);
 
 module.exports = StudentTransfer;
+
