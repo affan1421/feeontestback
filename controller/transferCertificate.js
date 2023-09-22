@@ -9,7 +9,7 @@ async function createStudentTransfer(req, res, next) {
   try {
     const { studentId, classId, tcType, reason, transferringSchool, status } =
       req.body;
-
+    console.log(req.body, "bodyy");
     const newStudentTransfer = new StudentTransfer({
       studentId,
       classId,

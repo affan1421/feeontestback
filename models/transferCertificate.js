@@ -8,7 +8,7 @@ const studentTransferSchema = new Schema(
       ref: "School",
       required: [true, "studentId is required"],
     },
-    class: {
+    classId: {
       type: Schema.Types.ObjectId,
       ref: "Class",
       required: [true, "class is required"],
