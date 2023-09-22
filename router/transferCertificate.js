@@ -1,7 +1,10 @@
-const router = require("express").Router();
-const { createStudentTransfer } = require("../controller/transferCertificate");
+const router = require('express').Router();
+const {
+	createStudentTransfer,
+	getUsers,
+} = require('../controller/transferCertificate');
 
 // create new tranfer certificate
-router.post("/", createStudentTransfer);
-
+router.post('/', createStudentTransfer);
+router.get('/users', getUsers);
 module.exports = router;
