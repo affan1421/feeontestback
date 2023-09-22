@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-
+const AWS = require("aws-sdk");
+const s3 = new AWS.S3();
 const studentsCollection = mongoose.connection.db.collection("students");
 const StudentTransfer = require("../models/transferCertificate");
 const ErrorResponse = require("../utils/errorResponse");
@@ -114,8 +115,47 @@ async function changeStatus(req, res, next) {
   }
 }
 
+async function viewAttachments(req, res) {
+  const studentTransferId = req.params.studentTransferId;
+
+  try {
+    const studentTransfer = await StudentTransfer.findById(studentTransferId);
+
+    if (!studentTransfer) {
+      return res.status(404).send("StudentTransfer not found");
+    }
+
+    const attachmentUrls = studentTransfer.attachments;
+
+    if (!attachmentUrls || attachmentUrls.length === 0) {
+      return res.status(404).send("No attachments found");
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+
+    for (const attachmentUrl of attachmentUrls) {
+      try {
+        const s3Response = await s3
+          .getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl })
+          .promise();
+        res.write(s3Response.Body);
+      } catch (s3Error) {
+        console.error("Error fetching attachment from S3:", s3Error);
+        res.status(404).send(`Attachment not found in S3: ${attachmentUrl}`);
+        return;
+      }
+    }
+
+    res.end();
+  } catch (error) {
+    console.error("Error fetching attachment:", error);
+    res.status(500).send("Internal Server Error");
+  }
+}
+
 module.exports = {
   createStudentTransfer,
   getUsers,
   changeStatus,
+  viewAttachments,
 };
