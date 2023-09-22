@@ -116,51 +116,51 @@ async function changeStatus(req, res, next) {
 }
 
 async function getStudentIdByName(name) {
-  const regexName = new RegExp(name, "i");
-  const student = await studentsCollection.find({ name: regexName });
-  if (student.length === 0) {
-    return null;
-  }
-  return student;
+	const regexName = new RegExp(name, 'i');
+	const student = await studentsCollection.find({ name: regexName }).toArray();
+	if (student.length === 0) {
+		return null;
+	}
+	return student;
 }
 
 async function getTc(req, res, next) {
-  try {
-    const { searchQuery, classes, tcType, tcStatus } = req.query;
-    const query = {};
-    let stdIds = null;
-    if (searchQuery) {
-      stdIds = await getStudentIdByName(searchQuery);
-    }
-    if (stdIds) {
-      query.studentId = { $in: stdIds };
-    }
-    if (classes) {
-      query.classId = mongoose.Types.ObjectId(classes);
-    }
+	try {
+		const { searchQuery, classes, tcType, tcStatus } = req.query;
+		const query = {};
+		let stdIds = null;
+		if (searchQuery) {
+			stdIds = await getStudentIdByName(searchQuery);
+		}
+		if (stdIds) {
+			query.studentId = { $in: stdIds };
+		}
+		if (classes) {
+			query.classId = mongoose.Types.ObjectId(classes);
+		}
 
-    if (tcType) {
-      query.tcType = tcType;
-    }
+		if (tcType) {
+			query.tcType = tcType;
+		}
 
-    if (tcStatus) {
-      query.status = tcStatus;
-    }
+		if (tcStatus) {
+			query.status = tcStatus;
+		}
 
-    const result = await StudentTransfer.find(query).toArray();
+		const result = await StudentTransfer.find(query).exec();
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          result,
-          1,
-          "Transfer certificate status updated successfully"
-        )
-      );
-  } catch (error) {
-    return next(new ErrorResponse("Something Went Wrong", 500));
-  }
+		res
+			.status(200)
+			.json(
+				SuccessResponse(
+					result,
+					1,
+					'Transfer certificate status updated successfully'
+				)
+			);
+	} catch (error) {
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
 }
 
 async function getTcDetails(req, res, next) {
