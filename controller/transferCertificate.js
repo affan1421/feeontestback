@@ -36,7 +36,7 @@ async function createStudentTransfer(req, res, next) {
   }
 }
 
-async function getUsers(req, res) {
+async function getUsers(req, res, next) {
   try {
     const { searchQuery, classes } = req.query;
     const regexName = new RegExp(searchQuery, "i");
@@ -50,11 +50,13 @@ async function getUsers(req, res) {
       query.class = mongoose.Types.ObjectId(classes);
     }
     const result = await studentsCollection.find(query).toArray();
-    return res.status(200).json({ result });
+    res
+      .status(200)
+      .json(SuccessResponse(result, 1, "Student details fetch successfully"));
   } catch (error) {
-    return res
-      .status(500)
-      .json({ error: "An error occurred while processing your request." });
+    console.error("Error creating student transfer record:", error);
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
   }
 }
 
