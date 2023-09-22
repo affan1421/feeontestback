@@ -15,7 +15,7 @@ const studentTransferSchema = new Schema(
     },
     tcType: {
       type: String,
-      enum: ["ALUMINII-TC", "AVAIL-TC", "BLOCKED"],
+      enum: ["ALUMINI-TC", "AVAIL-TC", "BLOCKED"],
       required: [true, "Type is required"],
     },
     reason: String,
@@ -24,6 +24,9 @@ const studentTransferSchema = new Schema(
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
       default: "PENDING",
+    },
+    attachments: {
+      type: [String],
     },
   },
   { timestamps: true }
