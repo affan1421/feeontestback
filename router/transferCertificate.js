@@ -1,7 +1,7 @@
-const router = require('express').Router();
+const router = require("express").Router();
 const {
 	createStudentTransfer,
-	getUsers,
+	getStudents,
 	changeStatus,
 	viewAttachments,
 	getTc,
@@ -13,10 +13,10 @@ const {
 router.get('/attachments/:studentTransferId', viewAttachments);
 
 // create new tranfer certificate
-router.post('/', createStudentTransfer);
-router.get('/users', getUsers);
-router.put('/changeStatus', changeStatus);
-router.get('/tcList', getTc);
-router.get('/details', getTcDetails);
+router.post("/", createStudentTransfer);
+router.get("/students", getStudents);
+router.put("/changeStatus", changeStatus);
+router.get("/tcList", getTc);
+router.get("/details", getTcDetails);
 router.get('/classes', getClasses);
 module.exports = router;
