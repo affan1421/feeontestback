@@ -1,13 +1,13 @@
 const mongoose = require("mongoose");
-const AWS = require('aws-sdk');
+const AWS = require("aws-sdk");
 
-const classCollection = mongoose.connection.db.collection('classes');
+const studentsCollection = mongoose.connection.db.collection("students");
+const sectionsCollection = mongoose.connection.db.collection("sections");
 
 const s3 = new AWS.S3();
-const sectionsCollection = mongoose.connection.db.collection('sections');
-const StudentTransfer = require('../models/transferCertificate');
-const ErrorResponse = require('../utils/errorResponse');
-const SuccessResponse = require('../utils/successResponse');
+const StudentTransfer = require("../models/transferCertificate");
+const ErrorResponse = require("../utils/errorResponse");
+const SuccessResponse = require("../utils/successResponse");
 
 async function createStudentTransfer(req, res, next) {
   try {
@@ -53,7 +53,7 @@ async function getStudents(req, res, next) {
     const { searchQuery, classId, page, limit } = req.query;
     const regexName = new RegExp(searchQuery, "i");
     const query = {
-      deleted: false
+      deleted: false,
     };
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10; // we put it 10 as default
@@ -165,12 +165,12 @@ async function changeStatus(req, res, next) {
 }
 
 async function getStudentIdByName(name) {
-	const regexName = new RegExp(name, 'i');
-	const student = await studentsCollection.find({ name: regexName }).toArray();
-	if (student.length === 0) {
-		return null;
-	}
-	return student;
+  const regexName = new RegExp(name, "i");
+  const student = await studentsCollection.find({ name: regexName }).toArray();
+  if (student.length === 0) {
+    return null;
+  }
+  return student;
 }
 
 async function getTc(req, res, next) {
@@ -196,7 +196,7 @@ async function getTc(req, res, next) {
       query.status = tcStatus;
     }
 
-		const result = await StudentTransfer.find(query).exec();
+    const result = await StudentTransfer.find(query).exec();
 
     res
       .status(200)
@@ -213,8 +213,8 @@ async function getTc(req, res, next) {
 }
 
 async function getTcDetails(req, res, next) {
-	try {
-		const tcsCount = await StudentTransfer.countDocuments();
+  try {
+    const tcsCount = await StudentTransfer.countDocuments();
 
     const tsData = await StudentTransfer.aggregate([
       {
@@ -338,129 +338,129 @@ async function getTcDetails(req, res, next) {
             },
           ],
 
-					reasonsCount: [
-						{
-							$group: {
-								_id: '$reason',
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								count: { $sum: 1 },
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								count: 1,
-							},
-						},
-					],
-				},
-			},
-		]);
+          reasonsCount: [
+            {
+              $group: {
+                _id: "$reason",
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                count: 1,
+              },
+            },
+          ],
+        },
+      },
+    ]);
 
-		const countsByType = tsData[0].countsByType[0];
-		const reasonsData = tsData[0].reasons[0];
-		const reasonCount = tsData[0].reasonsCount[0].count;
-		const classData = tsData[0].class[0];
-		const classCount = tsData[0].classCount[0].count;
+    const countsByType = tsData[0].countsByType[0];
+    const reasonsData = tsData[0].reasons[0];
+    const reasonCount = tsData[0].reasonsCount[0].count;
+    const classData = tsData[0].class[0];
+    const classCount = tsData[0].classCount[0].count;
 
-		res.status(200).json(
-			SuccessResponse(
-				{
-					countsByType,
-					reasonsData,
-					classData,
-					tcsCount,
-					classCount,
-					reasonCount,
-				},
-				1,
-				'Student transfer record send successfully'
-			)
-		);
-	} catch (error) {
-		console.error('Error creating student transfer record:', error);
-		console.log('error', error.message);
-		return next(new ErrorResponse('Something Went Wrong', 500));
-	}
+    res.status(200).json(
+      SuccessResponse(
+        {
+          countsByType,
+          reasonsData,
+          classData,
+          tcsCount,
+          classCount,
+          reasonCount,
+        },
+        1,
+        "Student transfer record send successfully"
+      )
+    );
+  } catch (error) {
+    console.error("Error creating student transfer record:", error);
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
 }
 
 async function viewAttachments(req, res) {
-	const { studentTransferId } = req.params;
+  const { studentTransferId } = req.params;
 
-	try {
-		const studentTransfer = await StudentTransfer.findById(studentTransferId);
+  try {
+    const studentTransfer = await StudentTransfer.findById(studentTransferId);
 
-		if (!studentTransfer) {
-			return res.status(404).send('StudentTransfer not found');
-		}
+    if (!studentTransfer) {
+      return res.status(404).send("StudentTransfer not found");
+    }
 
-		const attachmentUrls = studentTransfer.attachments;
+    const attachmentUrls = studentTransfer.attachments;
 
-		if (!attachmentUrls || attachmentUrls.length === 0) {
-			return res.status(404).send('No attachments found');
-		}
+    if (!attachmentUrls || attachmentUrls.length === 0) {
+      return res.status(404).send("No attachments found");
+    }
 
-		res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader("Content-Type", "application/pdf");
 
-		for (const attachmentUrl of attachmentUrls) {
-			try {
-				const s3Response = await s3
-					.getObject({ Bucket: 'your-s3-bucket-name', Key: attachmentUrl })
-					.promise();
-				res.write(s3Response.Body);
-			} catch (s3Error) {
-				console.error('Error fetching attachment from S3:', s3Error);
-				res.status(404).send(`Attachment not found in S3: ${attachmentUrl}`);
-				return;
-			}
-		}
+    for (const attachmentUrl of attachmentUrls) {
+      try {
+        const s3Response = await s3
+          .getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl })
+          .promise();
+        res.write(s3Response.Body);
+      } catch (s3Error) {
+        console.error("Error fetching attachment from S3:", s3Error);
+        res.status(404).send(`Attachment not found in S3: ${attachmentUrl}`);
+        return;
+      }
+    }
 
-		res.end();
-	} catch (error) {
-		console.error('Error fetching attachment:', error);
-		res.status(500).send('Internal Server Error');
-	}
+    res.end();
+  } catch (error) {
+    console.error("Error fetching attachment:", error);
+    res.status(500).send("Internal Server Error");
+  }
 }
 
 async function getClasses(req, res, next) {
-	try {
-		const classList = await sectionsCollection
-			.aggregate([
-				{
-					$project: {
-						class_id: 1,
-						className: 1,
-					},
-				},
-			])
-			.toArray();
+  try {
+    const classList = await sectionsCollection
+      .aggregate([
+        {
+          $project: {
+            class_id: 1,
+            className: 1,
+          },
+        },
+      ])
+      .toArray();
 
-		if (classList.length === 0) {
-			return res.status(404).json({ message: 'No classes found' });
-		}
+    if (classList.length === 0) {
+      return res.status(404).json({ message: "No classes found" });
+    }
 
-		res
-			.status(200)
-			.json(
-				SuccessResponse(classList, 1, 'Classes details fetch successfully')
-			);
-	} catch (error) {
-		console.error('Error fetching classes list:', error);
-		console.log('error', error.message);
-		return next(new ErrorResponse('Something Went Wrong', 500));
-	}
+    res
+      .status(200)
+      .json(
+        SuccessResponse(classList, 1, "Classes details fetch successfully")
+      );
+  } catch (error) {
+    console.error("Error fetching classes list:", error);
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
 }
 
 module.exports = {
   createStudentTransfer,
   getStudents,
   changeStatus,
-	viewAttachments,
+  viewAttachments,
   getTc,
-	getTcDetails,
-	getClasses,
+  getTcDetails,
+  getClasses,
 };
