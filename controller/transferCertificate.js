@@ -2,8 +2,10 @@ const mongoose = require("mongoose");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const StudentTransfer = require("../models/transferCertificate");
+const ErrorResponse = require("../utils/errorResponse");
+const SuccessResponse = require("../utils/successResponse");
 
-async function createStudentTransfer(req, res) {
+async function createStudentTransfer(req, res, next) {
   try {
     const { studentId, classId, tcType, reason, transferringSchool, status } =
       req.body;
