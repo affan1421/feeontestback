@@ -62,7 +62,38 @@ async function getUsers(req, res, next) {
 			.status(200)
 			.json(SuccessResponse(result, 1, 'Student details fetch successfully'));
 	} catch (error) {
-		console.error('Error creating student transfer record:', error);
+		console.error('Error Student details fetch:', error);
+		console.log('error', error.message);
+		return next(new ErrorResponse('Something Went Wrong', 500));
+	}
+}
+
+async function changeStatus(req, res, next) {
+	try {
+		const transferId = req.parms.id;
+		const { status } = req.query;
+
+		if (!transferId || !status) {
+			return res
+				.status(400)
+				.json({ message: 'Transfer Id and status are required' });
+		}
+
+		const transfer = await StudentTransfer.findById(transferId);
+
+		if (!transfer) {
+			return res
+				.status(404)
+				.json({ message: 'Transfer certificate not found' });
+		}
+
+		// Update transfer status
+		transfer.status = status;
+		await transfer.save();
+
+		res.json({ message: 'Transfer certificate status updated successfully' });
+	} catch (error) {
+		console.error('Error on update status:', error);
 		console.log('error', error.message);
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
@@ -71,4 +102,5 @@ async function getUsers(req, res, next) {
 module.exports = {
 	createStudentTransfer,
 	getUsers,
+	changeStatus,
 };
