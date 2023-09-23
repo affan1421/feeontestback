@@ -287,172 +287,160 @@ async function getTcDetails(req, res, next) {
 	try {
 		const tcsCount = await StudentTransfer.countDocuments();
 
-		const tsData = await StudentTransfer.aggregate([
-			{
-				$facet: {
-					countsByType: [
-						{
-							$group: {
-								_id: '$tcType',
-								total: { $sum: 1 },
-								pending: {
-									$sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] },
-								},
-								approved: {
-									$sum: { $cond: [{ $eq: ['$status', 'APPROVED'] }, 1, 0] },
-								},
-								rejected: {
-									$sum: { $cond: [{ $eq: ['$status', 'REJECTED'] }, 1, 0] },
-								},
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								typeResult: {
-									$push: {
-										tcType: '$_id',
-										total: '$total',
-										pending: '$pending',
-										approved: '$approved',
-										rejected: '$rejected',
-									},
-								},
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								typeResult: 1,
-							},
-						},
-					],
-					reasons: [
-						{
-							$group: {
-								_id: '$reason',
-								count: { $sum: 1 },
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								reasonResult: {
-									$push: {
-										reason: '$_id',
-										count: '$count',
-									},
-								},
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								reasonResult: 1,
-							},
-						},
-					],
-					class: [
-						{
-							$lookup: {
-								from: 'classes',
-								localField: 'classId',
-								foreignField: '_id',
-								as: 'associatedClasses',
-							},
-						},
-						{
-							$unwind: '$associatedClasses',
-						},
-						{
-							$group: {
-								_id: '$associatedClasses.name',
-								count: { $sum: 1 },
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								classResult: {
-									$addToSet: {
-										className: '$_id',
-										count: '$count',
-									},
-								},
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								classResult: 1,
-							},
-						},
-					],
+    const tsData = await StudentTransfer.aggregate([
+      {
+        $facet: {
+          //get different types of tc's and its count
+          countsByType: [
+            {
+              $group: {
+                _id: "$tcType",
+                total: { $sum: 1 },
+                pending: {
+                  $sum: { $cond: [{ $eq: ["$status", "PENDING"] }, 1, 0] },
+                },
+                approved: {
+                  $sum: { $cond: [{ $eq: ["$status", "APPROVED"] }, 1, 0] },
+                },
+                rejected: {
+                  $sum: { $cond: [{ $eq: ["$status", "REJECTED"] }, 1, 0] },
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                typeResult: {
+                  $push: {
+                    tcType: "$_id",
+                    total: "$total",
+                    pending: "$pending",
+                    approved: "$approved",
+                    rejected: "$rejected",
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                typeResult: 1,
+              },
+            },
+          ],
+          //get different types of tc's and its count
+          reasons: [
+            {
+              $group: {
+                _id: "$reason",
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                reasonResult: {
+                  $push: {
+                    reason: "$_id",
+                    count: "$count",
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                reasonResult: 1,
+              },
+            },
+          ],
+         //get different types of tc's and its count
+          class: [
+            {
+              $lookup: {
+                from: "classes",
+                localField: "classId",
+                foreignField: "_id",
+                as: "associatedClasses",
+              },
+            },
+            {
+              $unwind: "$associatedClasses",
+            },
+            {
+              $group: {
+                _id: "$associatedClasses.name",
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                classResult: {
+                  $addToSet: {
+                    className: "$_id",
+                    count: "$count",
+                  },
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                classResult: 1,
+              },
+            },
+          ],
+          //unique class count
+          classCount: [
+            {
+              $group: {
+                _id: "$classId",
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                count: 1,
+              },
+            },
+          ],
 
-					classCount: [
-						{
-							$group: {
-								_id: '$classId',
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								count: { $sum: 1 },
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								count: 1,
-							},
-						},
-					],
+          //unique reason count
+          reasonsCount: [
+            {
+              $group: {
+                _id: "$reason",
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                count: 1,
+              },
+            },
+          ],
+        },
+      },
+    ]);
 
-					reasonsCount: [
-						{
-							$group: {
-								_id: '$reason',
-							},
-						},
-						{
-							$group: {
-								_id: null,
-								count: { $sum: 1 },
-							},
-						},
-						{
-							$project: {
-								_id: 0,
-								count: 1,
-							},
-						},
-					],
-				},
-			},
-		]);
-
-		const reasonSelectorList = [
-			{ name: 'Relocation', value: 'relocation' },
-			{ name: 'Different Branch', value: 'different_branch' },
-			{ name: 'Complete of studies', value: 'complete_of_studies' },
-			{ name: 'Finantial Constranis', value: 'finantial_constrains' },
-			{ name: "Sibling's Schooling", value: 'sibilings_schooling' },
-			{ name: "Parent's Job Transfer", value: 'parents_job_transfer' },
-		];
-		const reasonMatchingValue = tsData[0].reasons[0];
-
-		// Find the corresponding name based on the value
-		const matchingReason = reasonSelectorList.find(
-			item => item.value === reasonMatchingValue
-		);
-
-		// Access the name if a match is found
-		const reasonsData = matchingReason ? matchingReason.name : null;
-		const countsByType = tsData[0].countsByType[0];
-		const reasonCount = tsData[0].reasonsCount[0].count;
-		const classData = tsData[0].class[0];
-		const classCount = tsData[0].classCount[0].count;
+    const countsByType = tsData[0].countsByType[0];
+    const reasonsData = tsData[0].reasons[0];
+    const reasonCount = tsData[0].reasonsCount[0].count;
+    const classData = tsData[0].class[0];
+    const classCount = tsData[0].classCount[0].count;
 
 		res.status(200).json(
 			SuccessResponse(
