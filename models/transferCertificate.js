@@ -8,6 +8,11 @@ const studentTransferSchema = new Schema(
       ref: "School",
       required: [true, "studentId is required"],
     },
+    classId: {
+      type: Schema.Types.ObjectId,
+      ref: "Class",
+      required: [true, "classId is required"],
+    },
     tcType: {
       type: String,
       enum: ["ALUMINI-TC", "AVAIL-TC", "BLOCKED"],
@@ -30,4 +35,3 @@ const studentTransferSchema = new Schema(
 const StudentTransfer = model("StudentTransfer", studentTransferSchema);
 
 module.exports = StudentTransfer;
-
