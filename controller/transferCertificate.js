@@ -457,7 +457,7 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, classId, page, limit } = req.query;
+    const { searchQuery, tcType, page, limit } = req.query;
     const regexName = new RegExp(searchQuery, "i");
     const query = {};
     const pageNumber = parseInt(page) || 1;
@@ -469,13 +469,24 @@ async function getTcStudentsDetails(req, res, next) {
       query.name = regexName;
     }
 
-    if (classId) {
-      query.class = mongoose.Types.ObjectId(classId);
+    if (tcType) {
+      query.tcType = tcType;
     }
 
     const result = await StudentTransfer.aggregate([
       {
         $match: query,
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentslist",
+        },
+      },
+      {
+        $addFields: { studentslist: { $arrayElemAt: ["$studentslist", 0] } },
       },
       {
         $lookup: {
