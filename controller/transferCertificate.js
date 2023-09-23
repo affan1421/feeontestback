@@ -6,7 +6,9 @@ const sectionsCollection = mongoose.connection.db.collection("sections");
 
 const s3 = new AWS.S3();
 const StudentTransfer = require("../models/transferCertificate");
+const FeeStructure = require("../models/feeInstallment");
 const ErrorResponse = require("../utils/errorResponse");
+
 const SuccessResponse = require("../utils/successResponse");
 
 async function createStudentTransfer(req, res, next) {
@@ -20,7 +22,33 @@ async function createStudentTransfer(req, res, next) {
       status,
       attachments,
     } = req.body;
-    console.log(req.body, "bodyy");
+
+    const feeData = await FeeStructure.aggregate([
+      {
+        $match: { studentId: mongoose.Types.ObjectId(studentId) },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: "$totalAmount" },
+          paidAmount: { $sum: "$paidAmount" },
+        },
+      },
+    ]).exec();
+
+    console.log(feeData, "feedata");
+
+    const totalFees = feeData.length > 0 ? feeData[0].totalAmount : 0;
+    const paidFees = feeData.length > 0 ? feeData[0].paidAmount : 0;
+    const pendingFees = totalFees - paidFees;
+
+    if (pendingFees > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "TC cannot be generated due to pending fees",
+      });
+    }
+
     const newStudentTransfer = new StudentTransfer({
       studentId,
       classId,
@@ -50,28 +78,22 @@ async function createStudentTransfer(req, res, next) {
 
 async function getStudents(req, res, next) {
   try {
-    const { searchQuery, classId, page, limit, school } = req.query;
+    const { searchQuery, classId, page, limit } = req.query;
     const regexName = new RegExp(searchQuery, "i");
+    const query = {
+      deleted: false,
+    };
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10; // we put it 10 as default
     const skip = (pageNumber - 1) * pageSize;
-    const finallimit = skip + pageSize;
-
-    const query = {
-      deleted: false,
-      school_id: mongoose.Types.ObjectId(school?.trim()),
-    };
-    const classMatchQuery = {
-      $match: {},
-    };
+    const Finallimit = skip + pageSize;
 
     if (searchQuery) {
       query.name = regexName;
     }
 
-    if (classId && classId?.trim() != "default") {
-      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
-      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+    if (classId) {
+      query.class = mongoose.Types.ObjectId(classId);
     }
 
     const result = await studentsCollection
@@ -80,92 +102,46 @@ async function getStudents(req, res, next) {
           $match: query,
         },
         {
-          $facet: {
-            // First facet: Calculate the totalDocs count
-            totalDocs: [
-              {
-                $group: {
-                  _id: null,
-                  totalDocs: { $sum: 1 },
-                },
-              },
-              {
-                $project: { _id: 0 },
-              },
-            ],
-            // Second facet: Fetch student data along with fees
-            students: [
-              {
-                $lookup: {
-                  from: "sections",
-                  localField: "class",
-                  foreignField: "class_id",
-                  as: "class",
-                },
-              },
-              {
-                $addFields: { class: { $arrayElemAt: ["$class", 0] } },
-              },
-              {
-                $lookup: {
-                  from: "feeinstallments",
-                  localField: "_id",
-                  foreignField: "studentId",
-                  as: "fees",
-                  pipeline: [
-                    {
-                      $group: {
-                        _id: "totalAmount",
-                        totalAmount: { $sum: "$totalAmount" },
-                        paidAmount: { $sum: "$paidAmount" },
-                      },
-                    },
-                    { $project: { _id: 0 } },
-                  ],
-                },
-              },
-              {
-                $addFields: {
-                  fees: { $arrayElemAt: ["$fees", 0] },
-                },
-              },
-              {
-                $project: {
-                  _id: 1,
-                  name: 1,
-                  class: "$class.className",
-                  fees: 1,
-                },
-              },
-              classMatchQuery,
-              {
-                $skip: skip,
-              },
-              {
-                $limit: finallimit,
-              },
-            ],
+          $lookup: {
+            from: "sections",
+            localField: "class",
+            foreignField: "class_id",
+            as: "class",
           },
         },
         {
-          $unwind: "$students",
+          $addFields: { class: { $arrayElemAt: ["$class", 0] } },
+        },
+        {
+          $lookup: {
+            from: "feeinstallments",
+            localField: "_id",
+            foreignField: "studentId",
+            as: "fees",
+            pipeline: [
+              {
+                $group: {
+                  _id: "totalAmount",
+                  totalAmount: { $sum: "$totalAmount" },
+                  paidAmount: { $sum: "$paidAmount" },
+                },
+              },
+              { $project: { _id: 0 } },
+            ],
+          },
         },
         {
           $addFields: {
-            totalDocs: { $arrayElemAt: ["$totalDocs", 0] },
+            fees: { $arrayElemAt: ["$fees", 0] },
           },
         },
         {
-          $project: {
-            _id: "$students._id",
-            totalDocs: "$totalDocs.totalDocs",
-            name: "$students.name",
-            className: "$students.class",
-            fees: "$students.fees",
-          },
+          $skip: skip,
+        },
+        {
+          $limit: Finallimit,
         },
       ])
-
       .toArray();
 
     res
