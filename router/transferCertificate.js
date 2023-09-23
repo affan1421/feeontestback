@@ -16,7 +16,7 @@ router.get('/attachments/:studentTransferId', viewAttachments);
 // create new tranfer certificate
 router.post('/', createStudentTransfer);
 router.get('/students', getStudents);
-router.put('/changeStatus:id', changeStatus);
+router.put('/changeStatus/:id', changeStatus);
 router.get('/tcList', getTc);
 router.get('/details', getTcDetails);
 router.get('/classes', getClasses);
