@@ -389,8 +389,22 @@ async function getTcDetails(req, res, next) {
       },
     ]);
 
+    const reasonSelectorList = [
+      { name: "Relocation", value: "relocation" },
+      { name: "Different Branch", value: "different_branch" },
+      { name: "Complete of studies", value: "complete_of_studies" },
+      { name: "Finantial Constranis", value: "finantial_constrains" },
+      { name: "Sibling's Schooling", value: "sibilings_schooling" },
+      { name: "Parent's Job Transfer", value: "parents_job_transfer" },
+    ];
+    const reasonMatchingValue = tsData[0].reasons[0];
+
+    // Find the corresponding name based on the value
+    const matchingReason = reasonSelectorList.find(item => item.value === reasonMatchingValue);
+    
+    // Access the name if a match is found
+    const reasonsData = matchingReason ? matchingReason.name : null;
     const countsByType = tsData[0].countsByType[0];
-    const reasonsData = tsData[0].reasons[0];
     const reasonCount = tsData[0].reasonsCount[0].count;
     const classData = tsData[0].class[0];
     const classCount = tsData[0].classCount[0].count;
