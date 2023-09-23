@@ -486,7 +486,7 @@ async function getTcStudentsDetails(req, res, next) {
         },
       },
       {
-        $addFields: { studentslist: { $arrayElemAt: ["$studentslist", 0] } },
+        $unwind: "$studentslist",
       },
       {
         $lookup: {
@@ -497,7 +497,7 @@ async function getTcStudentsDetails(req, res, next) {
         },
       },
       {
-        $addFields: { class: { $arrayElemAt: ["$class", 0] } },
+        $unwind: "$class",
       },
       {
         $lookup: {
@@ -505,38 +505,34 @@ async function getTcStudentsDetails(req, res, next) {
           localField: "studentId",
           foreignField: "studentId",
           as: "fees",
-          pipeline: [
-            {
-              $group: {
-                _id: "totalAmount",
-                totalAmount: { $sum: "$totalAmount" },
-                paidAmount: { $sum: "$paidAmount" },
-              },
-            },
-            {
-              $addFields: {
-                pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
-              },
-            },
-            { $project: { _id: 0 } },
-          ],
         },
       },
       {
-        $addFields: {
-          fees: { $arrayElemAt: ["$fees", 0] },
+        $unwind: "$fees",
+      },
+      {
+        $group: {
+          _id: "$_id",
+          tcType: { $first: "$tcType" },
+          reason: { $first: "$reason" },
+          status: { $first: "$status" },
+          studentslist: { $first: "$studentslist.name" },
+          class: { $first: "$class.className" },
+          totalAmount: { $sum: "$fees.totalAmount" },
+          paidAmount: { $sum: "$fees.paidAmount" },
         },
       },
       {
         $project: {
+          _id: 1,
           tcType: 1,
           reason: 1,
           status: 1,
-          "studentslist.name": 1,
-          "class.className": 1,
-          "fees.totalAmount": 1,
-          "fees.paidAmount": 1,
-          "fees.pendingAmount": 1,
+          studentslist: 1,
+          class: 1,
+          totalAmount: 1,
+          paidAmount: 1,
+          pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
         },
       },
       {
