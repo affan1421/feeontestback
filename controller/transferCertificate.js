@@ -560,10 +560,10 @@ async function getTcStudentsDetails(req, res, next) {
       query.tcType = tcType;
     }
 
-    if (classId && classId?.trim() != "default") {
-      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
-      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
-    }
+    // if (classId && classId?.trim() != "default") {
+    //   classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
+    //   query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+    // }
 
     const result = await StudentTransfer.aggregate([
       {
@@ -617,18 +617,18 @@ async function getTcStudentsDetails(req, res, next) {
             {
               $unwind: "$fees",
             },
-            {
-              $group: {
-                _id: "$_id",
-                tcType: { $first: "$tcType" },
-                reason: { $first: "$reason" },
-                status: { $first: "$status" },
-                studentslist: { $first: "$studentslist.name" },
-                class: { $first: "$class.className" },
-                totalAmount: { $sum: "$fees.totalAmount" },
-                paidAmount: { $sum: "$fees.paidAmount" },
-              },
-            },
+            // {
+            //   $group: {
+            //     _id: "$_id",
+            //     tcType: { $first: "$tcType" },
+            //     reason: { $first: "$reason" },
+            //     status: { $first: "$status" },
+            //     studentslist: { $first: "$studentslist.name" },
+            //     class: { $first: "$class.className" },
+            //     totalAmount: { $sum: "$fees.totalAmount" },
+            //     paidAmount: { $sum: "$fees.paidAmount" },
+            //   },
+            // },
             {
               $project: {
                 _id: 1,
