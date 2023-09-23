@@ -8,11 +8,6 @@ const studentTransferSchema = new Schema(
       ref: "School",
       required: [true, "studentId is required"],
     },
-    classId: {
-      type: Schema.Types.ObjectId,
-      ref: "Class",
-      required: [true, "class is required"],
-    },
     tcType: {
       type: String,
       enum: ["ALUMINI-TC", "AVAIL-TC", "BLOCKED"],
