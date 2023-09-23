@@ -557,10 +557,6 @@ async function getTcStudentsDetails(req, res, next) {
       $match: {},
     };
 
-    if (searchQuery) {
-      query.name = regexName;
-    }
-
     if (status) {
       query.status = status;
     }
@@ -598,6 +594,11 @@ async function getTcStudentsDetails(req, res, next) {
             },
             {
               $unwind: "$studentslist",
+            },
+            {
+              $match: {
+                "studentslist.name": regexName,
+              },
             },
             {
               $lookup: {
