@@ -532,6 +532,7 @@ async function getTcStudentsDetails(req, res, next) {
           tcType: 1,
           reason: 1,
           status: 1,
+          "studentslist.name": 1,
           "class.className": 1,
           "fees.totalAmount": 1,
           "fees.paidAmount": 1,
