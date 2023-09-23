@@ -455,6 +455,80 @@ async function getClasses(req, res, next) {
   }
 }
 
+async function getTcStudentsDetails(req, res, next) {
+  try {
+    const { searchQuery, classId, page, limit } = req.query;
+    const regexName = new RegExp(searchQuery, "i");
+    const query = {};
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10; // we put it 10 as default
+    const skip = (pageNumber - 1) * pageSize;
+    const Finallimit = skip + pageSize;
+
+    if (searchQuery) {
+      query.name = regexName;
+    }
+
+    if (classId) {
+      query.class = mongoose.Types.ObjectId(classId);
+    }
+
+    const result = await StudentTransfer.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "classId",
+          foreignField: "class_id",
+          as: "class",
+        },
+      },
+      {
+        $addFields: { class: { $arrayElemAt: ["$class", 0] } },
+      },
+      {
+        $lookup: {
+          from: "feeinstallments",
+          localField: "studentId",
+          foreignField: "studentId",
+          as: "fees",
+          pipeline: [
+            {
+              $group: {
+                _id: "totalAmount",
+                totalAmount: { $sum: "$totalAmount" },
+                paidAmount: { $sum: "$paidAmount" },
+              },
+            },
+            { $project: { _id: 0 } },
+          ],
+        },
+      },
+      {
+        $addFields: {
+          fees: { $arrayElemAt: ["$fees", 0] },
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: Finallimit,
+      },
+    ]).exec();
+
+    res
+      .status(200)
+      .json(SuccessResponse(result, 1, "Student details fetch successfully"));
+  } catch (error) {
+    console.error("Error Student details fetch:", error);
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+}
+
 module.exports = {
   createStudentTransfer,
   getStudents,
@@ -463,4 +537,5 @@ module.exports = {
   getTc,
   getTcDetails,
   getClasses,
+  getTcStudentsDetails,
 };
