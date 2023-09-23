@@ -50,22 +50,28 @@ async function createStudentTransfer(req, res, next) {
 
 async function getStudents(req, res, next) {
   try {
-    const { searchQuery, classId, page, limit } = req.query;
+    const { searchQuery, classId, page, limit, school } = req.query;
     const regexName = new RegExp(searchQuery, "i");
-    const query = {
-      deleted: false,
-    };
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10; // we put it 10 as default
     const skip = (pageNumber - 1) * pageSize;
-    const Finallimit = skip + pageSize;
+    const finallimit = skip + pageSize;
+
+    const query = {
+      deleted: false,
+      school_id: mongoose.Types.ObjectId(school?.trim()),
+    };
+    const classMatchQuery = {
+      $match: {},
+    };
 
     if (searchQuery) {
       query.name = regexName;
     }
 
-    if (classId) {
-      query.class = mongoose.Types.ObjectId(classId);
+    if (classId && classId?.trim() != "default") {
+      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
+      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
     }
 
     const result = await studentsCollection
@@ -74,46 +80,92 @@ async function getStudents(req, res, next) {
           $match: query,
         },
         {
-          $lookup: {
-            from: "sections",
-            localField: "class",
-            foreignField: "class_id",
-            as: "class",
-          },
-        },
-        {
-          $addFields: { class: { $arrayElemAt: ["$class", 0] } },
-        },
-        {
-          $lookup: {
-            from: "feeinstallments",
-            localField: "_id",
-            foreignField: "studentId",
-            as: "fees",
-            pipeline: [
+          $facet: {
+            // First facet: Calculate the totalDocs count
+            totalDocs: [
               {
                 $group: {
-                  _id: "totalAmount",
-                  totalAmount: { $sum: "$totalAmount" },
-                  paidAmount: { $sum: "$paidAmount" },
+                  _id: null,
+                  totalDocs: { $sum: 1 },
                 },
               },
-              { $project: { _id: 0 } },
+              {
+                $project: { _id: 0 },
+              },
+            ],
+            // Second facet: Fetch student data along with fees
+            students: [
+              {
+                $lookup: {
+                  from: "sections",
+                  localField: "class",
+                  foreignField: "class_id",
+                  as: "class",
+                },
+              },
+              {
+                $addFields: { class: { $arrayElemAt: ["$class", 0] } },
+              },
+              {
+                $lookup: {
+                  from: "feeinstallments",
+                  localField: "_id",
+                  foreignField: "studentId",
+                  as: "fees",
+                  pipeline: [
+                    {
+                      $group: {
+                        _id: "totalAmount",
+                        totalAmount: { $sum: "$totalAmount" },
+                        paidAmount: { $sum: "$paidAmount" },
+                      },
+                    },
+                    { $project: { _id: 0 } },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  fees: { $arrayElemAt: ["$fees", 0] },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  class: "$class.className",
+                  fees: 1,
+                },
+              },
+              classMatchQuery,
+              {
+                $skip: skip,
+              },
+              {
+                $limit: finallimit,
+              },
             ],
           },
         },
         {
+          $unwind: "$students",
+        },
+        {
           $addFields: {
-            fees: { $arrayElemAt: ["$fees", 0] },
+            totalDocs: { $arrayElemAt: ["$totalDocs", 0] },
           },
         },
         {
-          $skip: skip,
-        },
-        {
-          $limit: Finallimit,
+          $project: {
+            _id: "$students._id",
+            totalDocs: "$totalDocs.totalDocs",
+            name: "$students.name",
+            className: "$students.class",
+            fees: "$students.fees",
+          },
         },
       ])
+
       .toArray();
 
     res
