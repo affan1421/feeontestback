@@ -485,20 +485,34 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, page, limit } = req.query;
+    const { searchQuery, tcType, status, classId, page, limit, school } =
+      req.query;
     const regexName = new RegExp(searchQuery, "i");
-    const query = {};
     const pageNumber = parseInt(page) || 1;
-    const pageSize = parseInt(limit) || 10; // we put it 10 as default
+    const pageSize = parseInt(limit) || 10; // Default page size
     const skip = (pageNumber - 1) * pageSize;
     const Finallimit = skip + pageSize;
+
+    const query = {};
+    const classMatchQuery = {
+      $match: {},
+    };
 
     if (searchQuery) {
       query.name = regexName;
     }
 
+    if (status) {
+      query.status = status;
+    }
+
     if (tcType) {
       query.tcType = tcType;
+    }
+
+    if (classId && classId?.trim() != "default") {
+      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
+      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
     }
 
     const result = await StudentTransfer.aggregate([
@@ -506,68 +520,104 @@ async function getTcStudentsDetails(req, res, next) {
         $match: query,
       },
       {
-        $lookup: {
-          from: "students",
-          localField: "studentId",
-          foreignField: "_id",
-          as: "studentslist",
+        $facet: {
+          // First facet: Calculate the totalDocs count
+          totalDocs: [
+            {
+              $count: "count",
+            },
+          ],
+
+          students: [
+            {
+              $lookup: {
+                from: "students",
+                localField: "studentId",
+                foreignField: "_id",
+                as: "studentslist",
+              },
+            },
+            {
+              $unwind: "$studentslist",
+            },
+            {
+              $lookup: {
+                from: "sections",
+                localField: "classId",
+                foreignField: "class_id",
+                as: "class",
+              },
+            },
+            {
+              $unwind: "$class",
+            },
+            {
+              $lookup: {
+                from: "feeinstallments",
+                localField: "studentId",
+                foreignField: "studentId",
+                as: "fees",
+              },
+            },
+            {
+              $unwind: "$fees",
+            },
+            {
+              $group: {
+                _id: "$_id",
+                tcType: { $first: "$tcType" },
+                reason: { $first: "$reason" },
+                status: { $first: "$status" },
+                studentslist: { $first: "$studentslist.name" },
+                class: { $first: "$class.className" },
+                totalAmount: { $sum: "$fees.totalAmount" },
+                paidAmount: { $sum: "$fees.paidAmount" },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                tcType: 1,
+                reason: 1,
+                status: 1,
+                studentslist: 1,
+                class: 1,
+                totalAmount: 1,
+                paidAmount: 1,
+                pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
+              },
+            },
+            {
+              $skip: skip,
+            },
+            {
+              $limit: Finallimit,
+            },
+            classMatchQuery, // Include classMatchQuery
+          ],
         },
       },
       {
-        $unwind: "$studentslist",
+        $unwind: "$students",
       },
       {
-        $lookup: {
-          from: "sections",
-          localField: "classId",
-          foreignField: "class_id",
-          as: "class",
-        },
-      },
-      {
-        $unwind: "$class",
-      },
-      {
-        $lookup: {
-          from: "feeinstallments",
-          localField: "studentId",
-          foreignField: "studentId",
-          as: "fees",
-        },
-      },
-      {
-        $unwind: "$fees",
-      },
-      {
-        $group: {
-          _id: "$_id",
-          tcType: { $first: "$tcType" },
-          reason: { $first: "$reason" },
-          status: { $first: "$status" },
-          studentslist: { $first: "$studentslist.name" },
-          class: { $first: "$class.className" },
-          totalAmount: { $sum: "$fees.totalAmount" },
-          paidAmount: { $sum: "$fees.paidAmount" },
+        $addFields: {
+          totalDocs: { $arrayElemAt: ["$totalDocs.count", 0] },
         },
       },
       {
         $project: {
-          _id: 1,
-          tcType: 1,
-          reason: 1,
-          status: 1,
-          studentslist: 1,
-          class: 1,
-          totalAmount: 1,
-          paidAmount: 1,
-          pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
+          _id: "$students._id",
+          totalDocs: 1,
+          tcType: "$students.tcType",
+          reason: "$students.reason",
+          status: "$students.status",
+          studentslist: "$students.studentslist",
+          class: "$students.class",
+          totalAmount: "$students.totalAmount",
+          paidAmount: "$students.paidAmount",
+          pendingAmount: "$students.pendingAmount",
         },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: Finallimit,
       },
     ]).exec();
 
