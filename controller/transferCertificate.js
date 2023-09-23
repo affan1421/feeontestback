@@ -160,6 +160,7 @@ async function getStudents(req, res, next) {
                   _id: 1,
                   name: 1,
                   class: "$class.className",
+                  classId: "$class._id",
                   fees: 1,
                 },
               },
@@ -188,6 +189,7 @@ async function getStudents(req, res, next) {
             name: "$students.name",
             className: "$students.class",
             fees: "$students.fees",
+            classId: "$students.classId",
           },
         },
       ])
