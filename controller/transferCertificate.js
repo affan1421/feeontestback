@@ -443,8 +443,10 @@ async function getTcDetails(req, res, next) {
     const reasonMatchingValue = tsData[0].reasons[0];
 
     // Find the corresponding name based on the value
-    const matchingReason = reasonSelectorList.find(item => item.value === reasonMatchingValue);
-    
+    const matchingReason = reasonSelectorList.find(
+      (item) => item.value === reasonMatchingValue
+    );
+
     // Access the name if a match is found
     const reasonsData = matchingReason ? matchingReason.name : null;
     const countsByType = tsData[0].countsByType[0];
