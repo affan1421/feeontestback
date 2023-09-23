@@ -199,7 +199,7 @@ async function getStudents(req, res, next) {
 
 async function changeStatus(req, res, next) {
   try {
-    const transferId = req.parms.id;
+    const transferId = req.param.id;
     const { status } = req.query;
 
     if (!transferId || !status) {
