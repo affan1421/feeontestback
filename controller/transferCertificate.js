@@ -513,6 +513,11 @@ async function getTcStudentsDetails(req, res, next) {
                 paidAmount: { $sum: "$paidAmount" },
               },
             },
+            {
+              $addFields: {
+                pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
+              },
+            },
             { $project: { _id: 0 } },
           ],
         },
@@ -520,6 +525,17 @@ async function getTcStudentsDetails(req, res, next) {
       {
         $addFields: {
           fees: { $arrayElemAt: ["$fees", 0] },
+        },
+      },
+      {
+        $project: {
+          tcType: 1,
+          reason: 1,
+          status: 1,
+          "class.className": 1,
+          "fees.totalAmount": 1,
+          "fees.paidAmount": 1,
+          "fees.pendingAmount": 1,
         },
       },
       {
