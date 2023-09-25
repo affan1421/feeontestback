@@ -468,9 +468,33 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$addFields: {
+			$lookup: {
+				from: 'schools',
+				localField: 'schoolId',
+				foreignField: '_id',
+				as: 'school',
+			},
+		},
+		{
+			$project: {
 				expenseType: {
 					$first: '$expenseType',
+				},
+				reason: 1,
+				voucherNumber: 1,
+				amount: 1,
+				expenseDate: 1,
+				paymentMethod: 1,
+				schoolId: 1,
+				createdBy: 1,
+				approvedBy: 1,
+				createdAt: 1,
+				updatedAt: 1,
+				schoolName: {
+					$first: '$school.schoolName',
+				},
+				schoolAddress: {
+					$first: '$school.address',
 				},
 			},
 		},
