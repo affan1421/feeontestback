@@ -322,7 +322,7 @@ async function getTcDetails(req, res, next) {
     const tsData = await StudentTransfer.aggregate([
       {
         $facet: {
-          //get different types of tc's and its count
+          //First Facet : get different types of tc's and its count
           countsByType: [
             {
               $group: {
@@ -360,7 +360,7 @@ async function getTcDetails(req, res, next) {
               },
             },
           ],
-          //get different types of tc's and its count
+          //Second Facet : get different types of reasons and its count
           reasons: [
             {
               $group: {
@@ -386,7 +386,7 @@ async function getTcDetails(req, res, next) {
               },
             },
           ],
-          //get different types of tc's and its count
+          //Third Facet : get different types of classes and its count
           class: [
             {
               $lookup: {
