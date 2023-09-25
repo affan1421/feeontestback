@@ -22,6 +22,18 @@ async function createStudentTransfer(req, res, next) {
       attachments,
     } = req.body;
 
+    // Check if a student transfer record with the same studentId already exists
+    const existingTransfer = await StudentTransfer.findOne({
+      studentId,
+    }).exec();
+
+    if (existingTransfer) {
+      return res.status(400).json({
+        success: false,
+        message: "A transfer record for this student already exists",
+      });
+    }
+
     const feeData = await FeeStructure.aggregate([
       {
         $match: { studentId: mongoose.Types.ObjectId(studentId) },
@@ -554,13 +566,17 @@ async function getTcStudentsDetails(req, res, next) {
   try {
     const { searchQuery, tcType, status, classId, page, limit, school } =
       req.query;
-    const regexName = new RegExp(searchQuery, "i");
+
+    // Ensure searchQuery is not empty before creating the regex
+    const regexName = searchQuery ? new RegExp(searchQuery, "i") : /.*/;
+
     const pageNumber = parseInt(page) || 1;
-    const pageSize = parseInt(limit) || 10; // Default page size
+    const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
     const Finallimit = skip + pageSize;
 
     const query = {};
+
     const classMatchQuery = {
       $match: {},
     };
@@ -573,10 +589,10 @@ async function getTcStudentsDetails(req, res, next) {
       query.tcType = tcType;
     }
 
-    // if (classId && classId?.trim() != "default") {
-    //   classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
-    //   query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
-    // }
+    if (classId && classId?.trim() != "default") {
+      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
+      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+    }
 
     const result = await StudentTransfer.aggregate([
       {
@@ -584,13 +600,11 @@ async function getTcStudentsDetails(req, res, next) {
       },
       {
         $facet: {
-          // First facet: Calculate the totalDocs count
           totalDocs: [
             {
               $count: "count",
             },
           ],
-
           students: [
             {
               $lookup: {
@@ -611,13 +625,21 @@ async function getTcStudentsDetails(req, res, next) {
             {
               $lookup: {
                 from: "sections",
-                localField: "classId",
-                foreignField: "class_id",
-                as: "class",
+                let: { classId: "$classId" }, // Store the value of classId in a variable
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $eq: ["$class_id", "$$classId"], // Use the variable in the $eq expression
+                      },
+                    },
+                  },
+                ],
+                as: "classes",
               },
             },
             {
-              $unwind: "$class",
+              $unwind: "$classes",
             },
             {
               $lookup: {
@@ -628,33 +650,42 @@ async function getTcStudentsDetails(req, res, next) {
               },
             },
             {
-              $unwind: "$fees",
+              $unwind: {
+                path: "$fees",
+                preserveNullAndEmptyArrays: true, // Preserve students without fee installment documents
+              },
             },
-            // {
-            //   $group: {
-            //     _id: "$_id",
-            //     tcType: { $first: "$tcType" },
-            //     reason: { $first: "$reason" },
-            //     status: { $first: "$status" },
-            //     studentslist: { $first: "$studentslist.name" },
-            //     class: { $first: "$class.className" },
-            //     totalAmount: { $sum: "$fees.totalAmount" },
-            //     paidAmount: { $sum: "$fees.paidAmount" },
-            //   },
-            // },
+            {
+              $group: {
+                _id: "$_id",
+                tcType: { $first: "$tcType" },
+                reason: { $first: "$reason" },
+                status: { $first: "$status" },
+                studentslist: { $first: "$studentslist.name" },
+                classes: { $first: "$classes.className" },
+                totalAmount: {
+                  $sum: {
+                    $ifNull: ["$fees.totalAmount", 0], // Set default value for totalAmount
+                  },
+                },
+                paidAmount: {
+                  $sum: {
+                    $ifNull: ["$fees.paidAmount", 0], // Set default value for paidAmount
+                  },
+                },
+              },
+            },
             {
               $project: {
                 _id: 1,
                 tcType: 1,
                 reason: 1,
                 status: 1,
-                studentslist: "$studentslist.name",
-                class: "$class.className",
-                totalAmount: "$fees.totalAmount",
-                paidAmount: "$fees.paidAmount",
-                pendingAmount: {
-                  $subtract: ["$fees.totalAmount", "$fees.paidAmount"],
-                },
+                studentslist: 1,
+                classes: 1,
+                totalAmount: 1,
+                paidAmount: 1,
+                pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
               },
             },
             {
@@ -663,7 +694,7 @@ async function getTcStudentsDetails(req, res, next) {
             {
               $limit: Finallimit,
             },
-            classMatchQuery, // Include classMatchQuery
+            classMatchQuery,
           ],
         },
       },
@@ -683,7 +714,7 @@ async function getTcStudentsDetails(req, res, next) {
           reason: "$students.reason",
           status: "$students.status",
           studentslist: "$students.studentslist",
-          class: "$students.class",
+          classes: "$students.classes",
           totalAmount: "$students.totalAmount",
           paidAmount: "$students.paidAmount",
           pendingAmount: "$students.pendingAmount",
