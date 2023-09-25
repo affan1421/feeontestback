@@ -367,18 +367,29 @@ async function getTcDetails(req, res, next) {
           class: [
             {
               $lookup: {
-                from: "classes",
-                localField: "classId",
+                from: "students",
+                localField: "studentId",
                 foreignField: "_id",
-                as: "associatedClasses",
+                as: "associatedStudent",
               },
             },
             {
-              $unwind: "$associatedClasses",
+              $unwind: "$associatedStudent",
+            },
+            {
+              $lookup: {
+                from: "sections",
+                localField: "associatedStudent.section",
+                foreignField: "_id",
+                as: "associatedSection",
+              },
+            },
+            {
+              $unwind: "$associatedSection",
             },
             {
               $group: {
-                _id: "$associatedClasses.name",
+                _id: "$associatedSection.className",
                 count: { $sum: 1 },
               },
             },
