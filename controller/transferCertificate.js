@@ -14,14 +14,7 @@ const SuccessResponse = require("../utils/successResponse");
 
 async function createStudentTransfer(req, res, next) {
   try {
-    const {
-      studentId,
-      classId,
-      tcType,
-      reason,
-      transferringSchool,
-      attachments,
-    } = req.body;
+    const { studentId, classId, tcType, reason, transferringSchool, attachments } = req.body;
 
     // Check if a student transfer record with the same studentId already exists
     const existingTransfer = await StudentTransfer.findOne({
@@ -78,15 +71,7 @@ async function createStudentTransfer(req, res, next) {
     });
 
     await newStudentTransfer.save();
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          newStudentTransfer,
-          1,
-          "Student transfer record created successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
     console.error("Error creating student transfer record:", error);
     console.log("error", error.message);
@@ -129,7 +114,6 @@ async function searchStudentsWithPagination(req, res, next) {
     const pageNumber = requestData.page;
     const pageSize = requestData.limit; // we put it 10 as default
     const skip = (pageNumber - 1) * pageSize;
-    const finalLimit = skip + pageSize;
 
     const initialFilterQuery = {
       deleted: false,
@@ -200,7 +184,7 @@ async function searchStudentsWithPagination(req, res, next) {
               },
               { $match: filterStudentsByClassName }, //
               { $skip: skip },
-              { $limit: finalLimit },
+              { $limit: pageSize },
             ],
           },
         },
@@ -219,9 +203,7 @@ async function searchStudentsWithPagination(req, res, next) {
       ])
       .toArray();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, "Student details fetch successfully"));
+    res.status(200).json(SuccessResponse(result, 1, "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
@@ -235,31 +217,19 @@ async function changeStatus(req, res, next) {
     const { status } = req.query;
 
     if (!transferId || !status) {
-      return res
-        .status(400)
-        .json({ message: "Transfer Id and status are required" });
+      return res.status(400).json({ message: "Transfer Id and status are required" });
     }
 
     const transfer = await StudentTransfer.findById(transferId);
 
     if (!transfer) {
-      return res
-        .status(404)
-        .json({ message: "Transfer certificate not found" });
+      return res.status(404).json({ message: "Transfer certificate not found" });
     }
 
     // Update transfer status
     transfer.status = status;
     await transfer.save();
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          null,
-          1,
-          "Transfer certificate status updated successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     console.error("Error on update status:", error);
     console.log("error", error.message);
@@ -301,15 +271,7 @@ async function getTc(req, res, next) {
 
     const result = await StudentTransfer.find(query).exec();
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          result,
-          1,
-          "Transfer certificate status updated successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -526,9 +488,7 @@ async function viewAttachments(req, res) {
 
     for (const attachmentUrl of attachmentUrls) {
       try {
-        const s3Response = await s3
-          .getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl })
-          .promise();
+        const s3Response = await s3.getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl }).promise();
         res.write(s3Response.Body);
       } catch (s3Error) {
         console.error("Error fetching attachment from S3:", s3Error);
@@ -561,11 +521,7 @@ async function getClasses(req, res, next) {
       return res.status(404).json({ message: "No classes found" });
     }
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(classList, 1, "Classes details fetch successfully")
-      );
+    res.status(200).json(SuccessResponse(classList, 1, "Classes details fetch successfully"));
   } catch (error) {
     console.error("Error fetching classes list:", error);
     console.log("error", error.message);
@@ -575,16 +531,13 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, status, classId, page, limit, school } =
-      req.query;
+    const { searchQuery, tcType, status, classId, page, limit } = req.query;
 
     // Ensure searchQuery is not empty before creating the regex
     const regexName = searchQuery ? new RegExp(searchQuery, "i") : /.*/;
-
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
-    const Finallimit = skip + pageSize;
 
     const query = {};
 
@@ -602,7 +555,7 @@ async function getTcStudentsDetails(req, res, next) {
 
     if (classId && classId?.trim() != "default") {
       classMatchQuery.$match = { classes: classId?.trim().split("_")?.[1] };
-      query.classes = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+      query.classId = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
     }
 
     const result = await StudentTransfer.aggregate([
@@ -610,11 +563,21 @@ async function getTcStudentsDetails(req, res, next) {
         $match: query,
       },
       {
+        $sort: {
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      {
         $facet: {
           totalDocs: [
             {
-              $count: "count",
+              $group: {
+                _id: null,
+                totalDocs: { $sum: 1 },
+              },
             },
+            { $project: { _id: 0 } },
           ],
           students: [
             {
@@ -631,6 +594,11 @@ async function getTcStudentsDetails(req, res, next) {
             {
               $match: {
                 "studentslist.name": regexName,
+              },
+            },
+            {
+              $sort: {
+                "studentslist.name": 1,
               },
             },
             {
@@ -700,12 +668,6 @@ async function getTcStudentsDetails(req, res, next) {
                 pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
               },
             },
-            {
-              $skip: skip,
-            },
-            {
-              $limit: Finallimit,
-            },
             classMatchQuery,
           ],
         },
@@ -715,7 +677,7 @@ async function getTcStudentsDetails(req, res, next) {
       },
       {
         $addFields: {
-          totalDocs: { $arrayElemAt: ["$totalDocs.count", 0] },
+          totalDocs: { $arrayElemAt: ["$totalDocs.totalDocs", 0] },
         },
       },
       {
@@ -732,11 +694,20 @@ async function getTcStudentsDetails(req, res, next) {
           pendingAmount: "$students.pendingAmount",
         },
       },
+      {
+        $sort: {
+          studentslist: 1,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
     ]).exec();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, "Student details fetch successfully"));
+    res.status(200).json(SuccessResponse(result, 1, "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
