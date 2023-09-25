@@ -54,6 +54,13 @@ async function createStudentTransfer(req, res, next) {
     const paidFees = feeData.length > 0 ? feeData[0].paidAmount : 0;
     const pendingFees = totalFees - paidFees;
 
+    if (tcType === "AVAIL-TC" && (!attachments || attachments.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Attachments are required when tcType is AVAIL-TC",
+      });
+    }
+
     if (pendingFees > 0) {
       return res.status(400).json({
         success: false,
@@ -594,8 +601,8 @@ async function getTcStudentsDetails(req, res, next) {
     }
 
     if (classId && classId?.trim() != "default") {
-      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
-      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+      classMatchQuery.$match = { classes: classId?.trim().split("_")?.[1] };
+      query.classes = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
     }
 
     const result = await StudentTransfer.aggregate([
@@ -645,6 +652,7 @@ async function getTcStudentsDetails(req, res, next) {
             {
               $unwind: "$classes",
             },
+
             {
               $lookup: {
                 from: "feeinstallments",
