@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const {
 	createStudentTransfer,
-	getStudents,
+	searchStudentsWithPagination,
 	changeStatus,
 	viewAttachments,
 	getTc,
@@ -15,7 +15,7 @@ router.get('/attachments/:studentTransferId', viewAttachments);
 
 // create new tranfer certificate
 router.post('/', createStudentTransfer);
-router.get('/students', getStudents);
+router.get('/students', searchStudentsWithPagination);
 router.put('/changeStatus/:id', changeStatus);
 router.get('/tcList', getTc);
 router.get('/details', getTcDetails);

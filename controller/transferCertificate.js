@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const AWS = require("aws-sdk");
+const express = require("express");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
@@ -86,37 +87,59 @@ async function createStudentTransfer(req, res, next) {
   }
 }
 
-async function getStudents(req, res, next) {
+/**
+ * This function aggregates and give users list based on search query, With pagination
+ * #### INPUTS PARAMS
+ * * school = schoolId of students
+ * * searchQuery = user name
+ * * page = Page number
+ * * limit = Limit of data for each page
+ * * classId (Optional) = class id of user
+ * @param {express.Request} req - Express request object
+ * @param {express.Response} res - Express response object
+ * @param {express.NextFunction} next - Express NextFunction
+ * @returns Users data with pagination
+ *
+ */
+async function searchStudentsWithPagination(req, res, next) {
   try {
-    const { searchQuery, classId, page, limit, school } = req.query;
-    const regexName = new RegExp(searchQuery, "i");
-    const pageNumber = parseInt(page) || 1;
-    const pageSize = parseInt(limit) || 10; // we put it 10 as default
+    // sets default values
+    const defaultPageLimit = 10;
+    const defaultPageNumber = 1;
+
+    // collecting nessory data
+    const requestData = {
+      searchQuery: req.query?.searchQuery?.trim(),
+      classId: req.query?.classId?.trim()?.split("_")?.[0],
+      className: req.query?.classId?.trim()?.split("_")?.[1],
+      page: parseInt(req.query?.page?.trim()) || defaultPageNumber,
+      limit: parseInt(req.query?.limit?.trim()) || defaultPageLimit,
+      school: req.query?.school?.trim(),
+    };
+
+    // creating additonal nessory data
+    const regexToSearchStudentName = new RegExp(requestData.searchQuery, "i");
+    const pageNumber = requestData.page;
+    const pageSize = requestData.limit; // we put it 10 as default
     const skip = (pageNumber - 1) * pageSize;
-    const finallimit = skip + pageSize;
+    const finalLimit = skip + pageSize;
 
-    const query = {
+    const initialFilterQuery = {
       deleted: false,
-      school_id: mongoose.Types.ObjectId(school?.trim()),
-    };
-    const classMatchQuery = {
-      $match: {},
+      school_id: mongoose.Types.ObjectId(requestData.school),
+      name: regexToSearchStudentName,
     };
 
-    if (searchQuery) {
-      query.name = regexName;
-    }
+    const filterStudentsByClassName = {};
 
-    if (classId && classId?.trim() != "default") {
-      classMatchQuery.$match = { class: classId?.trim().split("_")?.[1] };
-      query.class = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+    if (requestData.classId && requestData.classId != "default") {
+      filterStudentsByClassName.class = requestData.className;
+      initialFilterQuery.class = mongoose.Types.ObjectId(requestData.classId);
     }
 
     const result = await studentsCollection
       .aggregate([
-        {
-          $match: query,
-        },
+        { $match: initialFilterQuery },
         {
           $facet: {
             // First facet: Calculate the totalDocs count
@@ -127,9 +150,7 @@ async function getStudents(req, res, next) {
                   totalDocs: { $sum: 1 },
                 },
               },
-              {
-                $project: { _id: 0 },
-              },
+              { $project: { _id: 0 } },
             ],
             // Second facet: Fetch student data along with fees
             students: [
@@ -141,9 +162,7 @@ async function getStudents(req, res, next) {
                   as: "class",
                 },
               },
-              {
-                $addFields: { class: { $arrayElemAt: ["$class", 0] } },
-              },
+              { $addFields: { class: { $arrayElemAt: ["$class", 0] } } },
               {
                 $lookup: {
                   from: "feeinstallments",
@@ -162,11 +181,7 @@ async function getStudents(req, res, next) {
                   ],
                 },
               },
-              {
-                $addFields: {
-                  fees: { $arrayElemAt: ["$fees", 0] },
-                },
-              },
+              { $addFields: { fees: { $arrayElemAt: ["$fees", 0] } } },
               {
                 $project: {
                   _id: 1,
@@ -176,24 +191,14 @@ async function getStudents(req, res, next) {
                   fees: 1,
                 },
               },
-              classMatchQuery,
-              {
-                $skip: skip,
-              },
-              {
-                $limit: finallimit,
-              },
+              { $match: filterStudentsByClassName }, //
+              { $skip: skip },
+              { $limit: finalLimit },
             ],
           },
         },
-        {
-          $unwind: "$students",
-        },
-        {
-          $addFields: {
-            totalDocs: { $arrayElemAt: ["$totalDocs", 0] },
-          },
-        },
+        { $unwind: "$students" },
+        { $addFields: { totalDocs: { $arrayElemAt: ["$totalDocs", 0] } } },
         {
           $project: {
             _id: "$students._id",
@@ -205,7 +210,6 @@ async function getStudents(req, res, next) {
           },
         },
       ])
-
       .toArray();
 
     res
@@ -734,7 +738,7 @@ async function getTcStudentsDetails(req, res, next) {
 
 module.exports = {
   createStudentTransfer,
-  getStudents,
+  searchStudentsWithPagination,
   changeStatus,
   viewAttachments,
   getTc,
