@@ -24,6 +24,7 @@ const studentTransferSchema = new Schema(
       required: [true, "Type is required"],
     },
     reason: String,
+    comment: String,
     transferringSchool: String,
     status: {
       type: String,
