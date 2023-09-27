@@ -713,6 +713,7 @@ async function getTcStudentsDetails(req, res, next) {
                     $ifNull: ["$fees.paidAmount", 0], // Set default value for paidAmount
                   },
                 },
+                attachments: { $first: "$attachments" },
               },
             },
             {
@@ -727,6 +728,7 @@ async function getTcStudentsDetails(req, res, next) {
                 totalAmount: 1,
                 paidAmount: 1,
                 pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
+                attachments: 1,
               },
             },
             classMatchQuery,
@@ -754,6 +756,7 @@ async function getTcStudentsDetails(req, res, next) {
           totalAmount: "$students.totalAmount",
           paidAmount: "$students.paidAmount",
           pendingAmount: "$students.pendingAmount",
+          attachments: "$students.attachments",
         },
       },
       {
