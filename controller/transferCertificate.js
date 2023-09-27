@@ -14,16 +14,7 @@ const SuccessResponse = require("../utils/successResponse");
 
 async function createStudentTransfer(req, res, next) {
   try {
-    const {
-      studentId,
-      schoolId,
-      classId,
-      tcType,
-      reason,
-      comment,
-      transferringSchool,
-      attachments,
-    } = req.body;
+    const { studentId, schoolId, classId, tcType, reason, comment, transferringSchool, attachments } = req.body;
 
     // Check if a student transfer record with the same studentId already exists
     const existingTransfer = await StudentTransfer.findOne({
@@ -82,15 +73,7 @@ async function createStudentTransfer(req, res, next) {
     });
 
     await newStudentTransfer.save();
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          newStudentTransfer,
-          1,
-          "Student transfer record created successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
     console.error("Error creating student transfer record:", error);
     console.log("error", error.message);
@@ -222,9 +205,7 @@ async function searchStudentsWithPagination(req, res, next) {
       ])
       .toArray();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, "Student details fetch successfully"));
+    res.status(200).json(SuccessResponse(result, 1, "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
@@ -238,31 +219,19 @@ async function changeStatus(req, res, next) {
     const { status } = req.query;
 
     if (!transferId || !status) {
-      return res
-        .status(400)
-        .json({ message: "Transfer Id and status are required" });
+      return res.status(400).json({ message: "Transfer Id and status are required" });
     }
 
     const transfer = await StudentTransfer.findById(transferId);
 
     if (!transfer) {
-      return res
-        .status(404)
-        .json({ message: "Transfer certificate not found" });
+      return res.status(404).json({ message: "Transfer certificate not found" });
     }
 
     // Update transfer status
     transfer.status = status;
     await transfer.save();
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          null,
-          1,
-          "Transfer certificate status updated successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     console.error("Error on update status:", error);
     console.log("error", error.message);
@@ -304,15 +273,7 @@ async function getTc(req, res, next) {
 
     const result = await StudentTransfer.find(query).exec();
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          result,
-          1,
-          "Transfer certificate status updated successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -529,9 +490,7 @@ async function viewAttachments(req, res) {
 
     for (const attachmentUrl of attachmentUrls) {
       try {
-        const s3Response = await s3
-          .getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl })
-          .promise();
+        const s3Response = await s3.getObject({ Bucket: "your-s3-bucket-name", Key: attachmentUrl }).promise();
         res.write(s3Response.Body);
       } catch (s3Error) {
         console.error("Error fetching attachment from S3:", s3Error);
@@ -564,11 +523,7 @@ async function getClasses(req, res, next) {
       return res.status(404).json({ message: "No classes found" });
     }
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(classList, 1, "Classes details fetch successfully")
-      );
+    res.status(200).json(SuccessResponse(classList, 1, "Classes details fetch successfully"));
   } catch (error) {
     console.error("Error fetching classes list:", error);
     console.log("error", error.message);
@@ -578,16 +533,7 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const {
-      searchQuery,
-      tcType,
-      status,
-      classId,
-      page,
-      limit,
-      hideMessage,
-      studentTcId,
-    } = req.query;
+    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } = req.query;
 
     const { schoolId } = req.body;
 
@@ -713,7 +659,7 @@ async function getTcStudentsDetails(req, res, next) {
                 _id: "$_id",
                 tcType: { $first: "$tcType" },
                 reason: { $first: "$reason" },
-                comment: { $first: "comment" },
+                comment: { $first: "$comment" },
                 status: { $first: "$status" },
                 studentslist: { $first: "$studentslist.name" },
                 schoolname: { $first: "$schoolname.schoolName" },
@@ -789,15 +735,7 @@ async function getTcStudentsDetails(req, res, next) {
       },
     ]).exec();
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          result,
-          1,
-          hideMessage ? null : "Student details fetch successfully"
-        )
-      );
+    res.status(200).json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
