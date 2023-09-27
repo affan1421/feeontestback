@@ -576,8 +576,16 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, status, classId, page, limit, hideMessage } =
-      req.query;
+    const {
+      searchQuery,
+      tcType,
+      status,
+      classId,
+      page,
+      limit,
+      hideMessage,
+      studentTcId,
+    } = req.query;
 
     const { schoolId } = req.body;
 
@@ -604,6 +612,10 @@ async function getTcStudentsDetails(req, res, next) {
     if (classId && classId?.trim() != "default") {
       classMatchQuery.$match = { classes: classId?.trim().split("_")?.[1] };
       query.classId = mongoose.Types.ObjectId(classId?.trim().split("_")?.[0]);
+    }
+
+    if (studentTcId) {
+      query._id = mongoose.Types.ObjectId(studentTcId);
     }
 
     const result = await StudentTransfer.aggregate([
