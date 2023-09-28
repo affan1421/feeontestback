@@ -3,7 +3,6 @@ const {
   createStudentTransfer,
   searchStudentsWithPagination,
   changeStatus,
-  viewAttachments,
   getTc,
   getTcDetails,
   getClasses,
@@ -27,9 +26,6 @@ router.get("/details", getTcDetails);
 
 // to view all the available classNames of a particular schools
 router.get("/classes", getClasses);
-
-// Doc attachment session for AVAIL-TC
-router.get("/attachments/:studentTransferId", viewAttachments);
 
 // in-detail data of students who applied for TC
 router.get("/tcStudentsDetails", getTcStudentsDetails);
