@@ -36,11 +36,11 @@ jobs:
     steps:
       - name: Approval
         uses: trstringer/manual-approval@v1
-        timeout-minutes: 1
+        timeout-minutes: 5
         with:
           minimum-approvals: 1
           secret: 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
-          approvers: yusuf-delvi,hafiz-ikram,nawaz-cumin
+          approvers: hafiz-ikram
   # Code_Analysis:
   #   runs-on: ubuntu-latest
   #   needs: Slack_Notification
