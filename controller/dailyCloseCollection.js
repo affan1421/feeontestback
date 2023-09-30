@@ -2,7 +2,9 @@ const mongoose = require("mongoose");
 const ErrorResponse = require("../utils/errorResponse");
 const SuccessResponse = require("../utils/successResponse");
 const DailyCloseCollection = require("../models/dailyCloseCollection");
+const FeeReceipt = require("../models/feeReceipt");
 const FeeStructure = require("../models/feeInstallment");
+const Expense = require("../models/expense");
 
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
@@ -105,13 +107,111 @@ const getCollectionDetails = async (req, res, next) => {
   }
 };
 
+// const dailyTotalFeeCollection = async (req, res, next) => {
+//   try {
+//     let { date, schoolId } = req.query;
+
+//     if (!date) {
+//       date = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
+//     }
+
+//     if (!date || isNaN(Date.parse(date))) {
+//       return res
+//         .status(400)
+//         .json({ error: "Invalid or missing date parameter." });
+//     }
+
+//     // Parse the date parameter into a Date object
+//     const selectedDate = new Date(date);
+
+//     const totalPaidAmount = await FeeReceipt.aggregate([
+//       {
+//         $match: {
+//           issueDate: selectedDate,
+//           "school.schoolId": mongoose.Types.ObjectId(schoolId),
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           totalPaidAmount: { $sum: "$paidAmount" },
+//         },
+//       },
+//     ]);
+//     console.log(selectedDate, "seelected dsate");
+
+//     const totalPaidAmountinCash = await FeeReceipt.aggregate([
+//       {
+//         $match: {
+//           issueDate: selectedDate,
+//           "school.schoolId": mongoose.Types.ObjectId(schoolId),
+//           "payment.method": "CASH",
+//         },
+//       },
+//       // {
+//       //   $group: {
+//       //     _id: null,
+//       //     totalPaidAmountinCash: { $sum: "$paidAmount" },
+//       //   },
+//       // },
+//     ]);
+
+//     // const dailyExpense = await FeeStructure.aggregate([
+//     //   {
+//     //     $match: {
+//     //       date: selectedDate,
+//     //       schoolId: mongoose.Types.ObjectId(schoolId),
+//     //     },
+//     //   },
+//     //   {
+//     //     $lookup: {
+//     //       from: "expenses",
+//     //       localField: "schoolId",
+//     //       foreignField: "schoolId",
+//     //       as: "expense",
+//     //     },
+//     //   },
+//     //   {
+//     //     $unwind: "$expense",
+//     //   },
+//     //   {
+//     //     $match: {
+//     //       "expense.expenseDate": selectedDate,
+//     //       "expense.paymentMethod": "CASH",
+//     //     },
+//     //   },
+//     //   {
+//     //     $group: {
+//     //       _id: null,
+//     //       totalExpense: { $sum: "$expense.amount" },
+//     //     },
+//     //   },
+//     // ]);
+
+//     // Check if there are results and extract the totalPaidAmount and totalPaidAmountinCash
+//     const totalAmount =
+//       totalPaidAmount.length > 0 ? totalPaidAmount[0].totalPaidAmount : 0;
+//     // const totalAmountinCash =
+//     //   totalPaidAmountinCash.length > 0
+//     //     ? totalPaidAmountinCash[0].totalPaidAmountinCash
+//     //     : 0;
+//     // const totalExpenseinCash =
+//     //   dailyExpense.length > 0 ? dailyExpense[0].totalExpense : 0;
+
+//     res.status(200).json({
+//       totalPaidAmount: totalAmount,
+//       totalPaidAmountinCash,
+//       // totalExpense: totalExpenseinCash,
+//     });
+//   } catch (error) {
+//     console.error(error.message);
+//     return next(new ErrorResponse("Something Went Wrong", 500));
+//   }
+// };
+
 const dailyTotalFeeCollection = async (req, res, next) => {
   try {
-    let { date, schoolId } = req.query;
-
-    if (!date) {
-      date = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
-    }
+    const { date, schoolId } = req.query;
 
     if (!date || isNaN(Date.parse(date))) {
       return res
@@ -121,12 +221,19 @@ const dailyTotalFeeCollection = async (req, res, next) => {
 
     // Parse the date parameter into a Date object
     const selectedDate = new Date(date);
+    const endDate = new Date(selectedDate);
+    endDate.setDate(endDate.getDate() + 1);
 
-    const totalPaidAmount = await FeeStructure.aggregate([
+    console.log(selectedDate, endDate);
+
+    const totalPaidAmount = await FeeReceipt.aggregate([
       {
         $match: {
-          date: selectedDate,
-          schoolId: mongoose.Types.ObjectId(schoolId),
+          $and: [
+            { issueDate: { $gte: selectedDate } },
+            { issueDate: { $lt: endDate } },
+          ],
+          "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
       {
@@ -137,83 +244,53 @@ const dailyTotalFeeCollection = async (req, res, next) => {
       },
     ]);
 
-    const totalPaidAmountinCash = await FeeStructure.aggregate([
+    const totalPaidAmountinCash = await FeeReceipt.aggregate([
       {
         $match: {
-          date: selectedDate,
-          schoolId: mongoose.Types.ObjectId(schoolId),
-        },
-      },
-      {
-        $lookup: {
-          from: "feereceipts",
-          localField: "studentId",
-          foreignField: "student.studentId",
-          as: "receipts",
-        },
-      },
-      {
-        $unwind: "$receipts",
-      },
-      {
-        $match: {
-          "receipts.payment.method": "CASH",
+          $and: [
+            { issueDate: { $gte: selectedDate } },
+            { issueDate: { $lt: endDate } },
+          ],
+          "school.schoolId": mongoose.Types.ObjectId(schoolId),
+          "payment.method": "CASH",
         },
       },
       {
         $group: {
           _id: null,
-          totalPaidAmountinCash: { $sum: "$receipts.paidAmount" },
+          totalPaidAmountinCash: { $sum: "$paidAmount" },
         },
       },
     ]);
 
-    const dailyExpense = await FeeStructure.aggregate([
+    const expenseInCash = await Expense.aggregate([
       {
         $match: {
-          date: selectedDate,
+          $and: [
+            { expenseDate: { $gte: selectedDate } },
+            { expenseDate: { $lt: endDate } },
+          ],
           schoolId: mongoose.Types.ObjectId(schoolId),
-        },
-      },
-      {
-        $lookup: {
-          from: "expenses",
-          localField: "schoolId",
-          foreignField: "schoolId",
-          as: "expense",
-        },
-      },
-      {
-        $unwind: "$expense",
-      },
-      {
-        $match: {
-          "expense.expenseDate": selectedDate,
-          "expense.paymentMethod": "CASH",
+          paymentMethod: "CASH",
         },
       },
       {
         $group: {
           _id: null,
-          totalExpense: { $sum: "$expense.amount" },
+          totalAmount: { $sum: "$amount" },
         },
       },
     ]);
 
-    // Check if there are results and extract the totalPaidAmount and totalPaidAmountinCash
-    const totalAmount =
-      totalPaidAmount.length > 0 ? totalPaidAmount[0].totalPaidAmount : 0;
+    const totalAmount = totalPaidAmount?.[0]?.totalPaidAmount || 0;
     const totalAmountinCash =
-      totalPaidAmountinCash.length > 0
-        ? totalPaidAmountinCash[0].totalPaidAmountinCash
-        : 0;
-    const totalExpenseinCash =
-      dailyExpense.length > 0 ? dailyExpense[0].totalExpense : 0;
+      totalPaidAmountinCash?.[0]?.totalPaidAmountinCash || 0;
+    const totalExpense = expenseInCash?.[0]?.totalAmount || 0;
 
     res.status(200).json({
       totalPaidAmount: totalAmount,
       totalPaidAmountinCash: totalAmountinCash,
-      totalExpense: totalExpenseinCash,
+      expenseInCash: totalExpense,
     });
   } catch (error) {
     console.error(error.message);
