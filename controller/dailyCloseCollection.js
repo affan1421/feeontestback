@@ -229,7 +229,7 @@ const updateCloseCollectionStatus = async (req, res, next) => {
     if (!status) {
       return res.status(400).json({ error: "Status is required" });
     }
-    if (status === "REJECTED" && (!reason && !attachments)) {
+    if (status === "REJECTED" && (!reason || !attachments)) {
       return res.status(400).json({ error: "Reason and Attachments are required for REJECTED status" });
     }
 
