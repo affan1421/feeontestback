@@ -26,7 +26,10 @@ app.use(fileUpload());
 
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
   if (req.method === "OPTIONS") {
     res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
     return res.status(200).json({});
@@ -56,7 +59,11 @@ const options = {
   },
 };
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, options)
+);
 
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -90,7 +97,14 @@ mongoose
     app.use("/api/v1/feereceipt", require("./router/feeReceipt"));
     app.use("/api/v1/previousfees", require("./router/previousFeesBalance"));
     app.use("/api/v1/duelist", require("./router/dueList"));
-    app.use("/api/v1/transfercertificate", require("./router/transferCertificate"));
+    app.use(
+      "/api/v1/transfercertificate",
+      require("./router/transferCertificate")
+    );
+    app.use(
+      "/api/v1/dailyclosecollection",
+      require("./router/dailyCloseCollection")
+    );
 
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({
