@@ -4,6 +4,7 @@ const SuccessResponse = require("../utils/successResponse");
 const DailyCloseCollection = require("../models/dailyCloseCollection");
 const FeeStructure = require("../models/feeInstallment");
 
+
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
     const {
@@ -221,8 +222,54 @@ const dailyTotalFeeCollection = async (req, res, next) => {
   }
 };
 
+const updateCloseCollectionStatus = async (req, res, next) => {
+  try {
+    const { closeCollecionId, reason, attachments, status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ error: "Status is required" });
+    }
+    if (status === "REJECTED" && (!reason && !attachments)) {
+      return res.status(400).json({ error: "Reason and Attachments are required for REJECTED status" });
+    }
+
+    const updatedData = await DailyCloseCollection.findByIdAndUpdate(
+      closeCollecionId,
+      {
+        $set: {
+          status,
+          reason: status === "REJECTED" ? reason : "",
+          attachments: status === "REJECTED" ? attachments : []
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedData) {
+      return res.status(500).json({ error: "Something went wrong while updating the document" });
+    }
+
+    res
+      .status(200)
+      .json(
+        SuccessResponse(
+          null,
+          1,
+          "Daily close collection status updated successfully"
+        )
+      );
+  } catch (error) {
+    console.error(error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+
+
+
 module.exports = {
   generateDailyCloseCollection,
   getCollectionDetails,
   dailyTotalFeeCollection,
+  updateCloseCollectionStatus
 };
