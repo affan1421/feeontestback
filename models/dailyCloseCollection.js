@@ -31,6 +31,9 @@ const dailyCloseSchema = new Schema(
       enum: ["PENDING", "APPROVED", "REJECTED"],
       default: "PENDING",
     },
+    reason: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

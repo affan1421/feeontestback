@@ -13,7 +13,7 @@ const generateDailyCloseCollection = async (req, res, next) => {
       expenseAmount,
       date,
       attachments,
-      status,
+      reason,
     } = req.body;
 
     // Check if name and bankName are provided
@@ -34,7 +34,7 @@ const generateDailyCloseCollection = async (req, res, next) => {
       expenseAmount,
       date,
       attachments,
-      status,
+      reason,
     });
 
     await newDailyClose.save();
@@ -101,27 +101,110 @@ const getCollectionDetails = async (req, res, next) => {
   }
 };
 
+// const dailyTotalFeeCollection = async (req, res, next) => {
+//   try {
+//     let { date } = req.query;
+
+//     if (!date) {
+//       date = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
+//     }
+
+//     if (!date || isNaN(Date.parse(date))) {
+//       return res
+//         .status(400)
+//         .json({ error: "Invalid or missing date parameter." });
+//     }
+
+//     // Parse the date parameter into a Date object
+//     const selectedDate = new Date(date);
+
+//     console.log(selectedDate, "selectedDate");
+
+//     const totalPaidAmount = await FeeStructure.aggregate([
+//       {
+//         $match: {
+//           date: selectedDate,
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           totalPaidAmount: { $sum: "$paidAmount" },
+//         },
+//       },
+//     ]);
+
+//     // Calculate the total 'paidAmount' in cash for the given date
+//     const totalPaidAmountinCash = await FeeStructure.aggregate([
+//       {
+//         $match: {
+//           date: selectedDate,
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "feetypes", // Assuming the collection name for Feetype is 'feetypes'
+//           localField: "feeTypeId",
+//           foreignField: "_id",
+//           as: "feeTypeData",
+//         },
+//       },
+//       {
+//         $unwind: "$feeTypeData",
+//       },
+//       {
+//         $match: {
+//           "feeTypeData.accountType": "cash", // Change this condition based on your 'accountType' field value
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: null,
+//           totalPaidAmountinCash: { $sum: "$paidAmount" },
+//         },
+//       },
+//     ]);
+
+//     // Check if there are results and extract the totalPaidAmount and totalPaidAmountinCash
+//     const totalAmount =
+//       totalPaidAmount.length > 0 ? totalPaidAmount[0].totalPaidAmount : 0;
+//     const totalAmountinCash =
+//       totalPaidAmountinCash.length > 0
+//         ? totalPaidAmountinCash[0].totalPaidAmountinCash
+//         : 0;
+
+//     res.status(200).json({
+//       totalPaidAmount: totalAmount,
+//       totalPaidAmountinCash: totalAmountinCash,
+//     });
+//   } catch (error) {
+//     console.error(error.message);
+//     return next(new ErrorResponse("Something Went Wrong", 500));
+//   }
+// };
+
 const dailyTotalFeeCollection = async (req, res, next) => {
   try {
-    const { date } = req.params;
+    let { date, schoolId } = req.query;
 
-    // // Validate if the 'date' parameter is provided and is in a valid date format
-    // if (!date || isNaN(Date.parse(date))) {
-    //   return res
-    //     .status(400)
-    //     .json({ error: "Invalid or missing date parameter." });
-    // }
+    if (!date) {
+      date = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
+    }
+
+    if (!date || isNaN(Date.parse(date))) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or missing date parameter." });
+    }
 
     // Parse the date parameter into a Date object
     const selectedDate = new Date(date);
 
-    console.log(selectedDate, "selectedDate");
-
-    // Calculate the total 'paidAmount' for the given date
     const totalPaidAmount = await FeeStructure.aggregate([
       {
         $match: {
           date: selectedDate,
+          schoolId: mongoose.Types.ObjectId(schoolId),
         },
       },
       {
@@ -132,11 +215,84 @@ const dailyTotalFeeCollection = async (req, res, next) => {
       },
     ]);
 
-    // Check if there are results and extract the totalPaidAmount
+    const totalPaidAmountinCash = await FeeStructure.aggregate([
+      {
+        $match: {
+          date: selectedDate,
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "feereceipts",
+          localField: "studentId",
+          foreignField: "student.studentId",
+          as: "receipts",
+        },
+      },
+      {
+        $unwind: "$receipts",
+      },
+      {
+        $match: {
+          "receipts.payment.method": "CASH",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalPaidAmountinCash: { $sum: "$paidAmount" },
+        },
+      },
+    ]);
+
+    const dailyExpense = await FeeStructure.aggregate([
+      {
+        $match: {
+          date: selectedDate,
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "expenses",
+          localField: "schoolId",
+          foreignField: "schoolId",
+          as: "expense",
+        },
+      },
+      {
+        $unwind: "$expense",
+      },
+      {
+        $match: {
+          expenseDate: selectedDate,
+          paymentMethod: "CASH",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalExpense: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    // Check if there are results and extract the totalPaidAmount and totalPaidAmountinCash
     const totalAmount =
       totalPaidAmount.length > 0 ? totalPaidAmount[0].totalPaidAmount : 0;
+    const totalAmountinCash =
+      totalPaidAmountinCash.length > 0
+        ? totalPaidAmountinCash[0].totalPaidAmountinCash
+        : 0;
+    const totalExpenseinCash =
+      dailyExpense.length > 0 ? dailyExpense[0].dailyExpense : 0;
 
-    res.status(200).json({ totalPaidAmount: totalAmount });
+    res.status(200).json({
+      totalPaidAmount: totalAmount,
+      totalPaidAmountinCash: totalAmountinCash,
+      totalExpense: totalExpenseinCash,
+    });
   } catch (error) {
     console.error(error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
