@@ -7,6 +7,7 @@ const FeeStructure = require("../models/feeInstallment");
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
     const {
+      schoolId,
       name,
       bankName,
       cashAmount,
@@ -28,6 +29,7 @@ const generateDailyCloseCollection = async (req, res, next) => {
 
     // Create a new DailyCloseCollection document
     const newDailyClose = new DailyCloseCollection({
+      schoolId,
       name,
       bankName,
       cashAmount,
@@ -56,13 +58,15 @@ const generateDailyCloseCollection = async (req, res, next) => {
 
 const getCollectionDetails = async (req, res, next) => {
   try {
-    const { searchQuery, date, page, limit } = req.query;
+    const { searchQuery, date, page, limit, schoolId } = req.query;
 
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 5;
     const skip = (pageNumber - 1) * pageSize;
 
-    const filter = {};
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+    };
 
     if (date) {
       filter.date = new Date(date);
@@ -100,88 +104,6 @@ const getCollectionDetails = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
-
-// const dailyTotalFeeCollection = async (req, res, next) => {
-//   try {
-//     let { date } = req.query;
-
-//     if (!date) {
-//       date = new Date().toISOString().split("T")[0]; // Get today's date in 'YYYY-MM-DD' format
-//     }
-
-//     if (!date || isNaN(Date.parse(date))) {
-//       return res
-//         .status(400)
-//         .json({ error: "Invalid or missing date parameter." });
-//     }
-
-//     // Parse the date parameter into a Date object
-//     const selectedDate = new Date(date);
-
-//     console.log(selectedDate, "selectedDate");
-
-//     const totalPaidAmount = await FeeStructure.aggregate([
-//       {
-//         $match: {
-//           date: selectedDate,
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalPaidAmount: { $sum: "$paidAmount" },
-//         },
-//       },
-//     ]);
-
-//     // Calculate the total 'paidAmount' in cash for the given date
-//     const totalPaidAmountinCash = await FeeStructure.aggregate([
-//       {
-//         $match: {
-//           date: selectedDate,
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "feetypes", // Assuming the collection name for Feetype is 'feetypes'
-//           localField: "feeTypeId",
-//           foreignField: "_id",
-//           as: "feeTypeData",
-//         },
-//       },
-//       {
-//         $unwind: "$feeTypeData",
-//       },
-//       {
-//         $match: {
-//           "feeTypeData.accountType": "cash", // Change this condition based on your 'accountType' field value
-//         },
-//       },
-//       {
-//         $group: {
-//           _id: null,
-//           totalPaidAmountinCash: { $sum: "$paidAmount" },
-//         },
-//       },
-//     ]);
-
-//     // Check if there are results and extract the totalPaidAmount and totalPaidAmountinCash
-//     const totalAmount =
-//       totalPaidAmount.length > 0 ? totalPaidAmount[0].totalPaidAmount : 0;
-//     const totalAmountinCash =
-//       totalPaidAmountinCash.length > 0
-//         ? totalPaidAmountinCash[0].totalPaidAmountinCash
-//         : 0;
-
-//     res.status(200).json({
-//       totalPaidAmount: totalAmount,
-//       totalPaidAmountinCash: totalAmountinCash,
-//     });
-//   } catch (error) {
-//     console.error(error.message);
-//     return next(new ErrorResponse("Something Went Wrong", 500));
-//   }
-// };
 
 const dailyTotalFeeCollection = async (req, res, next) => {
   try {
@@ -241,7 +163,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
       {
         $group: {
           _id: null,
-          totalPaidAmountinCash: { $sum: "$paidAmount" },
+          totalPaidAmountinCash: { $sum: "$receipts.paidAmount" },
         },
       },
     ]);
@@ -266,14 +188,14 @@ const dailyTotalFeeCollection = async (req, res, next) => {
       },
       {
         $match: {
-          expenseDate: selectedDate,
-          paymentMethod: "CASH",
+          "expense.expenseDate": selectedDate,
+          "expense.paymentMethod": "CASH",
         },
       },
       {
         $group: {
           _id: null,
-          totalExpense: { $sum: "$amount" },
+          totalExpense: { $sum: "$expense.amount" },
         },
       },
     ]);
@@ -286,7 +208,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
         ? totalPaidAmountinCash[0].totalPaidAmountinCash
         : 0;
     const totalExpenseinCash =
-      dailyExpense.length > 0 ? dailyExpense[0].dailyExpense : 0;
+      dailyExpense.length > 0 ? dailyExpense[0].totalExpense : 0;
 
     res.status(200).json({
       totalPaidAmount: totalAmount,

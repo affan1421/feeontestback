@@ -3,6 +3,11 @@ const { Schema, model } = mongoose;
 
 const dailyCloseSchema = new Schema(
   {
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "Schools",
+      required: [true, "School ID is required"],
+    },
     name: {
       type: String,
       required: [true, "Name is required"],
