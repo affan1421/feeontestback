@@ -631,7 +631,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	const [{ data, count }] = await Student.aggregate(aggregate).toArray();
 
 	if (!count.length) {
-		return next(new ErrorResponse('No Data Found', 404));
+		return next(new ErrorResponse('No Students Found', 404));
 	}
 
 	return res
