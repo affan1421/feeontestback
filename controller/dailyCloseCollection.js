@@ -6,19 +6,10 @@ const FeeReceipt = require("../models/feeReceipt");
 const FeeStructure = require("../models/feeInstallment");
 const Expense = require("../models/expense");
 
-
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
-    const {
-      schoolId,
-      name,
-      bankName,
-      cashAmount,
-      expenseAmount,
-      date,
-      attachments,
-      reason,
-    } = req.body;
+    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } =
+      req.body;
 
     // Check if name and bankName are provided
     if (!name || !bankName) {
@@ -26,8 +17,12 @@ const generateDailyCloseCollection = async (req, res, next) => {
     }
 
     // Check if cashAmount is not zero
-    if (cashAmount === 0) {
-      return res.status(400).json({ error: "cashAmount cannot be zero" });
+    if (cashAmount === 0 && cashAmount < 0) {
+      return res.status(400).json({ error: "Cash Amount cannot be zero or less" });
+    }
+
+    if (expenseAmount < 0) {
+      return res.status(400).json({ error: "Expense Amount cannot be less than 0" });
     }
 
     // Create a new DailyCloseCollection document
@@ -47,11 +42,7 @@ const generateDailyCloseCollection = async (req, res, next) => {
     res
       .status(200)
       .json(
-        SuccessResponse(
-          newDailyClose,
-          1,
-          "Daily Close Collection record created successfully"
-        )
+        SuccessResponse(newDailyClose, 1, "Daily Close Collection record created successfully")
       );
   } catch (error) {
     console.log("error", error.message);
@@ -108,7 +99,6 @@ const getCollectionDetails = async (req, res, next) => {
   }
 };
 
-// const dailyTotalFeeCollection = async (req, res, next) => {
 //   try {
 //     let { date, schoolId } = req.query;
 
@@ -215,25 +205,18 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const { date, schoolId } = req.query;
 
     if (!date || isNaN(Date.parse(date))) {
-      return res
-        .status(400)
-        .json({ error: "Invalid or missing date parameter." });
+      return res.status(400).json({ error: "Invalid or missing date parameter." });
     }
 
     // Parse the date parameter into a Date object
-    const selectedDate = new Date(date);
-    const endDate = new Date(selectedDate);
+    const startDate = new Date(date);
+    const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
-
-    console.log(selectedDate, endDate);
 
     const totalPaidAmount = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [
-            { issueDate: { $gte: selectedDate } },
-            { issueDate: { $lt: endDate } },
-          ],
+          $and: [{ issueDate: { $gte: startDate } }, { issueDate: { $lt: endDate } }],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
@@ -248,10 +231,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const totalPaidAmountinCash = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [
-            { issueDate: { $gte: selectedDate } },
-            { issueDate: { $lt: endDate } },
-          ],
+          $and: [{ issueDate: { $gte: startDate } }, { issueDate: { $lt: endDate } }],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
           "payment.method": "CASH",
         },
@@ -267,10 +247,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const expenseInCash = await Expense.aggregate([
       {
         $match: {
-          $and: [
-            { expenseDate: { $gte: selectedDate } },
-            { expenseDate: { $lt: endDate } },
-          ],
+          $and: [{ expenseDate: { $gte: startDate } }, { expenseDate: { $lt: endDate } }],
           schoolId: mongoose.Types.ObjectId(schoolId),
           paymentMethod: "CASH",
         },
@@ -284,8 +261,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     ]);
 
     const totalAmount = totalPaidAmount?.[0]?.totalPaidAmount || 0;
-    const totalAmountinCash =
-      totalPaidAmountinCash?.[0]?.totalPaidAmountinCash || 0;
+    const totalAmountinCash = totalPaidAmountinCash?.[0]?.totalPaidAmountinCash || 0;
     const totalExpense = expenseInCash?.[0]?.totalAmount || 0;
 
     res.status(200).json({
@@ -307,8 +283,13 @@ const updateCloseCollectionStatus = async (req, res, next) => {
       return res.status(400).json({ error: "Status is required" });
     }
 
-    if (status === "REJECTED" && (!reason || !attachments || reason === "" || attachments.length === 0)) {
-      return res.status(400).json({ error: "Both Reason and Attachments are required for REJECTED status" });
+    if (
+      status === "REJECTED" &&
+      (!reason || !attachments || reason === "" || attachments.length === 0)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Both Reason and Attachments are required for REJECTED status" });
     }
 
     const updatedData = await DailyCloseCollection.findByIdAndUpdate(
@@ -317,8 +298,8 @@ const updateCloseCollectionStatus = async (req, res, next) => {
         $set: {
           status,
           reason: status === "REJECTED" ? reason : "",
-          attachments: status === "REJECTED" ? attachments : []
-        }
+          attachments: status === "REJECTED" ? attachments : [],
+        },
       },
       { new: true }
     );
@@ -329,25 +310,16 @@ const updateCloseCollectionStatus = async (req, res, next) => {
 
     res
       .status(200)
-      .json(
-        SuccessResponse(
-          null,
-          1,
-          "Daily close collection status updated successfully"
-        )
-      );
+      .json(SuccessResponse(null, 1, "Daily close collection status updated successfully"));
   } catch (error) {
     console.error(error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
 
-
-
-
 module.exports = {
   generateDailyCloseCollection,
   getCollectionDetails,
   dailyTotalFeeCollection,
-  updateCloseCollectionStatus
+  updateCloseCollectionStatus,
 };
