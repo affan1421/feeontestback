@@ -64,11 +64,10 @@ const getCollectionDetails = async (req, res, next) => {
     };
 
     if (date) {
-      // Parse the date parameter into a Date object
       const startDate = new Date(date);
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
-      filter.$and = [{ date: { $gte: startDate } }, { date: { $lt: endDate } }];
+      filter.date = { $gte: startDate, $lt: endDate };
     }
 
     const regexCondition = {
