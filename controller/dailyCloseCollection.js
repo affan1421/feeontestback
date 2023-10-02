@@ -291,11 +291,14 @@ const updateCloseCollectionStatus = async (req, res, next) => {
 
     if (
       status === "REJECTED" &&
-      (!reason || !attachments || reason === "" || attachments.length === 0)
+      !reason &&
+      !attachments &&
+      reason === "" &&
+      attachments.length === 0
     ) {
       return res
         .status(400)
-        .json({ error: "Both Reason and Attachments are required for REJECTED status" });
+        .json({ error: "Either Reason or Attachments is required for rejecting" });
     }
 
     const updatedData = await DailyCloseCollection.findByIdAndUpdate(
