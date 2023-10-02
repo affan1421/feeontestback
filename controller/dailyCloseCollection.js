@@ -21,6 +21,7 @@ const generateDailyCloseCollection = async (req, res, next) => {
       return res.status(400).json({ error: "Cash Amount cannot be zero or less" });
     }
 
+    // Check if expense Amount is not less than zero
     if (expenseAmount < 0) {
       return res.status(400).json({ error: "Expense Amount cannot be less than 0" });
     }
@@ -63,7 +64,11 @@ const getCollectionDetails = async (req, res, next) => {
     };
 
     if (date) {
-      filter.date = new Date(date);
+      // Parse the date parameter into a Date object
+      const startDate = new Date(date);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      filter.$and = [{ date: { $gte: startDate } }, { date: { $lt: endDate } }];
     }
 
     const regexCondition = {
@@ -204,6 +209,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
   try {
     const { date, schoolId } = req.query;
 
+    //check date is not invalid
     if (!date || isNaN(Date.parse(date))) {
       return res.status(400).json({ error: "Invalid or missing date parameter." });
     }
