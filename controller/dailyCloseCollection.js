@@ -222,7 +222,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const totalPaidAmount = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [{ issueDate: { $gte: startDate } }, { issueDate: { $lt: endDate } }],
+          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
@@ -237,7 +237,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const totalPaidAmountinCash = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [{ issueDate: { $gte: startDate } }, { issueDate: { $lt: endDate } }],
+          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
           "payment.method": "CASH",
         },
@@ -253,7 +253,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const expenseInCash = await Expense.aggregate([
       {
         $match: {
-          $and: [{ expenseDate: { $gte: startDate } }, { expenseDate: { $lt: endDate } }],
+          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
           schoolId: mongoose.Types.ObjectId(schoolId),
           paymentMethod: "CASH",
         },
