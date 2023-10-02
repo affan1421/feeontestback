@@ -86,6 +86,7 @@ const getCollectionDetails = async (req, res, next) => {
     filter.$and = [regexCondition];
 
     const collectionDetails = await DailyCloseCollection.find(filter)
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .exec();
