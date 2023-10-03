@@ -1448,7 +1448,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 
 	await getWorkSheet(worksheet, receiptDetails, methodMap);
 
-	workbook.write('income.xlsx');
+	// workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
