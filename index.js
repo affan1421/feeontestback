@@ -97,6 +97,10 @@ mongoose
 		app.use('/api/v1/feereceipt', require('./router/feeReceipt'));
 		app.use('/api/v1/previousfees', require('./router/previousFeesBalance'));
 		app.use('/api/v1/duelist', require('./router/dueList'));
+		app.use(
+			'/api/v1/transfercertificate',
+			require('./router/transferCertificate')
+		);
 
 		app.use((err, req, res, next) => {
 			res.status(err.statusCode || 500).json({
