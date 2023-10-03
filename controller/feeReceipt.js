@@ -1004,6 +1004,7 @@ const createReceipt = async (req, res, next) => {
 		transactionDate,
 		transactionId,
 		upiId,
+		status = null,
 		payerName,
 		ddNumber,
 		ddDate,
@@ -1017,7 +1018,8 @@ const createReceipt = async (req, res, next) => {
 		!totalFeeAmount ||
 		!paymentMethod ||
 		!feeTypeId ||
-		!createdBy
+		!createdBy ||
+		!status
 	) {
 		return next(new ErrorResponse('All Fields Are Mandatory', 422));
 	}
@@ -1292,7 +1294,7 @@ const createReceipt = async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
-		status: paymentMethod === 'CASH' ? 'APPROVED' : 'PENDING',
+		status,
 		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
 	};
 
