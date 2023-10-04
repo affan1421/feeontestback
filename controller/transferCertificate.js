@@ -687,9 +687,12 @@ const addTcReason = async (req, res, next) => {
     if (!schoolId?.trim()) {
       return next(new ErrorResponse(`School Id is required`, 403));
     }
-    const reason = reasonInput?.trim().toLowerCase();
+    const reason = reasonInput?.trim()?.toLowerCase();
+    if( !reason ){
+      return next(new ErrorResponse(`reason is required`, 403));
+    }
     const existingReason = await tcReasonModal.findOne({ reason });
-    if (existingReason) return next(new ErrorResponse("Reason already exists", 400));
+    if (existingReason) return next(new ErrorResponse("Reason already exists", 403));
     const result = await tcReasonModal.create({ reason, schoolId });
     res.status(200).json(SuccessResponse(result, 1, "Tc reason created successfully"));
   } catch (error) {
@@ -704,11 +707,17 @@ const addTcReason = async (req, res, next) => {
  */
 async function updateTcReason(req, res, next) {
   const { id: idInput, reason: reasonInput } = req.body;
+  if (!id?.trim()) {
+    return next(new ErrorResponse("Reason Id required!", 403));
+  }
+  if (!reasonInput?.trim()) {
+    return next(new ErrorResponse("reason required!", 403));
+  }
   try {
     const reason = reasonInput?.trim().toLowerCase();
     const id = idInput?.trim();
     const existingReason = await tcReasonModal.findOne({ reason });
-    if (existingReason) return next(new ErrorResponse("This reason name already exists", 400));
+    if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
     const result = await tcReasonModal.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Tc reasons updated successfully"));
   } catch (error) {
