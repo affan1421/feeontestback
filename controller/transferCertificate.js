@@ -653,27 +653,28 @@ const getTcReason = async (req, res, next) => {
   if (!schoolId?.trim()) {
     return next(new ErrorResponse(`School Id is required`, 403));
   }
-  const pageNumber = parseInt(page) || 1;
-  const pageSize = parseInt(limit) || 10;
-  const skip = (pageNumber - 1) * pageSize;
-  const totalCount = await tcReasonModal
-    .find({ schoolId })
-    .count()
-    .catch((error) => {
-      console.log("Error while fetching tc reason", error);
-      next(new ErrorResponse("Something went wrong", 500));
-    });
-  const result = await tcReasonModal
-    .find({ schoolId: schoolId }, "reason")
-    .skip(skip)
-    .limit(pageSize)
-    .catch((error) => {
-      console.log("Error while fetching tc reason", error);
-      next(new ErrorResponse("Something went wrong", 500));
-    });
-  res
-    .status(200)
-    .json(SuccessResponse({ reasons: result, totalCount }, result?.length, "Tc reasons fetched successfully"));
+  try {
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+    const totalCount = tcReasonModal.find({ schoolId }).count();
+    const result = tcReasonModal.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
+    Promise.all([totalCount, result])
+      .then(([count, result]) => {
+        res
+          .status(200)
+          .json(
+            SuccessResponse({ reasons: result, totalCount: count }, result?.length, "Tc reasons fetched successfully")
+          );
+      })
+      .catch((err) => {
+        console.log("Error while fetching tc reason", err);
+        next(new ErrorResponse("Something went wrong", 500));
+      });
+  } catch (error) {
+    console.log("Error while fetching tc reason", error);
+    next(new ErrorResponse("Something went wrong", 500));
+  }
 };
 
 /**
