@@ -722,6 +722,17 @@ const getTcReason = async (req, res, next) => {
   res.status(200).json(SuccessResponse(result, 1, "Tc reasons fetched successfully"));
 };
 
+async function updateTcReason() {
+  const data = req.body;
+  try {
+    const result = await tcReasonModal.findByIdAndUpdate(data.id, { $set: { reason: data?.reason } },{new:true});
+    res.status(200).json(SuccessResponse(result, 1, "Tc reasons updated successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+}
+
+
 module.exports = {
   createStudentTransfer,
   searchStudentsWithPagination,
@@ -732,4 +743,5 @@ module.exports = {
   getTcStudentsDetails,
   addTcReason,
   getTcReason,
+  updateTcReason
 };
