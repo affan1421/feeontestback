@@ -719,7 +719,6 @@ const addTcReason = async (req, res, next) => {
     const existingReason = await tcReasonModal.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("Reason alreay exists", 400));
     const result = await tcReasonModal.create({ reason });
-    //
     res.status(200).json(SuccessResponse(result, 1, "Tc reason created successfully"));
   } catch (error) {
     console.log("Error while creating tc reason", error);
