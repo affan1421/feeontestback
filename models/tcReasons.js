@@ -7,6 +7,10 @@ const tcReasonSchema = new Schema(
       type: String,
       required: [true, "Reason is required"],
     },
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: 'schools'
+    }
   },
   { timestamps: true }
 );
