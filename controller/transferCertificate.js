@@ -385,7 +385,7 @@ async function getTcDetails(req, res, next) {
             {
               $group: {
                 _id: "$classId",
-              },
+							},
             },
             {
               $group: {
