@@ -704,10 +704,22 @@ async function getTcStudentsDetails(req, res, next) {
   }
 }
 
+const getTcReason = async (_, res, next) => {
+  const result = await tcReasonModal.find({}, "reason").catch((error) => {
+    console.log("Error while fetching tc reason", error);
+    next(new ErrorResponse("Something went wrong", 500));
+  });
+  res.status(200).json(SuccessResponse(result, result?.length, "Tc reasons fetched successfully"));
+};
+
 const addTcReason = async (req, res, next) => {
-  const data = req.body;
+  const { reason: reasonInput } = req.body;
   try {
-    const result = await new tcReasonModal(data).save();
+    const reason = reasonInput?.trim().toLowerCase();
+    const existingReason = await tcReasonModal.findOne({ reason });
+    if (existingReason) return next(new ErrorResponse("Reason alreay exists", 400));
+    const result = await tcReasonModal.create({ reason });
+    //
     res.status(200).json(SuccessResponse(result, 1, "Tc reason created successfully"));
   } catch (error) {
     console.log("Error while creating tc reason", error);
@@ -715,23 +727,19 @@ const addTcReason = async (req, res, next) => {
   }
 };
 
-const getTcReason = async (req, res, next) => {
-  const result = await tcReasonModal.find().catch((error) => {
-    next(new ErrorResponse("Something went wrong", 500));
-  });
-  res.status(200).json(SuccessResponse(result, 1, "Tc reasons fetched successfully"));
-};
-
-async function updateTcReason() {
-  const data = req.body;
+async function updateTcReason(req, res, next) {
+  const { id: idInput, reason: reasonInput } = req.body;
   try {
-    const result = await tcReasonModal.findByIdAndUpdate(data.id, { $set: { reason: data?.reason } },{new:true});
+    const reason = reasonInput?.trim().toLowerCase();
+    const id = idInput?.trim();
+    const existingReason = await tcReasonModal.findOne({ reason });
+    if (existingReason) return next(new ErrorResponse("This reason name alreay exists", 400));
+    const result = await tcReasonModal.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Tc reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 }
-
 
 module.exports = {
   createStudentTransfer,
@@ -743,5 +751,5 @@ module.exports = {
   getTcStudentsDetails,
   addTcReason,
   getTcReason,
-  updateTcReason
+  updateTcReason,
 };

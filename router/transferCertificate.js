@@ -7,6 +7,9 @@ const {
   getTcDetails,
   getClasses,
   getTcStudentsDetails,
+  getTcReason,
+  addTcReason,
+  updateTcReason,
 } = require("../controller/transferCertificate");
 
 // create new tranfer certificate
@@ -29,5 +32,14 @@ router.get("/classes", getClasses);
 
 // in-detail data of students who applied for TC
 router.get("/tcStudentsDetails", getTcStudentsDetails);
+
+// create new tc reason
+router.post("/reasons", addTcReason);
+
+// get available tc reasons
+router.get("/reasons", getTcReason);
+
+// update tc reason
+router.put("/reasons", updateTcReason);
 
 module.exports = router;

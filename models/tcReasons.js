@@ -3,7 +3,10 @@ const { Schema, model } = mongoose;
 
 const tcReasonSchema = new Schema(
   {
-    reason: String,
+    reason: {
+      type: String,
+      required: [true, "Reason is required"],
+    },
   },
   { timestamps: true }
 );
