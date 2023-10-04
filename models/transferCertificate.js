@@ -23,7 +23,11 @@ const studentTransferSchema = new Schema(
       enum: ["ALUMINI-TC", "AVAIL-TC", "BLOCKED"],
       required: [true, "Type is required"],
     },
-    reason: String,
+    reason: {
+      type: Schema.Types.ObjectId,
+      ref: "tcReasons",
+      required: [true, "Tc reason is required"],
+    },
     comment: String,
     transferringSchool: String,
     status: {
