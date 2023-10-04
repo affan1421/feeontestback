@@ -656,7 +656,13 @@ const getTcReason = async (req, res, next) => {
   const pageNumber = parseInt(page) || 1;
   const pageSize = parseInt(limit) || 10;
   const skip = (pageNumber - 1) * pageSize;
-  const totalCount = await tcReasonModal.find({ schoolId }).count();
+  const totalCount = await tcReasonModal
+    .find({ schoolId })
+    .count()
+    .catch((error) => {
+      console.log("Error while fetching tc reason", error);
+      next(new ErrorResponse("Something went wrong", 500));
+    });
   const result = await tcReasonModal
     .find({ schoolId: schoolId }, "reason")
     .skip(skip)
