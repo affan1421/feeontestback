@@ -385,7 +385,7 @@ async function getTcDetails(req, res, next) {
             {
               $group: {
                 _id: "$classId",
-							},
+              },
             },
             {
               $group: {
@@ -656,6 +656,7 @@ const getTcReason = async (req, res, next) => {
   const pageNumber = parseInt(page) || 1;
   const pageSize = parseInt(limit) || 10;
   const skip = (pageNumber - 1) * pageSize;
+  const totalCount = await tcReasonModal.find({ schoolId }).count();
   const result = await tcReasonModal
     .find({ schoolId: schoolId }, "reason")
     .skip(skip)
@@ -664,7 +665,9 @@ const getTcReason = async (req, res, next) => {
       console.log("Error while fetching tc reason", error);
       next(new ErrorResponse("Something went wrong", 500));
     });
-  res.status(200).json(SuccessResponse(result, result?.length, "Tc reasons fetched successfully"));
+  res
+    .status(200)
+    .json(SuccessResponse({ reasons: result, totalCount }, result?.length, "Tc reasons fetched successfully"));
 };
 
 /**
