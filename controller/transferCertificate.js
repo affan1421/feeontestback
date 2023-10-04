@@ -317,38 +317,29 @@ async function getTcDetails(req, res, next) {
                 },
               },
             },
-            {
-              $project: {
-                _id: 0,
-                typeResult: 1,
-              },
-            },
+            { $project: { _id: 0, typeResult: 1 } },
           ],
           //Second Facet : get different types of reasons and its count
           reasons: [
             {
-              $group: {
-                _id: "$reason",
-                count: { $sum: 1 },
+              $lookup: {
+                from: "tcreasons",
+                localField: "reason",
+                foreignField: "_id",
+                as: "reason",
               },
             },
+            { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            { $group: { _id: "$reason", count: { $sum: 1 } } },
             {
               $group: {
                 _id: null,
                 reasonResult: {
-                  $push: {
-                    reason: "$_id",
-                    count: "$count",
-                  },
+                  $push: { reason: "$_id", count: "$count" },
                 },
               },
             },
-            {
-              $project: {
-                _id: 0,
-                reasonResult: 1,
-              },
-            },
+            { $project: { _id: 0, reasonResult: 1 } },
           ],
           //Third Facet : get different types of classes and its count
           class: [
@@ -360,9 +351,7 @@ async function getTcDetails(req, res, next) {
                 as: "associatedStudent",
               },
             },
-            {
-              $unwind: "$associatedStudent",
-            },
+            { $unwind: "$associatedStudent" },
             {
               $lookup: {
                 from: "sections",
@@ -371,9 +360,7 @@ async function getTcDetails(req, res, next) {
                 as: "associatedSection",
               },
             },
-            {
-              $unwind: "$associatedSection",
-            },
+            { $unwind: "$associatedSection" },
             {
               $group: {
                 _id: "$associatedSection.className",
@@ -391,12 +378,7 @@ async function getTcDetails(req, res, next) {
                 },
               },
             },
-            {
-              $project: {
-                _id: 0,
-                classResult: 1,
-              },
-            },
+            { $project: { _id: 0, classResult: 1 } },
           ],
           //unique class count
           classCount: [
@@ -411,21 +393,12 @@ async function getTcDetails(req, res, next) {
                 count: { $sum: 1 },
               },
             },
-            {
-              $project: {
-                _id: 0,
-                count: 1,
-              },
-            },
+            { $project: { _id: 0, count: 1 } },
           ],
 
           //unique reason count
           reasonsCount: [
-            {
-              $group: {
-                _id: "$reason",
-              },
-            },
+            { $group: { _id: "$reason" } },
             {
               $group: {
                 _id: null,
@@ -531,26 +504,11 @@ async function getTcStudentsDetails(req, res, next) {
     }
 
     const result = await StudentTransfer.aggregate([
-      {
-        $match: query,
-      },
-      {
-        $sort: {
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
+      { $match: query },
+      { $sort: { createdAt: 1, updatedAt: 1 } },
       {
         $facet: {
-          totalDocs: [
-            {
-              $group: {
-                _id: null,
-                totalDocs: { $sum: 1 },
-              },
-            },
-            { $project: { _id: 0 } },
-          ],
+          totalDocs: [{ $group: { _id: null, totalDocs: { $sum: 1 } } }, { $project: { _id: 0 } }],
           students: [
             {
               $lookup: {
@@ -560,19 +518,9 @@ async function getTcStudentsDetails(req, res, next) {
                 as: "studentslist",
               },
             },
-            {
-              $unwind: "$studentslist",
-            },
-            {
-              $match: {
-                "studentslist.name": regexName,
-              },
-            },
-            {
-              $sort: {
-                "studentslist.name": 1,
-              },
-            },
+            { $unwind: "$studentslist" },
+            { $match: { "studentslist.name": regexName } },
+            { $sort: { "studentslist.name": 1 } },
             {
               $lookup: {
                 from: "schools",
@@ -581,9 +529,7 @@ async function getTcStudentsDetails(req, res, next) {
                 as: "schoolname",
               },
             },
-            {
-              $unwind: "$schoolname",
-            },
+            { $unwind: "$schoolname" },
             {
               $lookup: {
                 from: "sections",
@@ -600,10 +546,7 @@ async function getTcStudentsDetails(req, res, next) {
                 as: "classes",
               },
             },
-            {
-              $unwind: "$classes",
-            },
-
+            { $unwind: "$classes" },
             {
               $lookup: {
                 from: "feeinstallments",
@@ -639,6 +582,15 @@ async function getTcStudentsDetails(req, res, next) {
               },
             },
             {
+              $lookup: {
+                from: "tcreasons",
+                localField: "reason",
+                foreignField: "_id",
+                as: "reason",
+              },
+            },
+            { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            {
               $project: {
                 _id: 1,
                 tcType: 1,
@@ -648,9 +600,11 @@ async function getTcStudentsDetails(req, res, next) {
                 studentslist: 1,
                 schoolname: 1,
                 classes: 1,
-                totalAmount: 1,
-                paidAmount: 1,
-                pendingAmount: { $subtract: ["$totalAmount", "$paidAmount"] },
+                totalAmount: { $round: ["$totalAmount", 2] },
+                paidAmount: { $round: ["$paidAmount", 2] },
+                pendingAmount: {
+                  $round: [{ $subtract: ["$totalAmount", "$paidAmount"] }, 2],
+                },
                 attachments: 1,
               },
             },
@@ -658,14 +612,8 @@ async function getTcStudentsDetails(req, res, next) {
           ],
         },
       },
-      {
-        $unwind: "$students",
-      },
-      {
-        $addFields: {
-          totalDocs: { $arrayElemAt: ["$totalDocs.totalDocs", 0] },
-        },
-      },
+      { $unwind: "$students" },
+      { $addFields: { totalDocs: { $arrayElemAt: ["$totalDocs.totalDocs", 0] } } },
       {
         $project: {
           _id: "$students._id",
@@ -683,17 +631,9 @@ async function getTcStudentsDetails(req, res, next) {
           attachments: "$students.attachments",
         },
       },
-      {
-        $sort: {
-          studentslist: 1,
-        },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: pageSize,
-      },
+      { $sort: { studentslist: 1 } },
+      { $skip: skip },
+      { $limit: pageSize },
     ]).exec();
 
     res.status(200).json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
