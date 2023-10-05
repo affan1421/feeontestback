@@ -60,16 +60,23 @@ exports.create = async (req, res, next) => {
 	// TODO: add validation if structure name already exists
 
 	try {
+		const id = mongoose.Types.ObjectId();
 		// Attempt to create the fee structure.
-		const feeStructure = await FeeStructure.create({
-			feeStructureName,
-			schoolId,
-			classes,
-			categoryId,
-			description,
-			feeDetails,
-			totalAmount: Number(totalAmount),
-		});
+		const feeStructure = await FeeStructure.findOneAndUpdate(
+			{ _id: id },
+			{
+				feeStructureName,
+				schoolId,
+				classes,
+				categoryId,
+				description,
+				feeDetails,
+				totalAmount: Number(totalAmount),
+			},
+			{ upsert: true, new: true }
+		)
+			.populate('feeDetails.feeTypeId', 'feeType')
+			.lean();
 
 		studentList = studentList.filter(s => s.isSelected === true);
 
@@ -80,7 +87,7 @@ exports.create = async (req, res, next) => {
 			},
 			{
 				$addToSet: {
-					feeStructureId: feeStructure._id,
+					feeStructureIds: feeStructure._id,
 				},
 			},
 			{
@@ -537,7 +544,7 @@ exports.deleteFeeStructure = async (req, res, next) => {
 			},
 			{
 				$pull: {
-					feeStructureId: mongoose.Types.ObjectId(id),
+					feeStructureIds: mongoose.Types.ObjectId(id),
 				},
 			},
 			{

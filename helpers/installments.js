@@ -28,7 +28,7 @@ async function insertFeeInstallments() {
 					feeTypeId,
 					feeType: {
 						_id: feeTypeId,
-						name: feeTypeName,
+						name: feeTypeName || feeTypeId.feeType,
 					},
 					scheduleTypeId,
 					academicYearId: academicYear,
