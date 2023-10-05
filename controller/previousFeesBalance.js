@@ -118,6 +118,7 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		chequeNumber,
 		transactionDate,
 		transactionId,
+		status = null,
 		upiId,
 		payerName,
 		ddNumber,
@@ -131,6 +132,8 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 
 	if (!createdBy)
 		return next(new ErrorResponse('Please Provide Created By', 422));
+
+	if (!status) return next(new ErrorResponse('Please Provide Status', 422));
 
 	const previousBalance = await PreviousBalance.findOne({ _id: prevBalId });
 
@@ -249,11 +252,11 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 			paidAmount,
 		},
 		createdBy,
-		status: paymentMode === 'CASH' ? 'APPROVED' : 'PENDING',
+		status,
 		approvedBy: paymentMode === 'CASH' ? createdBy : null,
 	};
 
-	if (paymentMode === 'CASH') {
+	if (status === 'APPROVED') {
 		const updatePayload = {
 			lastPaidDate: new Date(),
 		};

@@ -631,7 +631,7 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 	const [{ data, count }] = await Student.aggregate(aggregate).toArray();
 
 	if (!count.length) {
-		return next(new ErrorResponse('No Data Found', 404));
+		return next(new ErrorResponse('No Students Found', 404));
 	}
 
 	return res
@@ -1573,6 +1573,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		chequeNumber,
 		transactionDate,
 		transactionId,
+		status = null,
 		donorId = null,
 		upiId,
 		payerName,
@@ -1586,6 +1587,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
 	if (!createdBy)
 		return next(new ErrorResponse('Please Provide Created By', 422));
+
+	if (!status) return next(new ErrorResponse('Please Provide Status', 422));
 
 	const issueDate = req.body.issueDate
 		? moment(req.body.issueDate, 'DD/MM/YYYY')
@@ -1852,7 +1855,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	for (const item of feeDetails) {
 		currentPaidAmount += item.paidAmount;
 
-		if (paymentMethod === 'CASH') {
+		if (status === 'APPROVED') {
 			const foundInstallment = await FeeInstallment.findOne({
 				_id: mongoose.Types.ObjectId(item._id),
 			}).lean();
@@ -1952,7 +1955,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
-		status: paymentMethod === 'CASH' ? 'APPROVED' : 'PENDING',
+		status,
 		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
 	};
 

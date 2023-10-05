@@ -433,7 +433,7 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 		},
 		{
 			$sort: {
-				expenseDate: -1,
+				createdAt: -1,
 			},
 		},
 		{
