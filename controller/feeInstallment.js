@@ -630,10 +630,6 @@ exports.StudentsList = catchAsync(async (req, res, next) => {
 
 	const [{ data, count }] = await Student.aggregate(aggregate).toArray();
 
-	if (!count.length) {
-		return next(new ErrorResponse('No Students Found', 404));
-	}
-
 	return res
 		.status(200)
 		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
@@ -1588,8 +1584,6 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 	if (!createdBy)
 		return next(new ErrorResponse('Please Provide Created By', 422));
 
-	if (!status) return next(new ErrorResponse('Please Provide Status', 422));
-
 	const issueDate = req.body.issueDate
 		? moment(req.body.issueDate, 'DD/MM/YYYY')
 		: new Date();
@@ -2267,13 +2261,6 @@ exports.reportBySchedules = async (req, res, next) => {
 						$addFields: {
 							dueAmount: {
 								$subtract: [amountProp, '$paidAmount'],
-							},
-						},
-					},
-					{
-						$match: {
-							dueAmount: {
-								$gt: 0,
 							},
 						},
 					},
