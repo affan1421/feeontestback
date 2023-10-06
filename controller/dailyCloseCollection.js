@@ -7,7 +7,16 @@ const Expense = require("../models/expense");
 
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
-    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } = req.body;
+    const {
+      schoolId,
+      name,
+      bankName,
+      cashAmount,
+      expenseAmount,
+      date,
+      attachments,
+      reason,
+    } = req.body;
 
     // Check if name and bankName are provided
     if (!name || !bankName) {
@@ -21,7 +30,9 @@ const generateDailyCloseCollection = async (req, res, next) => {
 
     // Check if expense Amount is not less than zero
     if (expenseAmount && expenseAmount < 0) {
-      return next(new ErrorResponse("Expense Amount cannot be less than 0", 400));
+      return next(
+        new ErrorResponse("Expense Amount cannot be less than 0", 400)
+      );
     }
 
     // Parse the date parameter into a Date object
@@ -33,13 +44,18 @@ const generateDailyCloseCollection = async (req, res, next) => {
     const income = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
+          $and: [
+            { createdAt: { $gte: startDate } },
+            { createdAt: { $lt: endDate } },
+          ],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
       {
         $facet: {
-          totalPaidAmount: [{ $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } }],
+          totalPaidAmount: [
+            { $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } },
+          ],
           totalAmountInCash: [
             { $match: { "payment.method": "CASH" } },
             { $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } },
@@ -48,8 +64,12 @@ const generateDailyCloseCollection = async (req, res, next) => {
       },
       {
         $project: {
-          totalPaidAmount: { $arrayElemAt: ["$totalPaidAmount.totalAmount", 0] },
-          totalAmountInCash: { $arrayElemAt: ["$totalAmountInCash.totalAmount", 0] },
+          totalPaidAmount: {
+            $arrayElemAt: ["$totalPaidAmount.totalAmount", 0],
+          },
+          totalAmountInCash: {
+            $arrayElemAt: ["$totalAmountInCash.totalAmount", 0],
+          },
           expenseInCash: 1,
         },
       },
@@ -58,7 +78,10 @@ const generateDailyCloseCollection = async (req, res, next) => {
     const expenseInCash = await Expense.aggregate([
       {
         $match: {
-          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
+          $and: [
+            { createdAt: { $gte: startDate } },
+            { createdAt: { $lt: endDate } },
+          ],
           schoolId: mongoose.Types.ObjectId(schoolId),
           paymentMethod: "CASH",
         },
@@ -79,7 +102,13 @@ const generateDailyCloseCollection = async (req, res, next) => {
           status: { $in: ["APPROVED", "PENDING"] },
         },
       },
-      { $group: { _id: null, cashAmount: { $sum: "$cashAmount" }, expenseAmount: { $sum: "$expenseAmount" } } },
+      {
+        $group: {
+          _id: null,
+          cashAmount: { $sum: "$cashAmount" },
+          expenseAmount: { $sum: "$expenseAmount" },
+        },
+      },
       { $project: { _id: 0 } },
     ]);
 
@@ -96,17 +125,31 @@ const generateDailyCloseCollection = async (req, res, next) => {
         expenseInCash: expenseInCash?.[0]?.totalAmount || 0,
       },
       toCloseAmounts: {
-        totalAmountInCash: income?.[0]?.totalAmountInCash - (closedAmounts?.[0]?.cashAmount || 0) || 0,
-        totalExpenseInCash: expenseInCash?.[0]?.totalAmount - (closedAmounts?.[0]?.expenseAmount || 0) || 0,
+        totalAmountInCash:
+          income?.[0]?.totalAmountInCash -
+            (closedAmounts?.[0]?.cashAmount || 0) || 0,
+        totalExpenseInCash:
+          expenseInCash?.[0]?.totalAmount -
+            (closedAmounts?.[0]?.expenseAmount || 0) || 0,
       },
     };
 
     if (response.toCloseAmounts.totalAmountInCash < Number(cashAmount)) {
-      return next(new ErrorResponse("Cash amount cannont be grater than total collected cash amount", 400));
+      return next(
+        new ErrorResponse(
+          "Cash amount cannont be grater than total collected cash amount",
+          400
+        )
+      );
     }
 
     if (response.toCloseAmounts.totalExpenseInCash < Number(expenseAmount)) {
-      return next(new ErrorResponse("Expense amount cannont be grater than total collected expense amount", 400));
+      return next(
+        new ErrorResponse(
+          "Expense amount cannont be grater than total collected expense amount",
+          400
+        )
+      );
     }
 
     // Create a new DailyCloseCollection document
@@ -123,7 +166,15 @@ const generateDailyCloseCollection = async (req, res, next) => {
 
     await newDailyClose.save();
 
-    res.status(200).json(SuccessResponse(newDailyClose, 1, "Daily Close Collection record created successfully"));
+    res
+      .status(200)
+      .json(
+        SuccessResponse(
+          newDailyClose,
+          1,
+          "Daily Close Collection record created successfully"
+        )
+      );
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -150,7 +201,10 @@ const getCollectionDetails = async (req, res, next) => {
     }
 
     const regexCondition = {
-      $or: [{ name: { $regex: searchQuery, $options: "i" } }, { bankName: { $regex: searchQuery, $options: "i" } }],
+      $or: [
+        { name: { $regex: searchQuery, $options: "i" } },
+        { bankName: { $regex: searchQuery, $options: "i" } },
+      ],
     };
 
     const amountQuery = parseFloat(searchQuery);
@@ -186,7 +240,9 @@ const dailyTotalFeeCollection = async (req, res, next) => {
 
     //check date is not invalid
     if (!date || isNaN(Date.parse(date))) {
-      return res.status(400).json({ error: "Invalid or missing date parameter." });
+      return res
+        .status(400)
+        .json({ error: "Invalid or missing date parameter." });
     }
 
     // Parse the date parameter into a Date object
@@ -197,13 +253,18 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const income = await FeeReceipt.aggregate([
       {
         $match: {
-          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
+          $and: [
+            { createdAt: { $gte: startDate } },
+            { createdAt: { $lt: endDate } },
+          ],
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
       {
         $facet: {
-          totalPaidAmount: [{ $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } }],
+          totalPaidAmount: [
+            { $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } },
+          ],
           totalAmountInCash: [
             { $match: { "payment.method": "CASH" } },
             { $group: { _id: null, totalAmount: { $sum: "$paidAmount" } } },
@@ -212,8 +273,12 @@ const dailyTotalFeeCollection = async (req, res, next) => {
       },
       {
         $project: {
-          totalPaidAmount: { $arrayElemAt: ["$totalPaidAmount.totalAmount", 0] },
-          totalAmountInCash: { $arrayElemAt: ["$totalAmountInCash.totalAmount", 0] },
+          totalPaidAmount: {
+            $arrayElemAt: ["$totalPaidAmount.totalAmount", 0],
+          },
+          totalAmountInCash: {
+            $arrayElemAt: ["$totalAmountInCash.totalAmount", 0],
+          },
           expenseInCash: 1,
         },
       },
@@ -222,7 +287,10 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     const expenseInCash = await Expense.aggregate([
       {
         $match: {
-          $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
+          $and: [
+            { createdAt: { $gte: startDate } },
+            { createdAt: { $lt: endDate } },
+          ],
           schoolId: mongoose.Types.ObjectId(schoolId),
           paymentMethod: "CASH",
         },
@@ -243,7 +311,13 @@ const dailyTotalFeeCollection = async (req, res, next) => {
           status: { $in: ["APPROVED", "PENDING"] },
         },
       },
-      { $group: { _id: null, cashAmount: { $sum: "$cashAmount" }, expenseAmount: { $sum: "$expenseAmount" } } },
+      {
+        $group: {
+          _id: null,
+          cashAmount: { $sum: "$cashAmount" },
+          expenseAmount: { $sum: "$expenseAmount" },
+        },
+      },
       { $project: { _id: 0 } },
     ]);
 
@@ -260,8 +334,12 @@ const dailyTotalFeeCollection = async (req, res, next) => {
         expenseInCash: expenseInCash?.[0]?.totalAmount || 0,
       },
       toCloseAmounts: {
-        totalAmountInCash: income?.[0]?.totalAmountInCash - (closedAmounts?.[0]?.cashAmount || 0) || 0,
-        totalExpenseInCash: expenseInCash?.[0]?.totalAmount - (closedAmounts?.[0]?.expenseAmount || 0) || 0,
+        totalAmountInCash:
+          income?.[0]?.totalAmountInCash -
+            (closedAmounts?.[0]?.cashAmount || 0) || 0,
+        totalExpenseInCash:
+          expenseInCash?.[0]?.totalAmount -
+            (closedAmounts?.[0]?.expenseAmount || 0) || 0,
       },
     };
 
@@ -280,8 +358,16 @@ const updateCloseCollectionStatus = async (req, res, next) => {
       return res.status(400).json({ error: "Status is required" });
     }
 
-    if (status === "REJECTED" && !reason && !attachments && reason === "" && attachments.length === 0) {
-      return res.status(400).json({ error: "Either Reason or Attachments is required for rejecting" });
+    if (
+      status === "REJECTED" &&
+      !reason &&
+      !attachments &&
+      reason === "" &&
+      attachments.length === 0
+    ) {
+      return res.status(400).json({
+        error: "Either Reason or Attachments is required for rejecting",
+      });
     }
 
     const updatedData = await DailyCloseCollection.findByIdAndUpdate(
@@ -297,10 +383,73 @@ const updateCloseCollectionStatus = async (req, res, next) => {
     );
 
     if (!updatedData) {
-      return res.status(500).json({ error: "Something went wrong while updating the document" });
+      return res
+        .status(500)
+        .json({ error: "Something went wrong while updating the document" });
     }
 
-    res.status(200).json(SuccessResponse(null, 1, "Daily close collection status updated successfully"));
+    res
+      .status(200)
+      .json(
+        SuccessResponse(
+          null,
+          1,
+          "Daily close collection status updated successfully"
+        )
+      );
+  } catch (error) {
+    console.error(error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const updateEditStatus = async (req, res, next) => {
+  try {
+    const db = mongoose.connection.db;
+    const { schoolId, status } = req.query;
+
+    await db.collection("schools").updateOne(
+      { _id: mongoose.Types.ObjectId(schoolId) },
+      {
+        $set: {
+          "permissions.finance.allowEdit": status == "true",
+        },
+      }
+    );
+
+    return res
+      .status(200)
+      .json(
+        SuccessResponse(
+          null,
+          1,
+          "Daily close collection edit status updated successfully"
+        )
+      );
+  } catch (error) {
+    console.error(error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const getEditStatus = async (req, res, next) => {
+  try {
+    const db = mongoose.connection.db;
+    const { schoolId } = req.query;
+    const data = await db
+      .collection("schools")
+      .findOne({ _id: mongoose.Types.ObjectId(schoolId) });
+
+    console.log(data);
+    return res
+      .status(200)
+      .json(
+        SuccessResponse(
+          { allowEdit: data?.permissions?.finance?.allowEdit == true },
+          1,
+          "Daily close collection edit status updated successfully"
+        )
+      );
   } catch (error) {
     console.error(error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -312,4 +461,6 @@ module.exports = {
   getCollectionDetails,
   dailyTotalFeeCollection,
   updateCloseCollectionStatus,
+  updateEditStatus,
+  getEditStatus,
 };
