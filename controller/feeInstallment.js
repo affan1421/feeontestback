@@ -1956,7 +1956,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 		items,
 		createdBy,
 		status,
-		approvedBy: paymentMethod === 'CASH' ? createdBy : null,
+		approvedBy:
+			paymentMethod === 'CASH' || status === 'APPROVED' ? createdBy : null,
 	};
 
 	const createdReceipt = await FeeReceipt.create(receiptPayload);
