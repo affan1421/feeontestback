@@ -7,12 +7,55 @@ const ExpenseType = require('../models/expenseType');
 const ErrorResponse = require('../utils/errorResponse');
 const catchAsync = require('../utils/catchAsync');
 const SuccessResponse = require('../utils/successResponse');
+const redisClient = require('../utils/redisClient');
 const {
 	getStartDate,
 	getEndDate,
 	getPrevStartDate,
 	getPrevEndDate,
 } = require('../helpers/dateFormat');
+
+// Define constants
+const CACHE_EXPIRATION_TIME = 60 * 60 * 24; // 1 day in seconds
+
+// Helper function to fetch data from Redis cache or database
+const fetchDataFromCacheOrDatabase = async (cacheKey, queryFn) => {
+	if (!cacheKey) {
+		return await queryFn(); // No cache key, directly query the database
+	}
+
+	const cachedData = await redisClient.get(cacheKey);
+
+	if (!cachedData) {
+		const data = await queryFn();
+
+		if (data) {
+			await redisClient.set(
+				cacheKey,
+				JSON.stringify(data),
+				'EX',
+				CACHE_EXPIRATION_TIME
+			);
+		}
+
+		return data;
+	}
+
+	return JSON.parse(cachedData);
+};
+
+// Helper function to calculate date range
+const getDateRange = (startDate, endDate, interval) => {
+	const dateObj = {
+		$gte: getStartDate(startDate, interval),
+		$lte: getEndDate(endDate, interval),
+	};
+	const prevDateObj = {
+		$gte: getPrevStartDate(startDate, interval, `${interval}s`), // Update this for other intervals
+		$lte: getPrevEndDate(endDate, interval, `${interval}s`), // Update this for other intervals
+	};
+	return { dateObj, prevDateObj };
+};
 
 // CREATE
 exports.create = async (req, res, next) => {
@@ -30,6 +73,8 @@ exports.create = async (req, res, next) => {
 	} = req.body;
 
 	const date = moment(expenseDate, 'DD/MM/YYYY').format('DDMMYY');
+
+	const weekNumber = moment(expenseDate, 'DD/MM/YYYY').week();
 
 	if (!paymentMethod || !schoolId || !expenseType || !createdBy) {
 		return next(new ErrorResponse('All Fields are Mandatory', 422));
@@ -70,7 +115,6 @@ exports.create = async (req, res, next) => {
 	const expenseDateDate = moment(expenseDate, 'DD/MM/YYYY').format(
 		'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]'
 	);
-	// const updatedExpenseDate = expenseDateDate.setTime(currentDate.getTime());
 
 	let newExpense;
 	try {
@@ -80,7 +124,6 @@ exports.create = async (req, res, next) => {
 			voucherNumber,
 			amount,
 			transactionDetails,
-			// expenseDate: updatedExpenseDate,
 			expenseDate: expenseDateDate,
 			paymentMethod,
 			expenseType,
@@ -105,6 +148,16 @@ exports.create = async (req, res, next) => {
 	} catch (error) {
 		return next(new ErrorResponse('Something Went Wrong', 500));
 	}
+
+	const [day, month, year] = expenseDate.split('/');
+
+	// Delete cache keys using template literals
+	await Promise.all([
+		redisClient.del(`dailyExpense/${schoolId}/${year}${month}${day}`),
+		redisClient.del(`weeklyExpense/${schoolId}/${weekNumber}`),
+		redisClient.del(`monthlyExpense/${schoolId}/${month}`),
+	]);
+
 	return res
 		.status(201)
 		.json(SuccessResponse(newExpense, 1, 'Created Successfully'));
@@ -415,9 +468,33 @@ exports.expensesList = catchAsync(async (req, res, next) => {
 			},
 		},
 		{
-			$addFields: {
+			$lookup: {
+				from: 'schools',
+				localField: 'schoolId',
+				foreignField: '_id',
+				as: 'school',
+			},
+		},
+		{
+			$project: {
 				expenseType: {
 					$first: '$expenseType',
+				},
+				reason: 1,
+				voucherNumber: 1,
+				amount: 1,
+				expenseDate: 1,
+				paymentMethod: 1,
+				schoolId: 1,
+				createdBy: 1,
+				approvedBy: 1,
+				createdAt: 1,
+				updatedAt: 1,
+				schoolName: {
+					$first: '$school.schoolName',
+				},
+				schoolAddress: {
+					$first: '$school.address',
 				},
 			},
 		},
@@ -564,252 +641,6 @@ exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(expenseData[0], 1, 'Deleted Successfully'));
 });
 
-exports.getDashboardData = catchAsync(async (req, res, next) => {
-	const {
-		schoolId,
-		dateRange = null,
-		startDate = null,
-		endDate = null,
-	} = req.query;
-
-	let dateObj = null;
-	let prevDateObj = null;
-
-	const totalExpenseAggregation = [
-		{
-			$match: {
-				schoolId: mongoose.Types.ObjectId(schoolId),
-				expenseDate: dateObj,
-			},
-		},
-	];
-	const tempAggregation = [
-		{
-			$group: {
-				_id: {
-					$dateToString: {
-						format: '%Y-%m-%d',
-						date: '$expenseDate',
-					},
-				},
-				totalExpAmount: {
-					$sum: '$amount',
-				},
-			},
-		},
-		{
-			$sort: {
-				_id: 1,
-			},
-		},
-		{
-			$group: {
-				_id: null,
-				totalExpAmount: {
-					$sum: '$totalExpAmount',
-				},
-				expenseList: {
-					$push: {
-						expenseDate: '$_id',
-						amount: '$totalExpAmount',
-					},
-				},
-			},
-		},
-	];
-
-	switch (dateRange) {
-		case 'daily':
-			dateObj = {
-				$gte: getStartDate(startDate, 'day'),
-				$lte: getEndDate(endDate, 'day'),
-			};
-			prevDateObj = {
-				$gte: getPrevStartDate(startDate, 'day', 'days'),
-				$lte: getPrevEndDate(endDate, 'day', 'days'),
-			};
-			totalExpenseAggregation.push({
-				$group: {
-					_id: null,
-					totalExpAmount: {
-						$sum: '$amount',
-					},
-					// push only the issueDate and paidAmount
-					expenseList: {
-						$push: {
-							expenseDate: '$expenseDate',
-							amount: '$amount',
-						},
-					},
-				},
-			});
-			break;
-
-		case 'weekly':
-			dateObj = {
-				$gte: getStartDate(startDate, 'week'),
-				$lte: getEndDate(endDate, 'week'),
-			};
-			prevDateObj = {
-				$gte: getPrevStartDate(startDate, 'week', 'weeks'),
-				$lte: getPrevEndDate(endDate, 'week', 'weeks'),
-			};
-			totalExpenseAggregation.push(...tempAggregation);
-
-			break;
-
-		case 'monthly':
-			dateObj = {
-				$gte: getStartDate(startDate, 'month'),
-				$lte: getEndDate(endDate, 'month'),
-			};
-			prevDateObj = {
-				$gte: getPrevStartDate(startDate, 'month', 'months'),
-				$lte: getPrevEndDate(endDate, 'month', 'months'),
-			};
-			totalExpenseAggregation.push(...tempAggregation);
-
-			break;
-
-		default:
-			dateObj = {
-				$gte: getStartDate(startDate),
-				$lte: getEndDate(endDate),
-			};
-			totalExpenseAggregation.push(...tempAggregation);
-			break;
-	}
-
-	totalExpenseAggregation[0].$match.expenseDate = dateObj;
-	const aggregate = [
-		{
-			$facet: {
-				totalExpense: [
-					{
-						$match: {
-							schoolId: mongoose.Types.ObjectId(schoolId),
-						},
-					},
-					{
-						$group: {
-							_id: '$expenseType',
-							totalExpAmount: {
-								$sum: '$amount',
-							},
-							schoolId: {
-								$first: '$schoolId',
-							},
-						},
-					},
-					{
-						$lookup: {
-							from: 'expensetypes',
-							let: {
-								expTypeId: '$_id',
-							},
-							pipeline: [
-								{
-									$match: {
-										$expr: {
-											$eq: ['$_id', '$$expTypeId'],
-										},
-									},
-								},
-								{
-									$project: {
-										name: 1,
-									},
-								},
-							],
-							as: '_id',
-						},
-					},
-					{
-						$group: {
-							_id: '$schoolId',
-							totalAmount: {
-								$sum: '$totalExpAmount',
-							},
-							maxExpType: {
-								$max: {
-									totalExpAmount: '$totalExpAmount',
-									expenseType: {
-										$first: '$_id',
-									},
-								},
-							},
-							minExpType: {
-								$min: {
-									totalExpAmount: '$totalExpAmount',
-									expenseType: {
-										$first: '$_id',
-									},
-								},
-							},
-						},
-					},
-				],
-				totalExpenseCurrent: totalExpenseAggregation,
-			},
-		},
-	];
-	if (dateRange) {
-		aggregate[0].$facet.totalExpensePrev = [
-			{
-				$match: {
-					schoolId: mongoose.Types.ObjectId(schoolId),
-					expenseDate: prevDateObj,
-				},
-			},
-			{
-				$group: {
-					_id: null,
-					totalExpAmount: {
-						$sum: '$amount',
-					},
-				},
-			},
-		];
-	}
-
-	const expenseData = await ExpenseModel.aggregate(aggregate);
-	let {
-		totalExpense,
-		totalExpensePrev = [],
-		totalExpenseCurrent,
-	} = expenseData[0];
-	const totalExpenseData = totalExpense[0]
-		? totalExpense[0]
-		: {
-				totalAmount: 0,
-				maxExpType: {
-					totalExpAmount: 0,
-					expenseType: null,
-				},
-				minExpType: {
-					totalExpAmount: 0,
-					expenseType: null,
-				},
-		  };
-	totalExpensePrev = totalExpensePrev[0]?.totalExpAmount || 0;
-	const totalExpenseAmount = totalExpenseCurrent[0]?.totalExpAmount || 0;
-	const finalData = {
-		totalExpense: totalExpenseData,
-		totalExpenseCurrent: totalExpenseCurrent[0] ?? {
-			totalExpAmount: 0,
-			expenseList: [],
-		},
-		percentage:
-			totalExpensePrev > 0
-				? ((totalExpenseAmount - totalExpensePrev) / totalExpensePrev) * 100
-				: 0,
-	};
-	if (!expenseData.length) {
-		return next(new ErrorResponse('Expense Not Found', 404));
-	}
-	res.status(200).json(SuccessResponse(finalData, 1, 'Fetched Successfully'));
-});
-
 exports.getExcel = catchAsync(async (req, res, next) => {
 	const {
 		schoolId,
@@ -905,3 +736,264 @@ exports.getExcel = catchAsync(async (req, res, next) => {
 		.status(200)
 		.json(SuccessResponse(data, expenseDetails.length, 'Fetched Successfully'));
 });
+
+// Define date format constants
+const DATE_FORMATS = {
+	daily: 'DDMMYYYY',
+	weekly: 'ww',
+	monthly: 'MM',
+};
+
+const RANGE_INTERVALS = {
+	daily: 'day',
+	weekly: 'week',
+	monthly: 'month',
+};
+
+exports.getNewDashboardData = async (req, res, next) => {
+	try {
+		const {
+			schoolId,
+			dateRange = null,
+			startDate = null,
+			endDate = null,
+		} = req.query;
+
+		let cacheKey = null;
+		let dateObj = null;
+		let prevDateObj = null;
+
+		// Determine the cache key and date range
+		if (dateRange && DATE_FORMATS[dateRange]) {
+			const cacheDate = moment().format(DATE_FORMATS[dateRange]);
+			cacheKey = `${dateRange}Expense/${schoolId}/${cacheDate}`;
+			({ dateObj, prevDateObj } = getDateRange(
+				startDate,
+				endDate,
+				RANGE_INTERVALS[dateRange]
+			));
+		} else {
+			dateObj = {
+				$gte: getStartDate(startDate),
+				$lte: getEndDate(endDate),
+			};
+		}
+
+		// Fetch data from cache or database
+		const expenseData = await fetchDataFromCacheOrDatabase(
+			cacheKey,
+			async () => {
+				const totalExpenseAggregation = [
+					{
+						$match: {
+							schoolId: mongoose.Types.ObjectId(schoolId),
+							expenseDate: dateObj,
+						},
+					},
+				];
+
+				if (dateRange === 'daily') {
+					totalExpenseAggregation.push({
+						$group: {
+							_id: null,
+							totalExpAmount: {
+								$sum: '$amount',
+							},
+							expenseList: {
+								$push: {
+									expenseDate: '$expenseDate',
+									amount: '$amount',
+								},
+							},
+						},
+					});
+				} else {
+					totalExpenseAggregation.push(
+						{
+							$group: {
+								_id: {
+									$dateToString: {
+										format: '%Y-%m-%d',
+										date: '$expenseDate',
+									},
+								},
+								totalExpAmount: {
+									$sum: '$amount',
+								},
+							},
+						},
+						{
+							$sort: {
+								_id: 1,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalExpAmount: {
+									$sum: '$totalExpAmount',
+								},
+								expenseList: {
+									$push: {
+										expenseDate: '$_id',
+										amount: '$totalExpAmount',
+									},
+								},
+							},
+						}
+					);
+				}
+
+				const aggregate = [
+					{
+						$facet: {
+							totalExpense: [
+								{
+									$match: {
+										schoolId: mongoose.Types.ObjectId(schoolId),
+									},
+								},
+								{
+									$group: {
+										_id: '$expenseType',
+										totalExpAmount: {
+											$sum: '$amount',
+										},
+										schoolId: {
+											$first: '$schoolId',
+										},
+									},
+								},
+								{
+									$lookup: {
+										from: 'expensetypes',
+										let: {
+											expTypeId: '$_id',
+										},
+										pipeline: [
+											{
+												$match: {
+													$expr: {
+														$eq: ['$_id', '$$expTypeId'],
+													},
+												},
+											},
+											{
+												$project: {
+													name: 1,
+												},
+											},
+										],
+										as: '_id',
+									},
+								},
+								{
+									$group: {
+										_id: '$schoolId',
+										totalAmount: {
+											$sum: '$totalExpAmount',
+										},
+										maxExpType: {
+											$max: {
+												totalExpAmount: '$totalExpAmount',
+												expenseType: {
+													$first: '$_id',
+												},
+											},
+										},
+										minExpType: {
+											$min: {
+												totalExpAmount: '$totalExpAmount',
+												expenseType: {
+													$first: '$_id',
+												},
+											},
+										},
+									},
+								},
+							],
+							totalExpenseCurrent: totalExpenseAggregation,
+						},
+					},
+				];
+				if (dateRange) {
+					aggregate[0].$facet.totalExpensePrev = [
+						{
+							$match: {
+								schoolId: mongoose.Types.ObjectId(schoolId),
+								expenseDate: prevDateObj,
+							},
+						},
+						{
+							$group: {
+								_id: null,
+								totalExpAmount: {
+									$sum: '$amount',
+								},
+							},
+						},
+					];
+				}
+
+				const result = await ExpenseModel.aggregate(aggregate);
+
+				const [
+					{ totalExpense = [], totalExpensePrev = [], totalExpenseCurrent },
+				] = result;
+
+				// Calculate totalExpenseData
+				const totalExpenseData = totalExpense[0] || {
+					totalAmount: 0,
+					maxExpType: {
+						totalExpAmount: 0,
+						expenseType: null,
+					},
+					minExpType: {
+						totalExpAmount: 0,
+						expenseType: null,
+					},
+				};
+
+				// Calculate totalExpensePrev and totalExpenseAmount
+				const totalExpensePrevAmount = totalExpensePrev[0]?.totalExpAmount || 0;
+				const totalExpenseCurrentAmount =
+					totalExpenseCurrent[0]?.totalExpAmount || 0;
+
+				// Calculate percentage
+				const percentage =
+					totalExpensePrevAmount > 0
+						? ((totalExpenseCurrentAmount - totalExpensePrevAmount) /
+								totalExpensePrevAmount) *
+						  100
+						: 0;
+
+				// Create finalData object
+				const finalData = {
+					totalExpense: totalExpenseData,
+					totalExpenseCurrent: totalExpenseCurrent[0] || {
+						totalExpAmount: 0,
+						expenseList: [],
+					},
+					percentage,
+				};
+
+				// Check if expenseData is empty and return an error if it is
+				if (!result.length) {
+					return null;
+				}
+
+				return finalData; // Return the processed data
+			}
+		);
+
+		if (!expenseData) {
+			return next(new ErrorResponse('Expense Not Found', 404));
+		}
+
+		res
+			.status(200)
+			.json(SuccessResponse(expenseData, 1, 'Fetched Successfully'));
+	} catch (error) {
+		next(error);
+	}
+};

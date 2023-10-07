@@ -102,7 +102,7 @@ exports.create = async (req, res, next) => {
 			studentList,
 			feeStructure._id,
 			schoolId,
-			feeStructure.academicYearId,
+			academicYearId,
 			categoryId,
 			true
 		);
