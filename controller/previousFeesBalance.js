@@ -253,7 +253,8 @@ const MakePayment = CatchAsync(async (req, res, next) => {
 		},
 		createdBy,
 		status,
-		approvedBy: paymentMode === 'CASH' ? createdBy : null,
+		approvedBy:
+			paymentMode === 'CASH' || status === 'APPROVED' ? createdBy : null,
 	};
 
 	if (status === 'APPROVED') {
