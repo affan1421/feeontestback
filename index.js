@@ -1,6 +1,8 @@
 /* eslint-disable global-require */
 const NODE_ENV = "development";
 const express = require("express");
+const http = require("http");
+const socket = require("socket.io");
 const mongoose = require("mongoose");
 require("dotenv").config({ path: `.${NODE_ENV}.env` });
 require("./jobs/installmentDue");
@@ -12,32 +14,26 @@ const swaggerUi = require("swagger-ui-express");
 const bodyParser = require("body-parser");
 const swaggerDocument = require("./swagger.json");
 const morganMiddleware = require("./middleware/morgan");
+const { socketSetup } = require("./socket/socket");
 
 const app = express();
+const server = http.createServer(app);
+const io = new socket.Server(server);
 
-app.use(
-  bodyParser.urlencoded({
-    limit: "3mb",
-    extended: false,
-  })
-);
+socketSetup(io);
+
+app.use(bodyParser.urlencoded({ limit: "3mb", extended: false }));
 app.use(bodyParser.json({ limit: "3mb" }));
 app.use(fileUpload());
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  if (req.method === "OPTIONS") {
-    res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
-    return res.status(200).json({});
-  }
-  next();
-});
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    allowedHeaders: "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+    origin: "*",
+    credentials: true,
+    methods: ["PUT", "POST", "PATCH", "DELETE", "GET", "OPTIONS"],
+  })
+);
 
 app.use(
   compression({
@@ -59,11 +55,7 @@ const options = {
   },
 };
 
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument, options)
-);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -80,7 +72,7 @@ mongoose
       res.send("Server is up and Running👨‍💻👩‍💻");
     });
 
-    //
+    // authentication middleware
     app.use(authenticateUser);
 
     app.use("/api/v1/config", require("./router/academicYear"));
@@ -97,14 +89,8 @@ mongoose
     app.use("/api/v1/feereceipt", require("./router/feeReceipt"));
     app.use("/api/v1/previousfees", require("./router/previousFeesBalance"));
     app.use("/api/v1/duelist", require("./router/dueList"));
-    app.use(
-      "/api/v1/transfercertificate",
-      require("./router/transferCertificate")
-    );
-    app.use(
-      "/api/v1/dailyclosecollection",
-      require("./router/dailyCloseCollection")
-    );
+    app.use("/api/v1/transfercertificate", require("./router/transferCertificate"));
+    app.use("/api/v1/dailyclosecollection", require("./router/dailyCloseCollection"));
 
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({
@@ -114,7 +100,7 @@ mongoose
     });
 
     const port = process.env.PORT || 4000;
-    app.listen(port, () => {
+    server.listen(port, () => {
       console.log(`Servers is listening on http://localhost:${port}`);
     });
   })
