@@ -161,8 +161,8 @@ async function searchStudentsWithPagination(req, res, next) {
               {
                 $lookup: {
                   from: "sections",
-                  localField: "class",
-                  foreignField: "class_id",
+                  localField: "section",
+                  foreignField: "_id",
                   as: "class",
                 },
               },
@@ -301,7 +301,7 @@ async function getTcDetails(req, res, next) {
     const tsData = await StudentTransfer.aggregate([
       {
         $facet: {
-          //First Facet : get different types of tc's and its count
+          // First Facet : get different types of tc's and its count
           countsByType: [
             {
               $group: {
@@ -334,7 +334,7 @@ async function getTcDetails(req, res, next) {
             },
             { $project: { _id: 0, typeResult: 1 } },
           ],
-          //Second Facet : get different types of reasons and its count
+          // Second Facet : get different types of reasons and its count
           reasons: [
             {
               $lookup: {
@@ -356,7 +356,7 @@ async function getTcDetails(req, res, next) {
             },
             { $project: { _id: 0, reasonResult: 1 } },
           ],
-          //Third Facet : get different types of classes and its count
+          // Third Facet : get different types of classes and its count
           class: [
             {
               $lookup: {
@@ -395,7 +395,7 @@ async function getTcDetails(req, res, next) {
             },
             { $project: { _id: 0, classResult: 1 } },
           ],
-          //unique class count
+          // unique class count
           classCount: [
             {
               $group: {
@@ -411,7 +411,7 @@ async function getTcDetails(req, res, next) {
             { $project: { _id: 0, count: 1 } },
           ],
 
-          //unique reason count
+          // unique reason count
           reasonsCount: [
             { $group: { _id: "$reason" } },
             {
@@ -629,7 +629,11 @@ async function getTcStudentsDetails(req, res, next) {
         },
       },
       { $unwind: "$students" },
-      { $addFields: { totalDocs: { $arrayElemAt: ["$totalDocs.totalDocs", 0] } } },
+      {
+        $addFields: {
+          totalDocs: { $arrayElemAt: ["$totalDocs.totalDocs", 0] },
+        },
+      },
       {
         $project: {
           _id: "$students._id",
@@ -676,15 +680,15 @@ const getTcReason = async (req, res, next) => {
     const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
     const totalCount = tcReasonModal.find({ schoolId }).count();
-    const result = tcReasonModal.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
+    const result = tcReasonModal.find({ schoolId }, "reason").skip(skip).limit(pageSize);
     Promise.all([totalCount, result])
-      .then(([count, result]) => {
+      .then(([count, result1]) => {
         res
           .status(200)
           .json(
             SuccessResponse(
-              { reasons: result, totalCount: count },
-              result?.length,
+              { reasons: result1, totalCount: count },
+              result1?.length,
               "Tc reasons fetched successfully"
             )
           );
@@ -740,11 +744,7 @@ async function updateTcReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await tcReasonModal.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await tcReasonModal.findByIdAndUpdate(
-      id,
-      { $set: { reason: reason } },
-      { new: true }
-    );
+    const result = await tcReasonModal.findByIdAndUpdate(id, { $set: { reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Tc reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));

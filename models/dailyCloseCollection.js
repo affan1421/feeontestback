@@ -18,7 +18,7 @@ const dailyCloseSchema = new Schema(
     },
     cashAmount: {
       type: Number,
-      required: [true, "Amount is required"],
+      default: 0,
     },
     expenseAmount: {
       type: Number,

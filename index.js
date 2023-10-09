@@ -55,7 +55,11 @@ const options = {
   },
 };
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, options)
+);
 
 mongoose
   .connect(process.env.MONGO_URI, {

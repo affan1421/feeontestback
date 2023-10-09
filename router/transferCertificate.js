@@ -1,45 +1,45 @@
-const router = require("express").Router();
+const router = require('express').Router();
 const {
-  createStudentTransfer,
-  searchStudentsWithPagination,
-  changeStatus,
-  getTc,
-  getTcDetails,
-  getClasses,
-  getTcStudentsDetails,
-  getTcReason,
-  addTcReason,
-  updateTcReason,
-} = require("../controller/transferCertificate");
+	createStudentTransfer,
+	searchStudentsWithPagination,
+	changeStatus,
+	getTc,
+	getTcDetails,
+	getClasses,
+	getTcStudentsDetails,
+	getTcReason,
+	addTcReason,
+	updateTcReason,
+} = require('../controller/transferCertificate');
 
 // create new tranfer certificate
-router.post("/", createStudentTransfer);
+router.post('/', createStudentTransfer);
 
 // view all students of a particular school
-router.get("/students", searchStudentsWithPagination);
+router.get('/students', searchStudentsWithPagination);
 
 // change the TC status
-router.put("/changeStatus/:id", changeStatus);
+router.put('/changeStatus/:id', changeStatus);
 
 // view the different transfer list
-router.get("/tcList", getTc);
+router.get('/tcList', getTc);
 
 // TC details, which includes document counts also
-router.get("/details", getTcDetails);
+router.get('/details', getTcDetails);
 
 // to view all the available classNames of a particular schools
-router.get("/classes", getClasses);
+router.get('/classes', getClasses);
 
 // in-detail data of students who applied for TC
-router.get("/tcStudentsDetails", getTcStudentsDetails);
+router.get('/tcStudentsDetails', getTcStudentsDetails);
 
 // create new tc reason
-router.post("/reasons", addTcReason);
+router.post('/reasons', addTcReason);
 
 // get available tc reasons
-router.get("/reasons", getTcReason);
+router.get('/reasons', getTcReason);
 
 // update tc reason
-router.put("/reasons", updateTcReason);
+router.put('/reasons', updateTcReason);
 
 module.exports = router;

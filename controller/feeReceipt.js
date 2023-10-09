@@ -67,7 +67,9 @@ const getIncomeAggregation = (dateObj, school_id, tempAggregation) => [
 	{
 		$match: {
 			'school.schoolId': mongoose.Types.ObjectId(school_id),
-			status: { $ne: 'CANCELLED' },
+			status: {
+				$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+			},
 			issueDate: dateObj,
 		},
 	},
@@ -460,6 +462,82 @@ const getDateRange = (dateRange, startDate, endDate) => {
 	}
 };
 
+const handleError = (next, message, status = 422) =>
+	next(new ErrorResponse(message, status));
+
+const updateInstallment = async (installmentId, paidAmount) => {
+	const installment = await FeeInstallment.findOne({
+		_id: installmentId,
+	}).lean();
+
+	if (!installment) {
+		return null;
+	}
+
+	const {
+		paidAmount: insPaidAmount,
+		netAmount,
+		status: insStatus,
+	} = installment;
+	const dueAmount = netAmount - insPaidAmount;
+
+	if (paidAmount > dueAmount) {
+		return null;
+	}
+
+	const newStatus =
+		// eslint-disable-next-line no-nested-ternary
+		dueAmount - paidAmount === 0
+			? insStatus === 'Upcoming'
+				? 'Paid'
+				: 'Late'
+			: insStatus;
+
+	return {
+		filter: { _id: installmentId },
+		update: {
+			$set: {
+				status: newStatus,
+				paidAmount: insPaidAmount + paidAmount,
+				paidDate: new Date(),
+			},
+		},
+	};
+};
+
+const updatePreviousBalance = async (id, paidAmount) => {
+	const prevBalance = await PreviousBalance.findOne({ receiptIds: id }).lean();
+
+	if (!prevBalance) {
+		return null;
+	}
+
+	const {
+		paidAmount: prevPaidAmount,
+		dueAmount,
+		status: prevStatus,
+		_id: prevBalanceId,
+	} = prevBalance;
+
+	if (paidAmount > dueAmount) {
+		return null;
+	}
+
+	const newStatus = dueAmount - paidAmount === 0 ? 'Paid' : prevStatus;
+
+	return {
+		filter: { _id: prevBalanceId },
+		update: {
+			$set: {
+				status: newStatus,
+				paidAmount: prevPaidAmount + paidAmount,
+				dueAmount: dueAmount - paidAmount,
+				lastPaidDate: new Date(),
+			},
+		},
+	};
+};
+
 // Filter BY 'student.class.classId' and 'payment.method
 const getFeeReceipt = catchAsync(async (req, res, next) => {
 	let {
@@ -690,7 +768,11 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
 	} = req.query;
 	page = +page;
 	limit = +limit;
-	const payload = { status: { $ne: 'CANCELLED' } };
+	const payload = {
+		status: {
+			$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+		},
+	};
 	// find the active academic year
 
 	const { _id: academicYearId } = await AcademicYear.findOne({
@@ -915,13 +997,14 @@ const createReceipt = async (req, res, next) => {
 		studentId,
 		totalFeeAmount,
 		paymentMethod,
-		comment,
+		comment = '',
 		bankName,
 		chequeDate,
 		chequeNumber,
 		transactionDate,
 		transactionId,
 		upiId,
+		status = null,
 		payerName,
 		ddNumber,
 		ddDate,
@@ -935,7 +1018,8 @@ const createReceipt = async (req, res, next) => {
 		!totalFeeAmount ||
 		!paymentMethod ||
 		!feeTypeId ||
-		!createdBy
+		!createdBy ||
+		!status
 	) {
 		return next(new ErrorResponse('All Fields Are Mandatory', 422));
 	}
@@ -1161,7 +1245,7 @@ const createReceipt = async (req, res, next) => {
 		},
 	];
 
-	const createdReceipt = await FeeReceipt.create({
+	const receiptPayload = {
 		student: {
 			name: studentName,
 			studentId,
@@ -1210,7 +1294,12 @@ const createReceipt = async (req, res, next) => {
 		issueDate,
 		items,
 		createdBy,
-	});
+		status,
+		approvedBy:
+			paymentMethod === 'CASH' || status === 'APPROVED' ? createdBy : null,
+	};
+
+	const createdReceipt = await FeeReceipt.create(receiptPayload);
 
 	res.status(201).json(
 		SuccessResponse(
@@ -1231,43 +1320,34 @@ const createReceipt = async (req, res, next) => {
 
 const getFeeReceiptById = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
-	const feeReceipt = await FeeReceipt.findById(id).lean();
-	const feeIds = feeReceipt.items.map(item => item.feeTypeId);
-	const feetype = await FeeType.find(
-		{ _id: { $in: feeIds } },
-		{ feeType: 1 }
-	).lean();
-	const feeTypeMap = feetype.reduce((acc, curr) => {
-		acc[curr._id] = curr;
-		return acc;
-	}, {});
-	if (feeReceipt.student.studentId) {
-		// find the admission number
-		const studentInfo = await Student.findOne({
-			_id: mongoose.Types.ObjectId(feeReceipt.student.studentId),
-		});
-		feeReceipt.student.admission_no = studentInfo.admission_no;
+	const feeReceipt = await FeeReceipt.findById(id)
+		.populate('items.feeTypeId', 'feeType')
+		.lean();
+
+	for (const item of feeReceipt.items) {
+		if (item.installmentId) {
+			const ins = await FeeInstallment.findOne({
+				_id: item.installmentId,
+				deleted: false,
+			});
+			item.date = ins.date;
+		}
 	}
 
-	const data = {
-		...JSON.parse(JSON.stringify(feeReceipt)),
-		items: feeReceipt.items.map(item => ({
-			...item,
-			feeTypeId: feeTypeMap[item.feeTypeId],
-		})),
-	};
 	if (!feeReceipt) {
 		return next(new ErrorResponse('Fee Receipt Not Found', 404));
 	}
 
-	res.status(200).json(SuccessResponse(data, 1, 'Fetched Successfully'));
+	res.status(200).json(SuccessResponse(feeReceipt, 1, 'Fetched Successfully'));
 });
 
 const getExcel = catchAsync(async (req, res, next) => {
 	// Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
 	const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
 	const payload = {
-		status: { $ne: 'CANCELLED' },
+		status: {
+			$in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+		},
 	};
 	// find the active academic year
 
@@ -1371,7 +1451,7 @@ const getExcel = catchAsync(async (req, res, next) => {
 
 	await getWorkSheet(worksheet, receiptDetails, methodMap);
 
-	workbook.write('income.xlsx');
+	// workbook.write('income.xlsx');
 	let data = await workbook.writeToBuffer();
 	data = data.toJSON().data;
 
@@ -1559,7 +1639,7 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 	const { id } = req.params;
 	const { reason = '', status, today = new Date() } = req.body;
 
-	const reasonObj = { reason, status, today };
+	const reasonObj = { reason, status, date: today };
 	const update = { $set: { status } };
 
 	if (status !== 'CANCELLED') {
@@ -1715,10 +1795,262 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
 		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
 });
 
+/**
+ * @param {String} date // DD/MM/YYYY
+ * @param {String} studentId
+ * @param {String} paymentMethod // CHEQUE, UPI, ONLINE_TRANSFER, DD, DEBIT_CARD, CREDIT_CARD
+ * @param {String} receiptStatus // PENDING, DECLINED
+ * @param {String} searchTerm // student name and receipt id
+ * @description Get all the pending requests for the given date, studentId, paymentMethod, receiptStatus
+ * @returns {Array} // Array of objects
+ */
+
+const statusList = ['PENDING', 'RESEND', 'DECLINED', 'APPROVED'];
+const GetConfirmations = catchAsync(async (req, res, next) => {
+	const {
+		date = null,
+		studentId,
+		paymentMethod,
+		sectionId,
+		searchTerm = null,
+		status = null,
+		page = 0,
+		limit = 10,
+	} = req.body;
+	const { school_id } = req.user;
+
+	if (paymentMethod === 'CASH')
+		return next(new ErrorResponse('Select Online Payment Methods', 422));
+
+	const payload = {
+		status: {
+			$in: status ? [status] : statusList,
+		},
+		'school.schoolId': mongoose.Types.ObjectId(school_id),
+		'payment.method': paymentMethod || { $ne: 'CASH' },
+	};
+
+	if (studentId) {
+		payload['student.studentId'] = mongoose.Types.ObjectId(studentId);
+	}
+	if (searchTerm) {
+		payload.$or = [
+			{ 'student.name': { $regex: `${searchTerm}`, $options: 'i' } },
+			{ receiptId: { $regex: `${searchTerm}`, $options: 'i' } },
+		];
+	}
+
+	if (sectionId)
+		payload['student.section.sectionId'] = mongoose.Types.ObjectId(sectionId);
+
+	if (date)
+		payload.issueDate = {
+			$gte: moment(date, 'DD/MM/YYYY').startOf('day').toDate(),
+			$lte: moment(date, 'DD/MM/YYYY').endOf('day').toDate(),
+		};
+
+	const aggregate = [
+		{
+			$match: payload,
+		},
+		{
+			$facet: {
+				data: [
+					{
+						$sort: {
+							createdAt: -1,
+						},
+					},
+					{
+						$skip: page * limit,
+					},
+					{
+						$limit: limit,
+					},
+					{
+						$unwind: {
+							path: '$items',
+							preserveNullAndEmptyArrays: true,
+						},
+					},
+					{
+						$lookup: {
+							from: 'feetypes',
+							let: {
+								feeTypeId: '$items.feeTypeId',
+							},
+							pipeline: [
+								{
+									$match: {
+										$expr: {
+											$eq: ['$_id', '$$feeTypeId'],
+										},
+									},
+								},
+								{
+									$project: {
+										_id: 1,
+										feeType: 1,
+									},
+								},
+							],
+							as: 'items.feeTypeId',
+						},
+					},
+					{
+						$group: {
+							_id: '$_id',
+							items: {
+								$push: {
+									feeTypeId: {
+										$first: '$items.feeTypeId',
+									},
+									installmentId: '$items.installmentId',
+									netAmount: '$items.netAmount',
+									paidAmount: '$items.paidAmount',
+								},
+							},
+							root: {
+								$first: '$$ROOT',
+							},
+						},
+					},
+					{
+						$replaceRoot: {
+							newRoot: {
+								$mergeObjects: [
+									'$root',
+									{
+										items: '$items',
+									},
+								],
+							},
+						},
+					},
+					{
+						$project: {
+							items: 1,
+							payment: 1,
+							issueDate: 1,
+							receiptId: 1,
+							studentName: '$student.name',
+							className: {
+								$concat: [
+									'$student.class.name',
+									' - ',
+									'$student.section.name',
+								],
+							},
+							status: 1,
+							paidAmount: 1,
+							paymentComments: 1,
+						},
+					},
+				],
+				count: [{ $count: 'count' }],
+			},
+		},
+	];
+
+	const receipts = await FeeReceipt.aggregate(aggregate);
+
+	const [{ data, count }] = receipts;
+
+	if (!count.length) return next(new ErrorResponse('No Receipts Found', 404));
+
+	res
+		.status(200)
+		.json(SuccessResponse(data, count[0].count, 'Fetched Successfully'));
+});
+
+const UpdateConfirmations = catchAsync(async (req, res, next) => {
+	const { id } = req.params;
+	const { status, comment = '', attachments = [] } = req.body;
+	const { _id } = req.user;
+
+	if (!status) {
+		return handleError(next, 'Status is required');
+	}
+
+	const match = { _id: id };
+
+	if (status === 'APPROVED' || status === 'DECLINED') {
+		match.status = { $in: ['PENDING', 'RESEND'] };
+	}
+
+	const bulkOps = [];
+
+	if (status === 'APPROVED') {
+		const receipt = await FeeReceipt.findById(id).lean();
+
+		if (!receipt) {
+			return handleError(next, 'Receipt Not Found', 404);
+		}
+
+		const { items, receiptType } = receipt;
+
+		if (receiptType === 'ACADEMIC') {
+			for (const item of items) {
+				const { installmentId, paidAmount } = item;
+				const update = await updateInstallment(installmentId, paidAmount);
+
+				if (!update) {
+					return handleError(
+						next,
+						`Cannot Approve Receipt. Paid Amount is more than Due Amount.`,
+						422
+					);
+				}
+
+				bulkOps.push({ updateOne: update });
+			}
+
+			await FeeInstallment.bulkWrite(bulkOps);
+		} else if (receiptType === 'PREVIOUS_BALANCE') {
+			const { paidAmount } = items[0];
+			const update = await updatePreviousBalance(id, paidAmount);
+
+			if (!update) {
+				return handleError(
+					next,
+					'Cannot Approve Receipt. Paid Amount is more than Due Amount',
+					422
+				);
+			}
+
+			const { filter, update: updateObj } = update;
+
+			await PreviousBalance.findOneAndUpdate(filter, updateObj);
+		}
+	}
+
+	const payload = {
+		$set: { status, approvedBy: _id },
+		$push: {
+			paymentComments: { comment, date: new Date(), status, attachments },
+		},
+	};
+
+	const updatedReceipt = await FeeReceipt.findOneAndUpdate(
+		{ _id: id },
+		payload
+	);
+
+	if (!updatedReceipt) {
+		return handleError(next, 'Receipt Not Found', 404);
+	}
+
+	res
+		.status(200)
+		.json(SuccessResponse(updatedReceipt, 1, 'Updated Successfully'));
+});
+
 module.exports = {
 	getFeeReceipt,
 	getFeeReceiptById,
+	UpdateConfirmations,
 	createReceipt,
+	GetConfirmations,
 	getFeeReceiptSummary,
 	receiptByStudentId,
 	getDashboardData,
