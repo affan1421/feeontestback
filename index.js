@@ -59,11 +59,7 @@ const options = {
   },
 };
 
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument, options)
-);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -97,14 +93,9 @@ mongoose
     app.use("/api/v1/feereceipt", require("./router/feeReceipt"));
     app.use("/api/v1/previousfees", require("./router/previousFeesBalance"));
     app.use("/api/v1/duelist", require("./router/dueList"));
-    app.use(
-      "/api/v1/transfercertificate",
-      require("./router/transferCertificate")
-    );
-    app.use(
-      "/api/v1/dailyclosecollection",
-      require("./router/dailyCloseCollection")
-    );
+    app.use("/api/v1/transfercertificate", require("./router/transferCertificate"));
+    app.use("/api/v1/dailyclosecollection", require("./router/dailyCloseCollection"));
+    app.use("/api/v1/concession", require("./router/concession"));
 
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({
