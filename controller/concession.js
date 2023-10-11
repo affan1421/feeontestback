@@ -54,7 +54,7 @@ const getClassDetails = async (req, res, next) => {
       .aggregate([
         {
           $match: {
-            school: schoolId,
+            school: mongoose.Types.ObjectId(schoolId),
           },
         },
         {
@@ -163,71 +163,46 @@ const getStudentFeeDetails = async (req, res, next) => {
       ])
       .toArray();
 
-    const feeInstallments = await studentsCollection.aggregate([
-      {
-        $match: {
-          _id: mongoose.Types.ObjectId(studentId),
-          school_id: mongoose.Types.ObjectId(schoolId),
+    console.log(feeCategories, "feeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
+
+    const feeInstallments = await studentsCollection
+      .aggregate([
+        {
+          $match: {
+            _id: mongoose.Types.ObjectId(studentId),
+            school_id: mongoose.Types.ObjectId(schoolId),
+          },
         },
-      },
-      {
-        $lookup: {
-          from: "feeinstallments",
-          localField: "_id",
-          foreignField: "studentId",
-          as: "feeinstallments",
+        {
+          $lookup: {
+            from: "feeinstallments",
+            localField: "_id",
+            foreignField: "studentId",
+            as: "feeinstallments",
+          },
         },
-      },
-    ]);
+        {
+          $unwind: "$feeinstallments",
+        },
+        {
+          $lookup: {
+            from: "feeschedules",
+            localField: "feeinstallments.scheduleTypeId",
+            foreignField: "_id",
+            as: "feeinstallments.feeschedules",
+          },
+        },
+        {
+          $project: {
+            _id: null,
+            feeinstallments: 1,
+            feeschedules: 1,
+          },
+        },
+      ])
+      .toArray();
 
-    //   {
-    //     $lookup: {
-    //       from: "feeinstallments",
-    //       localField: "_id",
-    //       foreignField: "studentId",
-    //       as: "feeinstallments",
-    //     },
-    //   },
-    //   {
-    //     $unwind: "$feeinstallments", // Deconstruct the feeinstallments array
-    //   },
-    //   {
-    //     $lookup: {
-    //       from: "feeschedules",
-    //       localField: "feeinstallments.scheduleTypeId",
-    //       foreignField: "_id",
-    //       as: "feeinstallments.feeschedules",
-    //     },
-    //   },
-    //   {
-    //     $lookup: {
-    //       from: "feetypes",
-    //       localField: "feeinstallments.feeTypeId",
-    //       foreignField: "_id",
-    //       as: "feeinstallments.feetypes",
-    //     },
-    //   },
-    //   {
-    //     $group: {
-    //       _id: "$feeinstallments.categoryId",
-    //       categoryName: { $first: { $arrayElemAt: ["$feecategories.name", 0] } },
-    //       installments: { $push: "$feeinstallments" },
-    //     },
-    //   },
-    //   {
-    //     $project: {
-    //       _id: 0,
-    //       name: 1,
-    //       categoryName: 1,
-    //       installments: 1,
-    //     },
-    //   },
-    //
-    // .toArray();
-
-    console.log(feeCategories, "feedata");
-
-    res.status(200).json(SuccessResponse(feeCategories, 1, "success"));
+    res.status(200).json(SuccessResponse({ feeCategories, feeInstallments }, 1, "success"));
   } catch (error) {
     console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
