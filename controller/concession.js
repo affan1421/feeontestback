@@ -49,8 +49,14 @@ const createConcession = async (req, res, next) => {
 
 const getClassDetails = async (req, res, next) => {
   try {
+    const { schoolId } = req.query;
     const classList = await sectionsCollection
       .aggregate([
+        {
+          $match: {
+            school: schoolId,
+          },
+        },
         {
           $project: {
             class_id: 1,
@@ -90,8 +96,6 @@ const getStudentsByClass = async (req, res, next) => {
       })
       .toArray();
 
-    console.log(students, "pppppppppp");
-
     if (!students || students.length === 0) {
       return res
         .status(404)
@@ -106,8 +110,133 @@ const getStudentsByClass = async (req, res, next) => {
   }
 };
 
+const getStudentFeeDetails = async (req, res, next) => {
+  try {
+    const { studentId, schoolId } = req.query;
+    const student = await studentsCollection.findOne({
+      _id: mongoose.Types.ObjectId(studentId),
+      school_id: mongoose.Types.ObjectId(schoolId),
+    });
+
+    console.log(student, "Student");
+
+    if (!student) {
+      return next(new ErrorResponse("Student not found", 404));
+    }
+
+    // Now that you have the student document, you can use its feeCategoryIds
+    // to fetch fee category names from the feeCategories collection.
+    const feeCategoryIds = student.feeCategoryIds;
+    console.log(feeCategoryIds, "feeCategoryIds");
+
+    const feeCategories = await studentsCollection
+      .aggregate([
+        {
+          $match: {
+            _id: mongoose.Types.ObjectId(studentId),
+            school_id: mongoose.Types.ObjectId(schoolId),
+          },
+        },
+        {
+          $lookup: {
+            from: "feecategories",
+            let: { feeCategoryIds: "$feeCategoryIds" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", "$$feeCategoryIds"],
+                  },
+                },
+              },
+            ],
+            as: "feecategories",
+          },
+        },
+        {
+          $project: {
+            _id: null,
+            "feecategories._id": 1,
+            "feecategories.name": 1,
+          },
+        },
+      ])
+      .toArray();
+
+    const feeInstallments = await studentsCollection.aggregate([
+      {
+        $match: {
+          _id: mongoose.Types.ObjectId(studentId),
+          school_id: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "feeinstallments",
+          localField: "_id",
+          foreignField: "studentId",
+          as: "feeinstallments",
+        },
+      },
+    ]);
+
+    //   {
+    //     $lookup: {
+    //       from: "feeinstallments",
+    //       localField: "_id",
+    //       foreignField: "studentId",
+    //       as: "feeinstallments",
+    //     },
+    //   },
+    //   {
+    //     $unwind: "$feeinstallments", // Deconstruct the feeinstallments array
+    //   },
+    //   {
+    //     $lookup: {
+    //       from: "feeschedules",
+    //       localField: "feeinstallments.scheduleTypeId",
+    //       foreignField: "_id",
+    //       as: "feeinstallments.feeschedules",
+    //     },
+    //   },
+    //   {
+    //     $lookup: {
+    //       from: "feetypes",
+    //       localField: "feeinstallments.feeTypeId",
+    //       foreignField: "_id",
+    //       as: "feeinstallments.feetypes",
+    //     },
+    //   },
+    //   {
+    //     $group: {
+    //       _id: "$feeinstallments.categoryId",
+    //       categoryName: { $first: { $arrayElemAt: ["$feecategories.name", 0] } },
+    //       installments: { $push: "$feeinstallments" },
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       _id: 0,
+    //       name: 1,
+    //       categoryName: 1,
+    //       installments: 1,
+    //     },
+    //   },
+    //
+    // .toArray();
+
+    console.log(feeCategories, "feedata");
+
+    res.status(200).json(SuccessResponse(feeCategories, 1, "success"));
+  } catch (error) {
+    console.error("Error:", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 module.exports = {
   createConcession,
   getClassDetails,
   getStudentsByClass,
+  getStudentFeeDetails,
 };
