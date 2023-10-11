@@ -17,7 +17,7 @@ const sendNotification = async (schoolId, role, notificationData) => {
     const clientId = `${schoolId}_${role}`;
     const data = await saveNotificationToDatabase(clientId, notificationData);
     const clients = connectedUsers.get(clientId);
-    for (const client of clients) client.emit("notification:recive", data);
+    if (clients) for (const client of clients) client.emit("notification:recive", data);
   } catch (error) {
     console.log("SOCKET_ERR", error);
   }
@@ -30,7 +30,7 @@ const notificationHandler = (socket) => {
       const clientId = socket.handshake.auth?.clientId?.split("_");
       const schoolId = clientId?.[0];
       const userRole = clientId?.[1];
-      const data = await notifications.find({ schoolId, userRole });
+      const data = await notifications.find({ schoolId, userRole }).sort({ createdAt: -1 });
       callback(data);
     } catch (error) {
       console.log("SOCKET_ERR", error);
@@ -49,8 +49,7 @@ const socketSetup = (io) => {
     const clientId = socket.handshake.auth?.clientId;
     if (clientId) {
       const existingData = connectedUsers.get(clientId);
-      if (!existingData)
-        connectedUsers.set(socket.handshake.auth.user, [socket]);
+      if (!existingData) connectedUsers.set(clientId, [socket]);
       else {
         existingData.push(socket);
         connectedUsers.set(clientId, existingData);
@@ -63,9 +62,7 @@ const socketSetup = (io) => {
     // removes client from connected users list
     socket.on("disconnect", () => {
       const clientId = socket.handshake.auth?.clientId;
-      const activeSocketsList = connectedUsers
-        .get(clientId)
-        ?.filter((socket_obj) => socket_obj.id !== socket.id);
+      const activeSocketsList = connectedUsers.get(clientId)?.filter((socket_obj) => socket_obj.id !== socket.id);
       connectedUsers.set(clientId, activeSocketsList);
     });
   });

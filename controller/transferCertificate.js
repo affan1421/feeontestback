@@ -11,19 +11,11 @@ const ErrorResponse = require("../utils/errorResponse");
 const tcReasonModal = require("../models/tcReasons");
 
 const SuccessResponse = require("../utils/successResponse");
+const { sendNotification } = require("../socket/socket");
 
 async function createStudentTransfer(req, res, next) {
   try {
-    const {
-      studentId,
-      schoolId,
-      classId,
-      tcType,
-      reason,
-      comment,
-      transferringSchool,
-      attachments,
-    } = req.body;
+    const { studentId, schoolId, classId, tcType, reason, comment, transferringSchool, attachments } = req.body;
 
     // Check if a student transfer record with the same studentId already exists
     const existingTransfer = await StudentTransfer.findOne({
@@ -82,9 +74,18 @@ async function createStudentTransfer(req, res, next) {
     });
 
     await newStudentTransfer.save();
-    res
-      .status(200)
-      .json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
+
+    const notificationData = {
+      title: "TC CREATED",
+      description: "TC created successfully",
+      type: "TC",
+      action: "/transfer-certificates",
+    };
+
+    sendNotification(schoolId, "MANAGEMENT", notificationData);
+    sendNotification(schoolId, "ADMIN", notificationData);
+
+    res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
     console.error("Error creating student transfer record:", error);
     console.log("error", error.message);
@@ -242,9 +243,19 @@ async function changeStatus(req, res, next) {
     // Update transfer status
     transfer.status = status;
     await transfer.save();
-    res
-      .status(200)
-      .json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
+
+    const notificationData = {
+      title: `TC ${transfer.status}`,
+      description: `TC ${transfer.status} successfully`,
+      type: "TC",
+      action: "/transfer-certificates",
+      status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+    };
+
+    sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
+    sendNotification(transfer.schoolId, "ADMIN", notificationData);
+
+    res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     console.error("Error on update status:", error);
     console.log("error", error.message);
@@ -286,9 +297,7 @@ async function getTc(req, res, next) {
 
     const result = await StudentTransfer.find(query).exec();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
+    res.status(200).json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -485,8 +494,7 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } =
-      req.query;
+    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } = req.query;
 
     const { schoolId } = req.body;
 
@@ -656,9 +664,7 @@ async function getTcStudentsDetails(req, res, next) {
       { $limit: pageSize },
     ]).exec();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
+    res.status(200).json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
@@ -686,11 +692,7 @@ const getTcReason = async (req, res, next) => {
         res
           .status(200)
           .json(
-            SuccessResponse(
-              { reasons: result1, totalCount: count },
-              result1?.length,
-              "Tc reasons fetched successfully"
-            )
+            SuccessResponse({ reasons: result1, totalCount: count }, result1?.length, "Tc reasons fetched successfully")
           );
       })
       .catch((err) => {

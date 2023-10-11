@@ -18,7 +18,7 @@ const { socketSetup } = require("./socket/socket");
 
 const app = express();
 const server = http.createServer(app);
-const io = new socket.Server(server);
+const io = new socket.Server(server, { cors: { origin: "*" } });
 
 socketSetup(io);
 
@@ -55,11 +55,7 @@ const options = {
   },
 };
 
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument, options)
-);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 
 mongoose
   .connect(process.env.MONGO_URI, {

@@ -14,6 +14,7 @@ const notificationsSchema = new Schema(
     status: {
       type: String,
       enum: ["SUCCESS", "ERROR", "WARNING", "DEFAULT"],
+      default: "DEFAULT",
     },
     userRole: {
       type: String,
