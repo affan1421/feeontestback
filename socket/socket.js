@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const notifications = require("../models/notifications");
 const connectedUsers = new Map();
 
@@ -6,7 +7,7 @@ const saveNotificationToDatabase = async (clientId, notificationData) => {
   const userRole = clientId?.split("_")?.[1];
   return await notifications.create({
     ...notificationData,
-    schoolId,
+    schoolId: mongoose.Types.ObjectId(schoolId),
     userRole,
   });
 };
@@ -30,7 +31,9 @@ const notificationHandler = (socket) => {
       const clientId = socket.handshake.auth?.clientId?.split("_");
       const schoolId = clientId?.[0];
       const userRole = clientId?.[1];
-      const data = await notifications.find({ schoolId, userRole }).sort({ createdAt: -1 });
+      const data = await notifications
+        .find({ schoolId: mongoose.Types.ObjectId(schoolId), userRole })
+        .sort({ createdAt: -1 });
       callback(data);
     } catch (error) {
       console.log("SOCKET_ERR", error);

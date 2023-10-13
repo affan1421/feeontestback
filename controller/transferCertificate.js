@@ -75,15 +75,54 @@ async function createStudentTransfer(req, res, next) {
 
     await newStudentTransfer.save();
 
-    const notificationData = {
-      title: "TC CREATED",
-      description: "TC created successfully",
-      type: "TC",
-      action: "/transfer-certificates",
+    const notificationSetup = async () => {
+      try {
+        // get student data to add to notification
+        const student = (
+          await mongoose.connection.db
+            .collection("students")
+            .aggregate([
+              { $match: { _id: mongoose.Types.ObjectId(newStudentTransfer.studentId) } },
+              {
+                $lookup: {
+                  from: "studenttransfers",
+                  localField: "_id",
+                  foreignField: "studentId",
+                  as: "tcStatus",
+                },
+              },
+              {
+                $lookup: {
+                  from: "tcreasons",
+                  localField: "tcStatus.reason",
+                  foreignField: "_id",
+                  as: "reason",
+                },
+              },
+              { $addFields: { tcStatus: { $arrayElemAt: ["$tcStatus.status", 0] } } },
+              { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            ])
+            .toArray()
+        )?.[0];
+
+        // setup notification
+        const notificationData = {
+          title: `${student?.name}'s TC ${transfer.status}`,
+          description: `Created due to ${student.reason}`,
+          type: "TC",
+          action: "/transfer-certificates",
+          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
+        await sendNotification(transfer.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
     };
 
-    sendNotification(schoolId, "MANAGEMENT", notificationData);
-    sendNotification(schoolId, "ADMIN", notificationData);
+    notificationSetup();
 
     res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
@@ -244,16 +283,54 @@ async function changeStatus(req, res, next) {
     transfer.status = status;
     await transfer.save();
 
-    const notificationData = {
-      title: `TC ${transfer.status}`,
-      description: `TC ${transfer.status} successfully`,
-      type: "TC",
-      action: "/transfer-certificates",
-      status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+    const notificationSetup = async () => {
+      try {
+        // get student data to add to notification
+        const student = (
+          await mongoose.connection.db
+            .collection("students")
+            .aggregate([
+              { $match: { _id: mongoose.Types.ObjectId(transfer.studentId) } },
+              {
+                $lookup: {
+                  from: "studenttransfers",
+                  localField: "_id",
+                  foreignField: "studentId",
+                  as: "tcStatus",
+                },
+              },
+              {
+                $lookup: {
+                  from: "tcreasons",
+                  localField: "tcStatus.reason",
+                  foreignField: "_id",
+                  as: "reason",
+                },
+              },
+              { $addFields: { tcStatus: { $arrayElemAt: ["$tcStatus.status", 0] } } },
+              { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            ])
+            .toArray()
+        )?.[0];
+
+        // setup notification
+        const notificationData = {
+          title: `${student?.name}'s TC ${transfer.status}`,
+          description: `Created due to ${student.reason}`,
+          type: "TC",
+          action: "/transfer-certificates",
+          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
+        await sendNotification(transfer.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
     };
 
-    sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
-    sendNotification(transfer.schoolId, "ADMIN", notificationData);
+    notificationSetup();
 
     res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {

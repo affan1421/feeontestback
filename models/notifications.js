@@ -33,6 +33,7 @@ const notificationsSchema = new Schema(
       ref: "schools",
     },
     action: String,
+    data: {},
   },
   { timestamps: true }
 );

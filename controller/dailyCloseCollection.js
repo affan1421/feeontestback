@@ -4,6 +4,7 @@ const SuccessResponse = require("../utils/successResponse");
 const DailyCloseCollection = require("../models/dailyCloseCollection");
 const FeeReceipt = require("../models/feeReceipt");
 const Expense = require("../models/expense");
+const { sendNotification } = require("../socket/socket");
 
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
@@ -132,6 +133,29 @@ const generateDailyCloseCollection = async (req, res, next) => {
     });
 
     await newDailyClose.save();
+
+    const notificationSetup = async () => {
+      try {
+        // setup notification
+        const notificationData = {
+          title: `Pending approvement - ${newDailyClose?.name} is depositing today`,
+          description: `₹${Number(newDailyClose.expenseAmount).toFixed(2)} as expence and ₹${Number(
+            newDailyClose?.cashAmount
+          )?.toFixed(2)} as cash in ${newDailyClose?.bankName} Bank`,
+          type: "PAYMENT",
+          action: "/",
+          status: "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(newDailyClose.schoolId, "MANAGEMENT", notificationData);
+        await sendNotification(newDailyClose.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
 
     res.status(200).json(SuccessResponse(newDailyClose, 1, "Daily Close Collection record created successfully"));
   } catch (error) {
