@@ -40,7 +40,11 @@ const createConcession = async (req, res, next) => {
 
     const savedConcession = await newConcession.save();
 
-    res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
+    res
+      .status(200)
+      .json(
+        SuccessResponse(savedConcession, 1, "Concession provided successfully")
+      );
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -70,7 +74,11 @@ const getClassDetails = async (req, res, next) => {
       return res.status(404).json({ message: "No classes found" });
     }
 
-    res.status(200).json(SuccessResponse(classList, 1, "Classes details fetch successfully"));
+    res
+      .status(200)
+      .json(
+        SuccessResponse(classList, 1, "Classes details fetch successfully")
+      );
   } catch (error) {
     console.error("Error fetching classes list:", error);
     console.log("error", error.message);
@@ -85,7 +93,10 @@ const getStudentsByClass = async (req, res, next) => {
     if (!classId || !schoolId) {
       return res
         .status(400)
-        .json({ error: "Both Class ID and School ID are required in the query parameters." });
+        .json({
+          error:
+            "Both Class ID and School ID are required in the query parameters.",
+        });
     }
 
     // Assuming studentsCollection.find is an asynchronous function that returns a promise
@@ -99,7 +110,9 @@ const getStudentsByClass = async (req, res, next) => {
     if (!students || students.length === 0) {
       return res
         .status(404)
-        .json({ error: "No students found for the specified classId and schoolId." });
+        .json({
+          error: "No students found for the specified classId and schoolId.",
+        });
     }
 
     // Return the students as a JSON response
@@ -215,7 +228,9 @@ const changeStatus = async (req, res, next) => {
     const { status } = req.query;
 
     if (!concessionId || !status) {
-      return res.status(400).json({ message: "Concression Id and Status Id are required" });
+      return res
+        .status(400)
+        .json({ message: "Concression Id and Status Id are required" });
     }
 
     const concession = await Concession.findById(concessionId);
@@ -234,81 +249,91 @@ const changeStatus = async (req, res, next) => {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
-}
-const getConcessionCardData = async (req,res,next) => {
+};
+const getConcessionCardData = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
 
     const totalConcessionResult = await Concession.aggregate([
       {
-        $facet: {
           totalConcessionAmount: [
+            //Total concession amount
             {
               $match: {
-                schoolId: mongoose.Types.ObjectId(schoolId)
-              }
+                schoolId: mongoose.Types.ObjectId(schoolId),
+              },
             },
             {
               $group: {
                 _id: null,
-                totalConcessionSum: { $sum: '$totalConcession' },
+                totalConcessionSum: { $sum: "$totalConcession" },
               },
             },
             { $project: { _id: 0, totalConcessionSum: 1 } },
           ],
           studentData: [
+            //Student data with gender
             {
               $lookup: {
                 from: "students",
                 localField: "studentId",
                 foreignField: "_id",
-                as: "studentInfo"
-              }
+                as: "studentInfo",
+              },
             },
             {
-              $unwind: "$studentInfo"
+              $unwind: "$studentInfo",
             },
             {
               $group: {
                 _id: "$studentInfo.gender",
-                count: { $sum: 1 }
-              }
+                count: { $sum: 1 },
+              },
             },
             {
-              $project: { _id: 0, gender: "$_id", count: 1 } 
-            }
+              $project: { _id: 0, gender: "$_id", count: 1 },
+            },
           ],
           totalStudentCount: [
+            //Total students
             {
               $group: {
                 _id: null,
-                count: { $sum: 1 }
-              }
+                count: { $sum: 1 },
+              },
             },
             {
-              $project: { _id: 0, count: 1 } 
-            }
+              $project: { _id: 0, count: 1 },
+            },
           ],
           classCount: [
-              {
-                $group: {
-                  _id: "$secsionId",
-                },
+            //Total classws get concession
+            {
+              $group: {
+                _id: "$secsionId",
               },
-              {
-                $group: {
-                  _id: null,
-                  count: { $sum: 1 },
-                },
+            },
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 },
               },
-              { $project: { _id: 0, count: 1 } },
-            ],
-            sectionMaxConcession: [ // Find section with maximum concession
+            },
+            { $project: { _id: 0, count: 1 } },
+          ],
+          sectionMaxConcession: [
+            // Find section with maximum concession
             {
               $group: {
                 _id: "$sectionId",
                 concessionAmount: { $sum: "$totalConcession" },
               },
+            },
+            {
+              $sort: { totalConcessionSum: -1 },
+            },
+            {
+              $limit: 1,
             },
             {
               $lookup: {
@@ -329,7 +354,39 @@ const getConcessionCardData = async (req,res,next) => {
               },
             },
           ],
-        },
+          sectionMinConcession: [
+            // Find section with minimum concession
+            {
+              $group: {
+                _id: "$sectionId",
+                concessionAmount: { $sum: "$totalConcession" },
+              },
+            },
+            {
+              $sort: { totalConcessionSum: 1 },
+            },
+            {
+              $limit: 1,
+            },
+            {
+              $lookup: {
+                from: "sections",
+                localField: "_id",
+                foreignField: "_id",
+                as: "sectionInfo",
+              },
+            },
+            {
+              $unwind: "$sectionInfo",
+            },
+            {
+              $project: {
+                _id: 0,
+                sectionName: "$sectionInfo.className",
+                concessionAmount: 1,
+              },
+            },
+          ],
       },
     ]);
 
@@ -338,17 +395,26 @@ const getConcessionCardData = async (req,res,next) => {
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
     const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
+    const minConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
 
-
-
-    res.status(200).json(SuccessResponse({ totalConcessionAmount, studentData, totalStudentCount, uniqueClassCount,maxConcessionSection }, 1, "success"));
+    res.status(200).json(SuccessResponse(
+          {
+            totalConcessionAmount,
+            studentData,
+            totalStudentCount,
+            uniqueClassCount,
+            maxConcessionSection,
+            minConcessionSection
+          },
+          1,
+          "success"
+        )
+      );
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
-}
-
-
+};
 
 module.exports = {
   createConcession,
@@ -356,5 +422,5 @@ module.exports = {
   getStudentsByClass,
   getStudentFeeDetails,
   getConcessionCardData,
-  changeStatus
+  changeStatus,
 };
