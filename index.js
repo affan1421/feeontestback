@@ -69,7 +69,7 @@ mongoose
     app.use(morganMiddleware);
 
     app.get("/", (req, res) => {
-      res.send("Server is up and Running👨‍💻👩‍💻");
+      res.send("Server is up and Running👨‍💻👩‍💻...");
     });
 
     // authentication middleware
