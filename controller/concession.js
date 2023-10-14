@@ -155,54 +155,54 @@ const getStudentFeeDetails = async (req, res, next) => {
         },
         {
           $project: {
-            _id: null,
+            _id: -1,
             "feecategories._id": 1,
             "feecategories.name": 1,
           },
         },
-      ])
-      .toArray();
-
-    console.log(feeCategories, "feeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
-
-    const feeInstallments = await studentsCollection
-      .aggregate([
         {
-          $match: {
-            _id: mongoose.Types.ObjectId(studentId),
-            school_id: mongoose.Types.ObjectId(schoolId),
-          },
+          $unwind: "$feecategories",
         },
         {
           $lookup: {
             from: "feeinstallments",
-            localField: "_id",
-            foreignField: "studentId",
+            localField: "feecategories._id",
+            foreignField: "categoryId",
             as: "feeinstallments",
-          },
-        },
-        {
-          $unwind: "$feeinstallments",
-        },
-        {
-          $lookup: {
-            from: "feeschedules",
-            localField: "feeinstallments.scheduleTypeId",
-            foreignField: "_id",
-            as: "feeinstallments.feeschedules",
-          },
-        },
-        {
-          $project: {
-            _id: null,
-            feeinstallments: 1,
-            feeschedules: 1,
+            pipeline: [
+              {
+                $match: {
+                  studentId: mongoose.Types.ObjectId(studentId),
+                  schoolId: mongoose.Types.ObjectId(schoolId),
+                },
+              },
+              {
+                $group: {
+                  feedetails: {
+                    $addToSet: "$$ROOT",
+                  },
+                  _id: null,
+                  totalAmount: {
+                    $sum: "$totalAmount",
+                  },
+                  paidAmount: {
+                    $sum: "$paidAmount",
+                  },
+                  totalDiscountAmount: {
+                    $sum: "$totalDiscountAmount",
+                  },
+                  netAmount: {
+                    $sum: "$netAmount",
+                  },
+                },
+              },
+            ],
           },
         },
       ])
       .toArray();
 
-    res.status(200).json(SuccessResponse({ feeCategories, feeInstallments }, 1, "success"));
+    res.status(200).json(SuccessResponse(feeCategories, 1, "success"));
   } catch (error) {
     console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
