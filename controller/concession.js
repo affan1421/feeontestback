@@ -19,6 +19,7 @@ const createConcession = async (req, res, next) => {
       totalAmount,
       paidAmount,
       dueAmount,
+      discountAmount,
       comment,
       status,
       attachments,
@@ -33,6 +34,7 @@ const createConcession = async (req, res, next) => {
       totalAmount,
       paidAmount,
       dueAmount,
+      discountAmount,
       comment,
       status,
       attachments,
@@ -40,11 +42,7 @@ const createConcession = async (req, res, next) => {
 
     const savedConcession = await newConcession.save();
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(savedConcession, 1, "Concession provided successfully")
-      );
+    res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -74,11 +72,7 @@ const getClassDetails = async (req, res, next) => {
       return res.status(404).json({ message: "No classes found" });
     }
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(classList, 1, "Classes details fetch successfully")
-      );
+    res.status(200).json(SuccessResponse(classList, 1, "Classes details fetch successfully"));
   } catch (error) {
     console.error("Error fetching classes list:", error);
     console.log("error", error.message);
@@ -91,12 +85,9 @@ const getStudentsByClass = async (req, res, next) => {
     const { classId, schoolId } = req.query;
 
     if (!classId || !schoolId) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Both Class ID and School ID are required in the query parameters.",
-        });
+      return res.status(400).json({
+        error: "Both Class ID and School ID are required in the query parameters.",
+      });
     }
 
     // Assuming studentsCollection.find is an asynchronous function that returns a promise
@@ -108,11 +99,9 @@ const getStudentsByClass = async (req, res, next) => {
       .toArray();
 
     if (!students || students.length === 0) {
-      return res
-        .status(404)
-        .json({
-          error: "No students found for the specified classId and schoolId.",
-        });
+      return res.status(404).json({
+        error: "No students found for the specified classId and schoolId.",
+      });
     }
 
     // Return the students as a JSON response
@@ -222,15 +211,112 @@ const getStudentFeeDetails = async (req, res, next) => {
   }
 };
 
+// const getStudentConcessionData = async (req, res, next) => {
+//   try {
+//     const { schoolId, studentId } = req.query;
+
+//     const concessions = await Concession.aggregate([
+//       {
+//         $match: {
+//           schoolId: mongoose.Types.ObjectId(schoolId),
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "students",
+//           foreignField: "_id",
+//           localField: "studentId",
+//           as: "studentList",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "sections",
+//           foreignField: "_id",
+//           localField: "sectionId",
+//           as: "class",
+//         },
+//       },
+//       {
+//         $project: {
+//           _id: 1,
+//           totalAmount: 1,
+//           paidAmount: 1,
+//           discountAmount: 1,
+//           totalConcession: 1,
+//           studentName: { $arrayElemAt: ["$studentList.name", 0] },
+//           className: { $arrayElemAt: ["$class.className", 0] },
+//         },
+//       },
+//     ]);
+
+//     res.status(200).json(concessions);
+//   } catch (error) {
+//     console.log("Error:", error.message);
+//     return next(new ErrorResponse("Something Went Wrong", 500));
+//   }
+// };
+const getStudentConcessionData = async (req, res, next) => {
+  try {
+    const { schoolId, studentId, page = 1 } = req.query;
+    const perPage = 2;
+    const skip = (page - 1) * perPage;
+
+    const concessions = await Concession.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          foreignField: "_id",
+          localField: "studentId",
+          as: "studentList",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          foreignField: "_id",
+          localField: "sectionId",
+          as: "class",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          totalAmount: 1,
+          paidAmount: 1,
+          discountAmount: 1,
+          totalConcession: 1,
+          studentName: { $arrayElemAt: ["$studentList.name", 0] },
+          className: { $arrayElemAt: ["$class.className", 0] },
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: perPage,
+      },
+    ]);
+
+    res.status(200).json(concessions);
+  } catch (error) {
+    console.log("Error:", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 const changeStatus = async (req, res, next) => {
   try {
     const concessionId = req.params.id;
     const { status } = req.query;
 
     if (!concessionId || !status) {
-      return res
-        .status(400)
-        .json({ message: "Concression Id and Status Id are required" });
+      return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
     const concession = await Concession.findById(concessionId);
@@ -242,9 +328,7 @@ const changeStatus = async (req, res, next) => {
     // Update concession status
     concession.status = status;
     await concession.save();
-    res
-      .status(200)
-      .json(SuccessResponse(null, 1, "Concession status updated successfully"));
+    res.status(200).json(SuccessResponse(null, 1, "Concession status updated successfully"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -391,30 +475,25 @@ const getConcessionCardData = async (req, res, next) => {
     const totalConcessionAmount =
       totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
-    const totalStudentCount =
-      totalConcessionResult[0].totalStudentCount[0].count;
+    const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
-    const maxConcessionSection =
-      totalConcessionResult[0].sectionMaxConcession[0];
-    const minConcessionSection =
-      totalConcessionResult[0].sectionMaxConcession[0];
+    const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
+    const minConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
 
-    res
-      .status(200)
-      .json(
-        SuccessResponse(
-          {
-            totalConcessionAmount,
-            studentData,
-            totalStudentCount,
-            uniqueClassCount,
-            maxConcessionSection,
-            minConcessionSection
-          },
-          1,
-          "success"
-        )
-      );
+    res.status(200).json(
+      SuccessResponse(
+        {
+          totalConcessionAmount,
+          studentData,
+          totalStudentCount,
+          uniqueClassCount,
+          maxConcessionSection,
+          minConcessionSection,
+        },
+        1,
+        "success"
+      )
+    );
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -428,4 +507,5 @@ module.exports = {
   getStudentFeeDetails,
   getConcessionCardData,
   changeStatus,
+  getStudentConcessionData,
 };

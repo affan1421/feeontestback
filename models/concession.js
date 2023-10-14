@@ -41,6 +41,11 @@ const concessionSchema = new Schema(
       type: Number,
       required: [true, "Due Amount is required"],
     },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      required: [true, "Due Amount is required"],
+    },
     comment: String,
     status: {
       type: String,
