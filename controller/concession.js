@@ -256,8 +256,8 @@ const getConcessionCardData = async (req, res, next) => {
 
     const totalConcessionResult = await Concession.aggregate([
       {
+        $facet: {
           totalConcessionAmount: [
-            //Total concession amount
             {
               $match: {
                 schoolId: mongoose.Types.ObjectId(schoolId),
@@ -272,7 +272,6 @@ const getConcessionCardData = async (req, res, next) => {
             { $project: { _id: 0, totalConcessionSum: 1 } },
           ],
           studentData: [
-            //Student data with gender
             {
               $lookup: {
                 from: "students",
@@ -295,7 +294,6 @@ const getConcessionCardData = async (req, res, next) => {
             },
           ],
           totalStudentCount: [
-            //Total students
             {
               $group: {
                 _id: null,
@@ -307,7 +305,6 @@ const getConcessionCardData = async (req, res, next) => {
             },
           ],
           classCount: [
-            //Total classws get concession
             {
               $group: {
                 _id: "$secsionId",
@@ -387,17 +384,25 @@ const getConcessionCardData = async (req, res, next) => {
               },
             },
           ],
+        },
       },
     ]);
 
-    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount =
+      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
-    const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
+    const totalStudentCount =
+      totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
-    const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
-    const minConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
+    const maxConcessionSection =
+      totalConcessionResult[0].sectionMaxConcession[0];
+    const minConcessionSection =
+      totalConcessionResult[0].sectionMaxConcession[0];
 
-    res.status(200).json(SuccessResponse(
+    res
+      .status(200)
+      .json(
+        SuccessResponse(
           {
             totalConcessionAmount,
             studentData,
