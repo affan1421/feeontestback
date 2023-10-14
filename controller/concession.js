@@ -209,9 +209,108 @@ const getStudentFeeDetails = async (req, res, next) => {
   }
 };
 
+const changeStatus = async (req, res, next) => {
+  try {
+    const concessionId = req.params.id;
+    const { status } = req.query;
+
+    if (!concessionId || !status) {
+      return res.status(400).json({ message: "Concression Id and Status Id are required" });
+    }
+
+    const concession = await Concession.findById(concessionId);
+
+    if (!concession) {
+      return res.status(404).json({ message: "Concession not found" });
+    }
+
+    // Update concession status
+    concession.status = status;
+    await concession.save();
+    res
+      .status(200)
+      .json(SuccessResponse(null, 1, "Concession status updated successfully"));
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+}
+const getConcessionCardData = async (req,res,next) => {
+  try {
+    const { schoolId } = req.query;
+
+    const totalConcessionResult = await Concession.aggregate([
+      {
+        $facet: {
+          totalConcessionAmount: [
+            {
+              $match: {
+                schoolId: mongoose.Types.ObjectId(schoolId)
+              }
+            },
+            {
+              $group: {
+                _id: null,
+                totalConcessionSum: { $sum: '$totalConcession' },
+              },
+            },
+            { $project: { _id: 0, totalConcessionSum: 1 } },
+          ],
+          studentData: [
+            {
+              $lookup: {
+                from: "students",
+                localField: "studentId",
+                foreignField: "_id",
+                as: "studentInfo"
+              }
+            },
+            {
+              $unwind: "$studentInfo"
+            },
+            {
+              $group: {
+                _id: "$studentInfo.gender",
+                count: { $sum: 1 }
+              }
+            },
+            {
+              $project: { _id: 0, gender: "$_id", count: 1 } // Projecting gender field
+            }
+          ],
+          totalStudentCount: [
+            {
+              $group: {
+                _id: null,
+                count: { $sum: 1 }
+              }
+            },
+            {
+              $project: { _id: 0, count: 1 } // Projecting count field
+            }
+          ]
+        },
+      },
+    ]);
+
+    const totalConcessionSum = totalConcessionResult[0].totalConcessionAmount[0];
+    const studentData = totalConcessionResult[0].studentData;
+    const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
+
+    res.status(200).json(SuccessResponse({ totalConcessionSum, studentData, totalStudentCount }, 1, "success"));
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+}
+
+
+
 module.exports = {
   createConcession,
   getClassDetails,
   getStudentsByClass,
   getStudentFeeDetails,
+  getConcessionCardData,
+  changeStatus
 };
