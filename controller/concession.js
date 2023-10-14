@@ -275,7 +275,7 @@ const getConcessionCardData = async (req,res,next) => {
               }
             },
             {
-              $project: { _id: 0, gender: "$_id", count: 1 } // Projecting gender field
+              $project: { _id: 0, gender: "$_id", count: 1 } 
             }
           ],
           totalStudentCount: [
@@ -286,18 +286,62 @@ const getConcessionCardData = async (req,res,next) => {
               }
             },
             {
-              $project: { _id: 0, count: 1 } // Projecting count field
+              $project: { _id: 0, count: 1 } 
             }
-          ]
+          ],
+          classCount: [
+              {
+                $group: {
+                  _id: "$secsionId",
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  count: { $sum: 1 },
+                },
+              },
+              { $project: { _id: 0, count: 1 } },
+            ],
+            sectionMaxConcession: [ // Find section with maximum concession
+            {
+              $group: {
+                _id: "$sectionId",
+                concessionAmount: { $sum: "$totalConcession" },
+              },
+            },
+            {
+              $lookup: {
+                from: "sections",
+                localField: "_id",
+                foreignField: "_id",
+                as: "sectionInfo",
+              },
+            },
+            {
+              $unwind: "$sectionInfo",
+            },
+            {
+              $project: {
+                _id: 0,
+                sectionName: "$sectionInfo.className",
+                concessionAmount: 1,
+              },
+            },
+          ],
         },
       },
     ]);
 
-    const totalConcessionSum = totalConcessionResult[0].totalConcessionAmount[0];
+    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
+    const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
+    const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
 
-    res.status(200).json(SuccessResponse({ totalConcessionSum, studentData, totalStudentCount }, 1, "success"));
+
+
+    res.status(200).json(SuccessResponse({ totalConcessionAmount, studentData, totalStudentCount, uniqueClassCount,maxConcessionSection }, 1, "success"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
