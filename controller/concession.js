@@ -340,13 +340,13 @@ const getConcessionCardData = async (req, res, next) => {
 
     const totalConcessionResult = await Concession.aggregate([
       {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
         $facet: {
           totalConcessionAmount: [
-            {
-              $match: {
-                schoolId: mongoose.Types.ObjectId(schoolId),
-              },
-            },
             {
               $group: {
                 _id: null,
@@ -500,12 +500,83 @@ const getConcessionCardData = async (req, res, next) => {
   }
 };
 
+
+const getConcessionClassList = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const getClassConcession = await Concession.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "classDetails",
+        },
+      },
+      {
+        $unwind: "$classDetails",
+      },
+      {
+        $group: {
+          _id: "$classDetails._id",
+          className: { $first: "$classDetails.className" },
+          numStudentsWithConcession: { $sum: 1 },
+          totalConcession: { $sum: "$totalConcession" },
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "_id",
+          foreignField: "section",
+          as: "students",
+        },
+      },
+      {
+        $addFields: {
+          totalStudentsInClass: { $size: "$students" },
+        },
+      },
+      {
+        $project: {
+          className: 1,
+          numStudentsWithConcession: 1,
+          totalConcession: 1,
+          totalStudentsInClass: 1,
+        },
+      },
+    ]);
+
+    console.log(getClassConcession);
+
+    res.status(200).json(
+      SuccessResponse(
+        {
+          getClassConcession,
+        },
+        1,
+        "success"
+      )
+    );
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+
 module.exports = {
   createConcession,
   getClassDetails,
   getStudentsByClass,
   getStudentFeeDetails,
   getConcessionCardData,
+  getConcessionClassList,
   changeStatus,
   getStudentConcessionData,
 };

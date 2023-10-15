@@ -296,9 +296,15 @@ async function getTc(req, res, next) {
 
 async function getTcDetails(req, res, next) {
   try {
+    const schoolId = req.params.id
     const tcsCount = await StudentTransfer.countDocuments();
 
     const tsData = await StudentTransfer.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
       {
         $facet: {
           //First Facet : get different types of tc's and its count

@@ -6,6 +6,7 @@ const {
   getStudentFeeDetails,
 <<<<<<< Updated upstream
   getConcessionCardData,
+  getConcessionClassList,
   changeStatus
 =======
   getStudentConcessionData,
@@ -18,6 +19,7 @@ router.get("/classWiseStudentsData", getStudentsByClass);
 router.get("/feedetails", getStudentFeeDetails);
 <<<<<<< Updated upstream
 router.get("/concessionCardData",getConcessionCardData)
+router.get("/concessionClassList",getConcessionClassList)
 router.get("/changeStatus",changeStatus);
 =======
 router.get("/studentsconcession", getStudentConcessionData);

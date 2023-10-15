@@ -25,7 +25,7 @@ router.put("/changeStatus/:id", changeStatus);
 router.get("/tcList", getTc);
 
 // TC details, which includes document counts also
-router.get("/details", getTcDetails);
+router.get("/details/:id", getTcDetails);
 
 // to view all the available classNames of a particular schools
 router.get("/classes", getClasses);
