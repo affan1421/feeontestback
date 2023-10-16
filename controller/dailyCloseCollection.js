@@ -149,7 +149,6 @@ const generateDailyCloseCollection = async (req, res, next) => {
 
         // sending notifications
         await sendNotification(newDailyClose.schoolId, "MANAGEMENT", notificationData);
-        await sendNotification(newDailyClose.schoolId, "ADMIN", notificationData);
       } catch (error) {
         console.log("NOTIFICATION_ERROR", error);
       }
@@ -345,6 +344,28 @@ const updateCloseCollectionStatus = async (req, res, next) => {
     if (!updatedData) {
       return res.status(500).json({ error: "Something went wrong while updating the document" });
     }
+
+    const notificationSetup = async () => {
+      try {
+        // setup notification
+        const notificationData = {
+          title: `${status} - ${updatedData?.name}'s deposit`,
+          description: `₹${Number(updatedData.expenseAmount).toFixed(2)} as expence and ₹${Number(
+            updatedData?.cashAmount
+          )?.toFixed(2)} as cash in ${updatedData?.bankName} Bank`,
+          type: "PAYMENT",
+          action: "/",
+          status: status === "REJECTED" ? "ERROR" : "SUCCESS",
+        };
+
+        // sending notifications
+        await sendNotification(updatedData.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
 
     res.status(200).json(SuccessResponse(null, 1, "Daily close collection status updated successfully"));
   } catch (error) {
