@@ -223,7 +223,7 @@ const getStudentConcessionData = async (req, res, next) => {
       schoolId: mongoose.Types.ObjectId(schoolId),
     };
 
-    const concessions = await Concession.aggregate([
+    const pipeline = [
       {
         $match: { schoolId: mongoose.Types.ObjectId(schoolId) },
       },
@@ -268,20 +268,29 @@ const getStudentConcessionData = async (req, res, next) => {
         },
       },
       {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
+    ];
+
+    if (searchQuery && searchQuery.trim() !== "") {
+      pipeline.push({
         $match: {
           $or: [
             { studentName: { $regex: searchQuery, $options: "i" } },
             { className: { $regex: searchQuery, $options: "i" } },
           ],
         },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: pageSize,
-      },
-    ]);
+      });
+    }
+
+    if (status) {
+      pipeline[0].$match.status = status; //this will add the field to the pipeline
+    }
+
+    const concessions = await Concession.aggregate(pipeline);
 
     const totalDocuments = await Concession.countDocuments(filter);
 
@@ -483,7 +492,6 @@ const getConcessionCardData = async (req, res, next) => {
   }
 };
 
-
 const getConcessionClassList = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
@@ -551,7 +559,6 @@ const getConcessionClassList = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
-
 
 module.exports = {
   createConcession,
