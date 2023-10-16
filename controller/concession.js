@@ -25,11 +25,20 @@ const createConcession = async (req, res, next) => {
       attachments,
     } = req.body;
 
+    const feeCategoryData = feeCategoryIds.map((category) => ({
+      categoryId: category.categoryId,
+      feeInstallmentIds: category.feeInstallmentIds.map((installment) => ({
+        feeInstallmentId: installment.feeInstallmentId,
+        totalFees: installment.totalFees,
+        concessionAmount: installment.concessionAmount || 0,
+      })),
+    }));
+
     const newConcession = new Concession({
       studentId,
       schoolId,
       sectionId,
-      feeCategoryIds,
+      feeCategoryIds: feeCategoryData,
       totalConcession,
       totalAmount,
       paidAmount,
