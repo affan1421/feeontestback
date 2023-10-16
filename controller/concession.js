@@ -311,16 +311,12 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findById(concessionId);
+    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
     }
-
-    // Update concession status
-    concession.status = status;
-    await concession.save();
-    res.status(200).json(SuccessResponse(null, 1, "Concession status updated successfully"));
+    res.status(200).json(SuccessResponse(concession, 1, "Concession status updated successfully"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -465,8 +461,7 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount =
-      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
