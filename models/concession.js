@@ -18,6 +18,11 @@ const concessionSchema = new Schema(
       ref: "sections",
       required: [true, "Section ID is required"],
     },
+    reason: {
+      type: String,
+      default: "Financial Consideration",
+      required: [true, "Reason is required"],
+    },
     feeCategoryIds: [
       {
         categoryId: {
