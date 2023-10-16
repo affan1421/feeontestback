@@ -517,8 +517,8 @@ const getConcessionClassList = async (req, res, next) => {
         $group: {
           _id: "$classDetails._id",
           className: { $first: "$classDetails.className" },
-          numStudentsWithConcession: { $sum: 1 },
-          totalConcession: { $sum: "$totalConcession" },
+          concessionStudents: { $sum: 1 },
+          concessionAmount: { $sum: "$totalConcession" },
         },
       },
       {
@@ -531,15 +531,17 @@ const getConcessionClassList = async (req, res, next) => {
       },
       {
         $addFields: {
-          totalStudentsInClass: { $size: "$students" },
+          totalStudents: { $size: "$students" },
         },
       },
       {
         $project: {
+          id: "$_id",
+          _id: 0,
           className: 1,
-          numStudentsWithConcession: 1,
-          totalConcession: 1,
-          totalStudentsInClass: 1,
+          concessionStudents: 1,
+          concessionAmount: 1,
+          totalStudents: 1,
         },
       },
       {
@@ -555,15 +557,7 @@ const getConcessionClassList = async (req, res, next) => {
       },
     ]);
 
-    res.status(200).json(
-      SuccessResponse(
-        {
-          getClassConcession,
-        },
-        1,
-        "success"
-      )
-    );
+    res.status(200).json(SuccessResponse(getClassConcession, 1, "success"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
