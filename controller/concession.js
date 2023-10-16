@@ -257,11 +257,12 @@ const getStudentConcessionData = async (req, res, next) => {
       },
       {
         $project: {
-          _id: 1,
-          totalAmount: 1,
+          id: "$_id",
+          _id: 0,
+          fees: "$totalAmount",
           paidAmount: 1,
           discountAmount: 1,
-          totalConcession: 1,
+          concessionAmount: "$totalConcession",
           status: 1,
           studentName: "$studentList.name",
           className: "$class.className",
@@ -548,7 +549,7 @@ const getConcessionClassList = async (req, res, next) => {
       },
       {
         $match: {
-             className: { $regex: searchQuery, $options: "i" } 
+          className: { $regex: searchQuery, $options: "i" },
         },
       },
       {
@@ -573,7 +574,6 @@ const getConcessionClassList = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
-
 
 module.exports = {
   createConcession,
