@@ -211,62 +211,21 @@ const getStudentFeeDetails = async (req, res, next) => {
   }
 };
 
-// const getStudentConcessionData = async (req, res, next) => {
-//   try {
-//     const { schoolId, studentId } = req.query;
-
-//     const concessions = await Concession.aggregate([
-//       {
-//         $match: {
-//           schoolId: mongoose.Types.ObjectId(schoolId),
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "students",
-//           foreignField: "_id",
-//           localField: "studentId",
-//           as: "studentList",
-//         },
-//       },
-//       {
-//         $lookup: {
-//           from: "sections",
-//           foreignField: "_id",
-//           localField: "sectionId",
-//           as: "class",
-//         },
-//       },
-//       {
-//         $project: {
-//           _id: 1,
-//           totalAmount: 1,
-//           paidAmount: 1,
-//           discountAmount: 1,
-//           totalConcession: 1,
-//           studentName: { $arrayElemAt: ["$studentList.name", 0] },
-//           className: { $arrayElemAt: ["$class.className", 0] },
-//         },
-//       },
-//     ]);
-
-//     res.status(200).json(concessions);
-//   } catch (error) {
-//     console.log("Error:", error.message);
-//     return next(new ErrorResponse("Something Went Wrong", 500));
-//   }
-// };
 const getStudentConcessionData = async (req, res, next) => {
   try {
-    const { schoolId, studentId, page = 1 } = req.query;
-    const perPage = 2;
-    const skip = (page - 1) * perPage;
+    const { schoolId, studentId, status, page, limit, searchQuery } = req.query;
+
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 5;
+    const skip = (pageNumber - 1) * pageSize;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+    };
 
     const concessions = await Concession.aggregate([
       {
-        $match: {
-          schoolId: mongoose.Types.ObjectId(schoolId),
-        },
+        $match: { schoolId: mongoose.Types.ObjectId(schoolId) },
       },
       {
         $lookup: {
@@ -285,27 +244,50 @@ const getStudentConcessionData = async (req, res, next) => {
         },
       },
       {
+        $unwind: {
+          path: "$studentList",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$class",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
         $project: {
           _id: 1,
           totalAmount: 1,
           paidAmount: 1,
           discountAmount: 1,
           totalConcession: 1,
-          studentName: { $arrayElemAt: ["$studentList.name", 0] },
-          className: { $arrayElemAt: ["$class.className", 0] },
+          status: 1,
+          studentName: "$studentList.name",
+          className: "$class.className",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { studentName: { $regex: searchQuery, $options: "i" } },
+            { className: { $regex: searchQuery, $options: "i" } },
+          ],
         },
       },
       {
         $skip: skip,
       },
       {
-        $limit: perPage,
+        $limit: pageSize,
       },
     ]);
 
-    res.status(200).json(concessions);
+    const totalDocuments = await Concession.countDocuments(filter);
+
+    res.status(200).json({ concessions, totalDocuments });
   } catch (error) {
-    console.log("Error:", error.message);
+    console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
@@ -334,6 +316,7 @@ const changeStatus = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
+
 const getConcessionCardData = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
