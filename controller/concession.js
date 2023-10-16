@@ -494,7 +494,12 @@ const getConcessionCardData = async (req, res, next) => {
 
 const getConcessionClassList = async (req, res, next) => {
   try {
-    const { schoolId } = req.query;
+    const { schoolId, searchQuery, page, limit } = req.query;
+
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 5;
+    const skip = (pageNumber - 1) * pageSize;
+
     const getClassConcession = await Concession.aggregate([
       {
         $match: {
@@ -541,9 +546,18 @@ const getConcessionClassList = async (req, res, next) => {
           totalStudentsInClass: 1,
         },
       },
+      {
+        $match: {
+             className: { $regex: searchQuery, $options: "i" } 
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
     ]);
-
-    console.log(getClassConcession);
 
     res.status(200).json(
       SuccessResponse(
@@ -559,6 +573,7 @@ const getConcessionClassList = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
+
 
 module.exports = {
   createConcession,
