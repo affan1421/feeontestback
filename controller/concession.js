@@ -799,7 +799,8 @@ const getClassesWithConcession = async (req, res, next) => {
       },
       {
         $project: {
-          _id: 1,
+          id: "$_id",
+          _id: 0,
           className: { $arrayElemAt: ["$sectionInfo.className", 0] },
           studentname: { $arrayElemAt: ["$studentsInfo.name", 0] },
           totalAmount: 1,
