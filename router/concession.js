@@ -11,8 +11,9 @@ const {
   addConcessionReason,
   getConcessionReason,
   updateConcessionReason,
+  deleteConcessionReason,
   getStudentWithConcession,
-  getClassesWithConcession,
+  getClassesWithConcession
 } = require("../controller/concession");
 
 router.post("/create", createConcession);
@@ -26,8 +27,10 @@ router.get("/studentsconcession", getStudentConcessionData);
 router.post("/reasons", addConcessionReason);
 router.get("/reasons", getConcessionReason);
 router.put("/reasons", updateConcessionReason);
+router.delete("/deleteReasons",deleteConcessionReason)
 router.get("/studentsconcession", getStudentConcessionData);
 router.get("/studentwithconcession", getStudentWithConcession);
 router.get("/concessionclasses", getClassesWithConcession);
+
 
 module.exports = router;

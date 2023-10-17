@@ -682,7 +682,8 @@ const getTcReason = async (req, res, next) => {
     const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
     const totalCount = tcReasonModal.find({ schoolId }).count();
-    const result = tcReasonModal.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
+    // const result = tcReasonModal.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
+    const result = tcReasonModal.find({ schoolId: schoolId }, "reason")
     Promise.all([totalCount, result])
       .then(([count, result]) => {
         res
@@ -729,6 +730,24 @@ const addTcReason = async (req, res, next) => {
   }
 };
 
+
+async function deleteTcReason(req, res, next) {
+  const { id: idInput } = req.query;
+  try {
+    const id = idInput?.trim();
+    if (!id) {
+      return next(new ErrorResponse("Reason Id required!", 403));
+    }
+    const result = await tcReasonModal.findByIdAndDelete(id);
+    if (!result) {
+      return next(new ErrorResponse("No matching document found for deletion", 404));
+    }
+    res.status(200).json(SuccessResponse("Tc reason deleted successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+}
+
 /**
  *
  * For update TcReason.
@@ -768,4 +787,5 @@ module.exports = {
   addTcReason,
   getTcReason,
   updateTcReason,
+  deleteTcReason,
 };

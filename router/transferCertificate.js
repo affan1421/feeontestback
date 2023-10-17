@@ -10,6 +10,7 @@ const {
   getTcReason,
   addTcReason,
   updateTcReason,
+  deleteTcReason,
 } = require("../controller/transferCertificate");
 
 // create new tranfer certificate
@@ -41,5 +42,8 @@ router.get("/reasons", getTcReason);
 
 // update tc reason
 router.put("/reasons", updateTcReason);
+
+// delete tc reason
+router.delete("/deleteReasons", deleteTcReason);
 
 module.exports = router;

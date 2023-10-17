@@ -484,6 +484,28 @@ const getConcessionCardData = async (req, res, next) => {
               },
             },
           ],
+          //Different types of reasons and its count
+          reasons: [
+            {
+              $lookup: {
+                from: "concessionreasons",
+                localField: "reason",
+                foreignField: "_id",
+                as: "reason",
+              },
+            },
+            { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            { $group: { _id: "$reason", count: { $sum: 1 } } },
+            {
+              $group: {
+                _id: null,
+                reasonResult: {
+                  $push: { reason: "$_id", count: "$count" },
+                },
+              },
+            },
+            { $project: { _id: 0, reasonResult: 1 } },
+          ],
         },
       },
     ]);
@@ -623,9 +645,8 @@ const getConcessionReason = async (req, res, next) => {
     const pageSize = parseInt(limit) || 10;
     const skip = (pageNumber - 1) * pageSize;
     const totalCount = ConcessionReason.find({ schoolId }).count();
+    // const result = ConcessionReason.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
     const result = ConcessionReason.find({ schoolId: schoolId }, "reason")
-      .skip(skip)
-      .limit(pageSize);
     Promise.all([totalCount, result])
       .then(([count, result]) => {
         res
@@ -824,6 +845,25 @@ const getClassesWithConcession = async (req, res, next) => {
   }
 };
 
+
+async function deleteConcessionReason(req, res, next) {
+  const { id: idInput } = req.query;
+  try {
+    const id = idInput?.trim();
+    if (!id) {
+      return next(new ErrorResponse("Reason Id required!", 403));
+    }
+    const result = await ConcessionReason.findByIdAndDelete(id);
+    if (!result) {
+      return next(new ErrorResponse("No matching document found for deletion", 404));
+    }
+    res.status(200).json(SuccessResponse("Concession reason deleted successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+}
+
+
 module.exports = {
   createConcession,
   getClassDetails,
@@ -838,4 +878,5 @@ module.exports = {
   updateConcessionReason,
   getStudentWithConcession,
   getClassesWithConcession,
+  deleteConcessionReason
 };
