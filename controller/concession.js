@@ -9,7 +9,6 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const Concession = require("../models/concession");
 const ConcessionReason = require("../models/concesionReasons");
 
-
 const createConcession = async (req, res, next) => {
   try {
     const {
@@ -335,11 +334,7 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(
-      concessionId,
-      { $set: { status } },
-      { new: true }
-    );
+    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
@@ -489,8 +484,7 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount =
-      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -593,11 +587,9 @@ const getConcessionClassList = async (req, res, next) => {
   }
 };
 
-<<<<<<< Updated upstream
-
 const addConcessionReason = async (req, res, next) => {
   const { reason: reasonInput, schoolId } = req.body;
-  console.log(req.body)
+  console.log(req.body);
   try {
     if (!schoolId?.trim()) {
       return next(new ErrorResponse(`School Id is required`, 403));
@@ -615,7 +607,6 @@ const addConcessionReason = async (req, res, next) => {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
-
 
 const getConcessionReason = async (req, res, next) => {
   const { page, limit, schoolId } = req.query;
@@ -663,18 +654,13 @@ async function updateConcessionReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await ConcessionReason.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await ConcessionReason.findByIdAndUpdate(
-      id,
-      { $set: { reason: reason } },
-      { new: true }
-    );
+    const result = await ConcessionReason.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 }
 
-=======
 const getStudentWithConcession = async (req, res, next) => {
   try {
     const { studentId } = req.query;
@@ -733,7 +719,6 @@ const getStudentWithConcession = async (req, res, next) => {
   }
 };
 
->>>>>>> Stashed changes
 module.exports = {
   createConcession,
   getClassDetails,
@@ -743,11 +728,8 @@ module.exports = {
   getConcessionClassList,
   changeStatus,
   getStudentConcessionData,
-<<<<<<< Updated upstream
   addConcessionReason,
   getConcessionReason,
-  updateConcessionReason
-=======
+  updateConcessionReason,
   getStudentWithConcession,
->>>>>>> Stashed changes
 };
