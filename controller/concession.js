@@ -7,6 +7,8 @@ const sectionsCollection = mongoose.connection.db.collection("sections");
 const studentsCollection = mongoose.connection.db.collection("students");
 
 const Concession = require("../models/concession");
+const ConcessionReason = require("../models/concesionReasons");
+
 
 const createConcession = async (req, res, next) => {
   try {
@@ -333,7 +335,11 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
+    const concession = await Concession.findByIdAndUpdate(
+      concessionId,
+      { $set: { status } },
+      { new: true }
+    );
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
@@ -483,7 +489,8 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount =
+      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -586,6 +593,147 @@ const getConcessionClassList = async (req, res, next) => {
   }
 };
 
+<<<<<<< Updated upstream
+
+const addConcessionReason = async (req, res, next) => {
+  const { reason: reasonInput, schoolId } = req.body;
+  console.log(req.body)
+  try {
+    if (!schoolId?.trim()) {
+      return next(new ErrorResponse(`School Id is required`, 403));
+    }
+    const reason = reasonInput?.trim()?.toLowerCase();
+    if (!reason) {
+      return next(new ErrorResponse(`reason is required`, 403));
+    }
+    const existingReason = await ConcessionReason.findOne({ reason });
+    if (existingReason) return next(new ErrorResponse("Reason already exists", 403));
+    const result = await ConcessionReason.create({ reason, schoolId });
+    res.status(200).json(SuccessResponse(result, 1, "Concession reason created successfully"));
+  } catch (error) {
+    console.log("Error while creating concession reason", error);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+
+const getConcessionReason = async (req, res, next) => {
+  const { page, limit, schoolId } = req.query;
+  if (!schoolId?.trim()) {
+    return next(new ErrorResponse(`School Id is required`, 403));
+  }
+  try {
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
+    const skip = (pageNumber - 1) * pageSize;
+    const totalCount = ConcessionReason.find({ schoolId }).count();
+    const result = ConcessionReason.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
+    Promise.all([totalCount, result])
+      .then(([count, result]) => {
+        res
+          .status(200)
+          .json(
+            SuccessResponse(
+              { reasons: result, totalCount: count },
+              result?.length,
+              "Concession reasons fetched successfully"
+            )
+          );
+      })
+      .catch((err) => {
+        console.log("Error while fetching concession reason", err);
+        next(new ErrorResponse("Something went wrong", 500));
+      });
+  } catch (error) {
+    console.log("Error while fetching concession reason", error);
+    next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+async function updateConcessionReason(req, res, next) {
+  const { id: idInput, reason: reasonInput } = req.body;
+  if (!reasonInput?.trim()) {
+    return next(new ErrorResponse("reason required!", 403));
+  }
+  try {
+    const id = idInput?.trim();
+    if (!id) {
+      return next(new ErrorResponse("Reason Id required!", 403));
+    }
+    const reason = reasonInput?.trim().toLowerCase();
+    const existingReason = await ConcessionReason.findOne({ reason });
+    if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
+    const result = await ConcessionReason.findByIdAndUpdate(
+      id,
+      { $set: { reason: reason } },
+      { new: true }
+    );
+    res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+}
+
+=======
+const getStudentWithConcession = async (req, res, next) => {
+  try {
+    const { studentId } = req.query;
+
+    const concessionData = await Concession.findOne({ studentId });
+
+    const studentConcessionData = await Concession.aggregate([
+      {
+        $match: {
+          studentId: mongoose.Types.ObjectId(studentId),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "classInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "feecategories",
+          localField: "feeCategoryIds._id",
+          foreignField: "_id",
+          as: "feeCategoryInfo",
+        },
+      },
+      {
+        $project: {
+          feeCategoryInfo: 1,
+          studentName: { $arrayElemAt: ["$studentInfo.name", 0] },
+          className: { $arrayElemAt: ["$classInfo.className", 0] },
+          totalAmount: 1,
+          paidAmount: 1,
+          discountAmount: 1,
+          concessionAmount: 1,
+          status: 1,
+          reasom: 1,
+          schoolId: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(studentConcessionData);
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
+>>>>>>> Stashed changes
 module.exports = {
   createConcession,
   getClassDetails,
@@ -595,4 +743,11 @@ module.exports = {
   getConcessionClassList,
   changeStatus,
   getStudentConcessionData,
+<<<<<<< Updated upstream
+  addConcessionReason,
+  getConcessionReason,
+  updateConcessionReason
+=======
+  getStudentWithConcession,
+>>>>>>> Stashed changes
 };
