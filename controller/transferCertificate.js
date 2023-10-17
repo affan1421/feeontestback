@@ -116,7 +116,6 @@ async function createStudentTransfer(req, res, next) {
 
         // sending notifications
         await sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
-        await sendNotification(transfer.schoolId, "ADMIN", notificationData);
       } catch (error) {
         console.log("NOTIFICATION_ERROR", error);
       }
@@ -323,7 +322,6 @@ async function changeStatus(req, res, next) {
         };
 
         // sending notifications
-        await sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
         await sendNotification(transfer.schoolId, "ADMIN", notificationData);
       } catch (error) {
         console.log("NOTIFICATION_ERROR", error);
