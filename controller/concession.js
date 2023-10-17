@@ -155,9 +155,7 @@ const getStudentFeeDetails = async (req, res, next) => {
             pipeline: [
               {
                 $match: {
-                  $expr: {
-                    $in: ["$_id", "$$feeCategoryIds"],
-                  },
+                  $expr: { $in: ["$_id", "$$feeCategoryIds"] },
                 },
               },
             ],
@@ -166,7 +164,7 @@ const getStudentFeeDetails = async (req, res, next) => {
         },
         {
           $project: {
-            _id: -1,
+            _id: 0,
             "feecategories._id": 1,
             "feecategories.name": 1,
           },
@@ -207,13 +205,28 @@ const getStudentFeeDetails = async (req, res, next) => {
                   },
                 },
               },
+              { $project: { _id: 0 } },
             ],
           },
         },
+        {
+          $addFields: { feeinstallments: { $arrayElemAt: ["$feeinstallments", 0] } },
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$feeinstallments.totalAmount" },
+            paidAmount: { $sum: "$feeinstallments.paidAmount" },
+            totalDiscountAmount: { $sum: "$feeinstallments.totalDiscountAmount" },
+            netAmount: { $sum: "$feeinstallments.netAmount" },
+            feeData: { $addToSet: "$$ROOT" },
+          },
+        },
+        { $project: { _id: 0 } },
       ])
       .toArray();
 
-    res.status(200).json(SuccessResponse(feeCategories, 1, "success"));
+    res.status(200).json(SuccessResponse(feeCategories?.[0], 1, "success"));
   } catch (error) {
     console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
