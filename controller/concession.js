@@ -184,6 +184,7 @@ const getStudentFeeDetails = async (req, res, next) => {
                 $match: {
                   studentId: mongoose.Types.ObjectId(studentId),
                   schoolId: mongoose.Types.ObjectId(schoolId),
+                  status: { $in: ["Late", "Upcoming", "Due"] },
                 },
               },
               {
@@ -646,7 +647,7 @@ const getConcessionReason = async (req, res, next) => {
     const skip = (pageNumber - 1) * pageSize;
     const totalCount = ConcessionReason.find({ schoolId }).count();
     // const result = ConcessionReason.find({ schoolId: schoolId }, "reason").skip(skip).limit(pageSize);
-    const result = ConcessionReason.find({ schoolId: schoolId }, "reason")
+    const result = ConcessionReason.find({ schoolId: schoolId }, "reason");
     Promise.all([totalCount, result])
       .then(([count, result]) => {
         res
@@ -767,7 +768,7 @@ const getStudentWithConcession = async (req, res, next) => {
 
 const getClassesWithConcession = async (req, res, next) => {
   try {
-    const { schoolId, sectionId } = req.query;
+    const { schoolId, sectionId, searchQuery } = req.query;
 
     const classData = await Concession.aggregate([
       {
@@ -798,11 +799,19 @@ const getClassesWithConcession = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentsDetails",
+        },
+      },
+      {
         $project: {
           id: "$_id",
           _id: 0,
           className: { $arrayElemAt: ["$sectionInfo.className", 0] },
-          studentname: { $arrayElemAt: ["$studentsInfo.name", 0] },
+          studentame: { $arrayElemAt: ["$studentsDetails.name", 0] },
           totalAmount: 1,
           paidAmount: 1,
           discountAmount: 1,
@@ -812,6 +821,7 @@ const getClassesWithConcession = async (req, res, next) => {
           totalStudentsCount: 1,
         },
       },
+
       {
         $group: {
           _id: null,
@@ -825,6 +835,7 @@ const getClassesWithConcession = async (req, res, next) => {
           studentsCount: { $push: "$totalStudentsCount" },
         },
       },
+
       {
         $project: {
           _id: 0,
@@ -840,12 +851,16 @@ const getClassesWithConcession = async (req, res, next) => {
       },
     ]);
 
+    if (searchQuery) {
+      $match: {
+      }
+    }
+
     res.status(200).json(classData);
   } catch (error) {
     console.log(error.message);
   }
 };
-
 
 async function deleteConcessionReason(req, res, next) {
   const { id: idInput } = req.query;
@@ -864,7 +879,6 @@ async function deleteConcessionReason(req, res, next) {
   }
 }
 
-
 module.exports = {
   createConcession,
   getClassDetails,
@@ -879,5 +893,5 @@ module.exports = {
   updateConcessionReason,
   getStudentWithConcession,
   getClassesWithConcession,
-  deleteConcessionReason
+  deleteConcessionReason,
 };
