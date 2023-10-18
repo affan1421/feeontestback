@@ -770,7 +770,7 @@ const getClassesWithConcession = async (req, res, next) => {
   try {
     const { schoolId, sectionId, searchQuery } = req.query;
 
-    const classData = await Concession.aggregate([
+    const pipeline = [
       {
         $match: {
           schoolId: mongoose.Types.ObjectId(schoolId),
@@ -811,7 +811,7 @@ const getClassesWithConcession = async (req, res, next) => {
           id: "$_id",
           _id: 0,
           className: { $arrayElemAt: ["$sectionInfo.className", 0] },
-          studentame: { $arrayElemAt: ["$studentsDetails.name", 0] },
+          studentName: { $arrayElemAt: ["$studentsDetails.name", 0] },
           totalAmount: 1,
           paidAmount: 1,
           discountAmount: 1,
@@ -849,12 +849,18 @@ const getClassesWithConcession = async (req, res, next) => {
           studentsCount: { $arrayElemAt: ["$studentsCount", 0] },
         },
       },
-    ]);
+    ];
 
     if (searchQuery) {
-      $match: {
-      }
+      // Add a $match stage to filter based on the searchQuery
+      pipeline.push({
+        $match: {
+          $or: [{ className: { $regex: searchQuery, $options: "i" } }],
+        },
+      });
     }
+
+    const classData = await Concession.aggregate(pipeline);
 
     res.status(200).json(classData);
   } catch (error) {
