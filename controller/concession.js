@@ -24,6 +24,7 @@ const createConcession = async (req, res, next) => {
       reason,
       status,
       attachments,
+      comment,
     } = req.body;
 
     const newConcession = new Concession({
@@ -39,6 +40,7 @@ const createConcession = async (req, res, next) => {
       reason,
       status,
       attachments,
+      comment,
     });
 
     const savedConcession = await newConcession.save();
@@ -786,12 +788,12 @@ const getClassesWithConcession = async (req, res, next) => {
         },
       },
       {
-        $unwind: "$data"
+        $unwind: "$data",
       },
       {
         $match: {
-          'data.studentName': { $regex: searchQuery, $options: "i" }
-        }
+          "data.studentName": { $regex: `^${searchQuery}`, $options: "i" },
+        },
       },
       {
         $group: {
@@ -803,7 +805,7 @@ const getClassesWithConcession = async (req, res, next) => {
           totalConcessionAmount: { $sum: "$totalConcessionAmount" },
           concessionStudentsCount: { $sum: "$concessionStudentsCount" },
           className: { $first: "$className" },
-          studentsCount: { $first: "$studentsCount" }
+          studentsCount: { $first: "$studentsCount" },
         },
       },
       {
@@ -816,18 +818,50 @@ const getClassesWithConcession = async (req, res, next) => {
           totalConcessionAmount: 1,
           concessionStudentsCount: 1,
           className: 1,
-          studentsCount: 1
+          studentsCount: 1,
         },
       },
     ];
-    
-    
-
     const classData = await Concession.aggregate(pipeline);
 
     res.status(200).json(classData);
   } catch (error) {
     console.log(error.message);
+  }
+};
+
+const getAllReasonTypes = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const data = await Concession.aggregate([
+      { $match: { schoolId: mongoose.Types.ObjectId(schoolId) } },
+      {
+        $group: {
+          _id: "$reason",
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "concessionreasons",
+          localField: "_id",
+          foreignField: "_id",
+          as: "reasonData",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          reason: { $arrayElemAt: ["$reasonData.reason", 0] },
+          count: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(SuccessResponse(data, "reasons fetched successfully"));
+  } catch (error) {
+    console.log(error);
+    return next(new ErrorResponse("Something went wrong", 500));
   }
 };
 
@@ -862,4 +896,5 @@ module.exports = {
   getStudentWithConcession,
   getClassesWithConcession,
   deleteConcessionReason,
+  getAllReasonTypes,
 };
