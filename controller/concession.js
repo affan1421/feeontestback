@@ -798,6 +798,7 @@ const getStudentWithConcession = async (req, res, next) => {
           discountAmount: 1,
           status: 1,
           feeInsta: 1,
+          attachments: 1,
         },
       },
     ]);
