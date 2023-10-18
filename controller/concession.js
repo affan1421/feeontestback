@@ -8,6 +8,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 
 const Concession = require("../models/concession");
 const ConcessionReason = require("../models/concesionReasons");
+const FeeInstallment = require("../models/feeInstallment");
 
 const createConcession = async (req, res, next) => {
   try {
@@ -56,6 +57,13 @@ const createConcession = async (req, res, next) => {
     });
 
     const savedConcession = await newConcession.save();
+
+    for (const feeCategory of feeCategoryIds) {
+      const feeInstallmentId = feeCategory.feeInstallmentId;
+      const concessionAmount = feeCategory.concessionAmount;
+
+      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $set: { concessionAmount } });
+    }
 
     res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
   } catch (error) {
