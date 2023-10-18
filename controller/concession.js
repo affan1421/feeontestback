@@ -408,7 +408,7 @@ const getConcessionCardData = async (req, res, next) => {
           classCount: [
             {
               $group: {
-                _id: "$secsionId",
+                _id: "$sectionId",
               },
             },
             {
@@ -428,7 +428,7 @@ const getConcessionCardData = async (req, res, next) => {
               },
             },
             {
-              $sort: { totalConcessionSum: -1 },
+              $sort: { concessionAmount: -1 },
             },
             {
               $limit: 1,
@@ -461,7 +461,7 @@ const getConcessionCardData = async (req, res, next) => {
               },
             },
             {
-              $sort: { totalConcessionSum: 1 },
+              $sort: { concessionAmount: 1 }, // Corrected field name
             },
             {
               $limit: 1,
@@ -517,7 +517,7 @@ const getConcessionCardData = async (req, res, next) => {
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
     const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
-    const minConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
+    const minConcessionSection = totalConcessionResult[0].sectionMinConcession[0];
 
     res.status(200).json(
       SuccessResponse(
