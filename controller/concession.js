@@ -780,11 +780,11 @@ const getClassesWithConcession = async (req, res, next) => {
           id: "$_id",
           _id: 0,
           className: { $arrayElemAt: ["$sectionInfo.className", 0] },
-          studentName: { $arrayElemAt: ["$studentsDetails.name", 0] },
+          studentName: "$studentsDetails.name",
           totalAmount: 1,
           paidAmount: 1,
           discountAmount: 1,
-          concessionAmount: 1,
+          totalConcession: 1,
           status: 1,
           reason: 1,
           totalStudentsCount: 1,
@@ -797,7 +797,7 @@ const getClassesWithConcession = async (req, res, next) => {
           totalFees: { $sum: "$totalAmount" },
           totalPaidFees: { $sum: "$paidAmount" },
           totalDiscountAmount: { $sum: "$discountAmount" },
-          totalConcessionAmount: { $sum: "$concessionAmount" },
+          totalConcessionAmount: { $sum: "$totalConcession" },
           concessionStudentsCount: { $sum: 1 },
           className: { $first: "$className" },
           studentsCount: { $push: "$totalStudentsCount" },
@@ -816,14 +816,12 @@ const getClassesWithConcession = async (req, res, next) => {
           studentsCount: { $arrayElemAt: ["$studentsCount", 0] },
         },
       },
-      {
-        $unwind: "$data",
-      },
+
       {
         $match: {
           $or: [
             { "data.className": { $regex: searchQuery, $options: "i" } },
-            { "data.studentName": { $regex: searchQuery, $options: "i" } },
+            { studentName: { $regex: searchQuery, $options: "i" } },
           ],
         },
       },
