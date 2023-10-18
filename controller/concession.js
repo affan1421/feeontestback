@@ -21,31 +21,22 @@ const createConcession = async (req, res, next) => {
       paidAmount,
       dueAmount,
       discountAmount,
-      comment,
+      reason,
       status,
       attachments,
     } = req.body;
-
-    const feeCategoryData = feeCategoryIds.map((category) => ({
-      categoryId: category.categoryId,
-      feeInstallmentIds: category.feeInstallmentIds.map((installment) => ({
-        feeInstallmentId: installment.feeInstallmentId,
-        totalFees: installment.totalFees,
-        concessionAmount: installment.concessionAmount || 0,
-      })),
-    }));
 
     const newConcession = new Concession({
       studentId,
       schoolId,
       sectionId,
-      feeCategoryIds: feeCategoryData,
+      feeCategoryIds,
       totalConcession,
       totalAmount,
       paidAmount,
       dueAmount,
       discountAmount,
-      comment,
+      reason,
       status,
       attachments,
     });
@@ -304,11 +295,7 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(
-      concessionId,
-      { $set: { status } },
-      { new: true }
-    );
+    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
@@ -480,8 +467,7 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount =
-      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -652,11 +638,7 @@ async function updateConcessionReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await ConcessionReason.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await ConcessionReason.findByIdAndUpdate(
-      id,
-      { $set: { reason: reason } },
-      { new: true }
-    );
+    const result = await ConcessionReason.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));

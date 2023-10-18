@@ -25,31 +25,23 @@ const concessionSchema = new Schema(
     },
     feeCategoryIds: [
       {
-        categoryId: {
+        feeInstallmentId: {
           type: Schema.Types.ObjectId,
-          ref: "feeCategories",
-          required: [true, "Fee Category ID is required"],
+          ref: "feeInstallments",
+          required: [true, "Fee Installment ID is required"],
         },
-        feeInstallmentIds: [
-          {
-            feeInstallmentId: {
-              type: Schema.Types.ObjectId,
-              ref: "feeInstallments",
-              required: [true, "Fee Installment ID is required"],
-            },
-            totalFees: {
-              type: Number,
-              required: [true, "Total Fees are required"],
-            },
-            concessionAmount: {
-              type: Number,
-              required: [true, "Concession Amount is required"],
-              default: 0,
-            },
-          },
-        ],
+        concessionAmount: {
+          type: Number,
+          required: [true, "Concession Amount is required"],
+          default: 0,
+        },
       },
     ],
+    totalConcession: {
+      type: Number,
+      required: [true, "Total Concession is required"],
+      default: 0,
+    },
     totalAmount: {
       type: Number,
       required: [true, "Total Amount is required"],
