@@ -252,6 +252,7 @@ const getStudentConcessionData = async (req, res, next) => {
           status: 1,
           studentName: "$studentList.name",
           className: "$class.className",
+          studentId: "$studentList._id",
         },
       },
       {
