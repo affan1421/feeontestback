@@ -27,6 +27,18 @@ const createConcession = async (req, res, next) => {
       comment,
     } = req.body;
 
+    const existingConcession = await Concession.findOne({ studentId });
+
+    if (existingConcession) {
+      return res.status(400).json({ message: "Concession already exists for this student." });
+    }
+
+    if (!studentId || !sectionId || !reason) {
+      return res.status(400).json({
+        message: "Student ID, section ID, and reason are necessary fields, so please fill those.",
+      });
+    }
+
     const newConcession = new Concession({
       studentId,
       schoolId,
