@@ -8,6 +8,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 
 const Concession = require("../models/concession");
 const ConcessionReason = require("../models/concesionReasons");
+const FeeInstallment = require("../models/feeInstallment");
 
 const createConcession = async (req, res, next) => {
   try {
@@ -28,6 +29,18 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
+    const existingConcession = await Concession.findOne({ studentId });
+
+    if (existingConcession) {
+      return res.status(400).json({ message: "Concession already exists for this student." });
+    }
+
+    if (!studentId || !sectionId || !reason) {
+      return res.status(400).json({
+        message: "Student ID, section ID, and reason are necessary fields, so please fill those.",
+      });
+    }
+
     const newConcession = new Concession({
       studentId,
       schoolId,
@@ -46,6 +59,13 @@ const createConcession = async (req, res, next) => {
     });
 
     const savedConcession = await newConcession.save();
+
+    for (const feeCategory of feeCategoryIds) {
+      const feeInstallmentId = feeCategory.feeInstallmentId;
+      const concessionAmount = feeCategory.concessionAmount;
+
+      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $set: { concessionAmount } });
+    }
 
     res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
   } catch (error) {
