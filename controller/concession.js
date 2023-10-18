@@ -804,6 +804,27 @@ const getClassesWithConcession = async (req, res, next) => {
         },
       },
       {
+        $unwind: "$data"
+      },
+      {
+        $match: {
+          'data.studentName': { $regex: searchQuery, $options: "i" }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          data: { $push: "$data" },
+          totalFees: { $sum: "$totalFees" },
+          totalPaidFees: { $sum: "$totalPaidFees" },
+          totalDiscountAmount: { $sum: "$totalDiscountAmount" },
+          totalConcessionAmount: { $sum: "$totalConcessionAmount" },
+          concessionStudentsCount: { $sum: "$concessionStudentsCount" },
+          className: { $first: "$className" },
+          studentsCount: { $first: "$studentsCount" }
+        },
+      },
+      {
         $project: {
           _id: 0,
           data: 1,
@@ -811,21 +832,14 @@ const getClassesWithConcession = async (req, res, next) => {
           totalPaidFees: 1,
           totalDiscountAmount: 1,
           totalConcessionAmount: 1,
-          className: 1,
           concessionStudentsCount: 1,
-          studentsCount: { $arrayElemAt: ["$studentsCount", 0] },
-        },
-      },
-
-      {
-        $match: {
-          $or: [
-            { "data.className": { $regex: searchQuery, $options: "i" } },
-            { studentName: { $regex: searchQuery, $options: "i" } },
-          ],
+          className: 1,
+          studentsCount: 1
         },
       },
     ];
+    
+    
 
     const classData = await Concession.aggregate(pipeline);
 
