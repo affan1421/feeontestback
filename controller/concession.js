@@ -297,7 +297,11 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
+    const concession = await Concession.findByIdAndUpdate(
+      concessionId,
+      { $set: { status } },
+      { new: true }
+    );
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
@@ -469,7 +473,8 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount =
+      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -640,19 +645,82 @@ async function updateConcessionReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await ConcessionReason.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await ConcessionReason.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
+    const result = await ConcessionReason.findByIdAndUpdate(
+      id,
+      { $set: { reason: reason } },
+      { new: true }
+    );
     res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 }
 
+// const getStudentWithConcession = async (req, res, next) => {
+//   try {
+//     const { studentId } = req.query;
+//     const studentConcessionData = await Concession.aggregate([
+//       {
+//         $match: {
+//           studentId: mongoose.Types.ObjectId(studentId),
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "students",
+//           localField: "studentId",
+//           foreignField: "_id",
+//           as: "studentInfo",
+//         },
+//       },
+//       {
+//         $lookup: {
+//           from: "sections",
+//           localField: "sectionId",
+//           foreignField: "_id",
+//           as: "classInfo",
+//         },
+//       },
+//       {
+//         $unwind: "$feeCategoryIds",
+//       },
+//       {
+//         $lookup: {
+//           from: "feeinstallments",
+//           localField: "feeCategoryIds.feeInstallmentId",
+//           foreignField: "_id",
+//           as: "feeInsta",
+//         },
+//       },
+
+//       {
+//         $project: {
+//           studentName: { $arrayElemAt: ["$studentInfo.name", 0] },
+//           className: { $arrayElemAt: ["$classInfo.className", 0] },
+//           totalAmount: 1,
+//           paidAmount: 1,
+//           dueAmount: 1,
+//           concessionAmount: 1,
+//           discountAmount: 1,
+//           status: 1,
+//           feeInsta: 1,
+//           // reason: 1,
+//         },
+//       },
+//     ]);
+
+//     console.log(studentConcessionData, "studentConcessionData");
+
+//     res.status(200).json(studentConcessionData);
+//   } catch (error) {
+//     console.log(error.message);
+//   }
+// };
+
 const getStudentWithConcession = async (req, res, next) => {
   try {
     const { studentId } = req.query;
-
-    const concessionData = await Concession.findOne({ studentId });
-
+    console.log(studentId);
     const studentConcessionData = await Concession.aggregate([
       {
         $match: {
@@ -680,38 +748,79 @@ const getStudentWithConcession = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "feecategories",
-          localField: "feeCategoryIds.categoryId",
+          from: "feeinstallments",
+          let: { concessionAmount: "$feeCategoryIds.concessionAmount" },
+          localField: "feeCategoryIds.feeInstallmentId",
           foreignField: "_id",
-          as: "feeCategoryInfo",
+          as: "feeInsta",
+          pipeline: [
+            {
+              $addFields: {
+                concessionAmount: "$$concessionAmount",
+              },
+            },
+            {
+              $lookup: {
+                from: "feeschedules",
+                localField: "scheduleTypeId",
+                foreignField: "_id",
+                as: "feeSchedules",
+              },
+            },
+            {
+              $addFields: { feeSchedules: { $arrayElemAt: ["$feeSchedules.scheduleName", 0] } },
+            },
+          ],
+          // pipeline: [
+          //   {
+          //     $match: {
+          //       $expr: { $eq: ["$_id", "$$feeInstallmentId"] },
+          //     },
+          //   },
+          //   {
+          //     $lookup: {
+          //       from: "feeschedules",
+          //       localField: "scheduleTypeId",
+          //       foreignField: "_id",
+          //       as: "feeSchedules",
+          //     },
+          //   },
+          //   {
+          //     $unwind: "$feeSchedules",
+          //   },
+          // ],
         },
       },
-      // {
-      //   $lookup: {
-      //     from: "feeinstallments",
-      //     localField: "feeCategoryIds.feeInstallmentIds.feeInstallmentId",
-      //     foreignField: "_id",
-      //     as: "feeInstallmentInfo",
-      //   },
-      // },
       {
-        $unwind: "$feeCategoryInfo",
+        $group: {
+          _id: "$_id",
+          studentInfo: { $first: "$studentInfo" },
+          classInfo: { $first: "$classInfo" },
+          totalAmount: { $first: "$totalAmount" },
+          paidAmount: { $first: "$paidAmount" },
+          dueAmount: { $first: "$dueAmount" },
+          concessionAmount: { $first: "$concessionAmount" },
+          discountAmount: { $first: "$discountAmount" },
+          status: { $first: "$status" },
+          feeInsta: { $push: "$feeInsta" },
+        },
       },
-
       {
         $project: {
-          "feeCategoryInfo.name": 1,
           studentName: { $arrayElemAt: ["$studentInfo.name", 0] },
           className: { $arrayElemAt: ["$classInfo.className", 0] },
           totalAmount: 1,
           paidAmount: 1,
+          dueAmount: 1,
+          concessionAmount: 1,
           discountAmount: 1,
           status: 1,
-          reason: 1,
-          schoolId: 1,
+          feeInsta: 1,
         },
       },
     ]);
+
+    console.log(studentConcessionData, "studentConcessionData");
 
     res.status(200).json(studentConcessionData);
   } catch (error) {
