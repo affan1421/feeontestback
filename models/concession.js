@@ -38,6 +38,12 @@ const concessionSchema = new Schema(
         },
       },
     ],
+    totals: [
+      {
+        value: String,
+        id: Schema.Types.ObjectId,
+      },
+    ],
     totalConcession: {
       type: Number,
       required: [true, "Total Concession is required"],

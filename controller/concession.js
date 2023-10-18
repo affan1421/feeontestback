@@ -25,6 +25,7 @@ const createConcession = async (req, res, next) => {
       status,
       attachments,
       comment,
+      totals,
     } = req.body;
 
     const newConcession = new Concession({
@@ -41,6 +42,7 @@ const createConcession = async (req, res, next) => {
       status,
       attachments,
       comment,
+      totals,
     });
 
     const savedConcession = await newConcession.save();
@@ -298,11 +300,7 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(
-      concessionId,
-      { $set: { status } },
-      { new: true }
-    );
+    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
@@ -474,8 +472,7 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount =
-      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -646,11 +643,7 @@ async function updateConcessionReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await ConcessionReason.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await ConcessionReason.findByIdAndUpdate(
-      id,
-      { $set: { reason: reason } },
-      { new: true }
-    );
+    const result = await ConcessionReason.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));
@@ -774,6 +767,30 @@ const getStudentWithConcession = async (req, res, next) => {
         },
       },
       {
+        $unwind: "$totals",
+      },
+      {
+        $lookup: {
+          from: "feecategories",
+          localField: "totals.id",
+          foreignField: "_id",
+          as: "totals",
+          let: { value: "$totals.value" },
+          pipeline: [
+            {
+              $addFields: { concessionTotal: "$$value" },
+            },
+            {
+              $project: {
+                _id: 0,
+                name: 1,
+                concessionTotal: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
         $group: {
           _id: "$_id",
           studentInfo: { $first: "$studentInfo" },
@@ -785,6 +802,7 @@ const getStudentWithConcession = async (req, res, next) => {
           discountAmount: { $first: "$discountAmount" },
           status: { $first: "$status" },
           feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
+          totals: { $push: { $arrayElemAt: ["$totals", 0] } },
         },
       },
       {
@@ -798,12 +816,13 @@ const getStudentWithConcession = async (req, res, next) => {
           discountAmount: 1,
           status: 1,
           feeInsta: 1,
+          totals: 1,
           attachments: 1,
         },
       },
     ]);
 
-    res.status(200).json(studentConcessionData?.[0]);
+    res.status(200).json(studentConcessionData?.[0] || {});
   } catch (error) {
     console.log(error.message);
   }
