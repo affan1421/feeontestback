@@ -721,7 +721,6 @@ async function updateConcessionReason(req, res, next) {
 const getStudentWithConcession = async (req, res, next) => {
   try {
     const { studentId } = req.query;
-    console.log(studentId);
     const studentConcessionData = await Concession.aggregate([
       {
         $match: {
@@ -772,24 +771,6 @@ const getStudentWithConcession = async (req, res, next) => {
               $addFields: { feeSchedules: { $arrayElemAt: ["$feeSchedules.scheduleName", 0] } },
             },
           ],
-          // pipeline: [
-          //   {
-          //     $match: {
-          //       $expr: { $eq: ["$_id", "$$feeInstallmentId"] },
-          //     },
-          //   },
-          //   {
-          //     $lookup: {
-          //       from: "feeschedules",
-          //       localField: "scheduleTypeId",
-          //       foreignField: "_id",
-          //       as: "feeSchedules",
-          //     },
-          //   },
-          //   {
-          //     $unwind: "$feeSchedules",
-          //   },
-          // ],
         },
       },
       {
@@ -800,10 +781,10 @@ const getStudentWithConcession = async (req, res, next) => {
           totalAmount: { $first: "$totalAmount" },
           paidAmount: { $first: "$paidAmount" },
           dueAmount: { $first: "$dueAmount" },
-          concessionAmount: { $first: "$concessionAmount" },
+          concessionAmount: { $first: "$totalConcession" },
           discountAmount: { $first: "$discountAmount" },
           status: { $first: "$status" },
-          feeInsta: { $push: "$feeInsta" },
+          feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
         },
       },
       {
@@ -821,9 +802,7 @@ const getStudentWithConcession = async (req, res, next) => {
       },
     ]);
 
-    console.log(studentConcessionData, "studentConcessionData");
-
-    res.status(200).json(studentConcessionData);
+    res.status(200).json(studentConcessionData?.[0]);
   } catch (error) {
     console.log(error.message);
   }
