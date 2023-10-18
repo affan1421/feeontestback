@@ -821,7 +821,6 @@ const getClassesWithConcession = async (req, res, next) => {
           totalStudentsCount: 1,
         },
       },
-
       {
         $group: {
           _id: null,
@@ -835,7 +834,6 @@ const getClassesWithConcession = async (req, res, next) => {
           studentsCount: { $push: "$totalStudentsCount" },
         },
       },
-
       {
         $project: {
           _id: 0,
@@ -849,16 +847,18 @@ const getClassesWithConcession = async (req, res, next) => {
           studentsCount: { $arrayElemAt: ["$studentsCount", 0] },
         },
       },
-    ];
-
-    if (searchQuery) {
-      // Add a $match stage to filter based on the searchQuery
-      pipeline.push({
+      {
+        $unwind: "$data",
+      },
+      {
         $match: {
-          $or: [{ className: { $regex: searchQuery, $options: "i" } }],
+          $or: [
+            { "data.className": { $regex: searchQuery, $options: "i" } },
+            { "data.studentName": { $regex: searchQuery, $options: "i" } },
+          ],
         },
-      });
-    }
+      },
+    ];
 
     const classData = await Concession.aggregate(pipeline);
 
