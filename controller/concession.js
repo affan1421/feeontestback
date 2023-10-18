@@ -59,38 +59,6 @@ const createConcession = async (req, res, next) => {
   }
 };
 
-const getClassDetails = async (req, res, next) => {
-  try {
-    const { schoolId } = req.query;
-    
-    const classList = await sectionsCollection
-      .aggregate([
-        {
-          $match: {
-            school: mongoose.Types.ObjectId(schoolId),
-          },
-        },
-        {
-          $project: {
-            _id: 1,
-            className: 1,
-          },
-        },
-      ])
-      .toArray();
-
-    if (classList.length === 0) {
-      return res.status(404).json({ message: "No classes found" });
-    }
-
-    res.status(200).json(SuccessResponse(classList, 1, "Classes details fetch successfully"));
-  } catch (error) {
-    console.error("Error fetching classes list:", error);
-    console.log("error", error.message);
-    return next(new ErrorResponse("Something Went Wrong", 500));
-  }
-};
-
 const getStudentsByClass = async (req, res, next) => {
   try {
     const { classId, schoolId } = req.query;
@@ -104,7 +72,7 @@ const getStudentsByClass = async (req, res, next) => {
     // Assuming studentsCollection.find is an asynchronous function that returns a promise
     const students = await studentsCollection
       .find({
-        class: mongoose.Types.ObjectId(classId),
+        section: mongoose.Types.ObjectId(classId),
         school_id: mongoose.Types.ObjectId(schoolId),
       })
       .toArray();
@@ -888,7 +856,6 @@ async function deleteConcessionReason(req, res, next) {
 
 module.exports = {
   createConcession,
-  getClassDetails,
   getStudentsByClass,
   getStudentFeeDetails,
   getConcessionCardData,
