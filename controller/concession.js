@@ -62,6 +62,7 @@ const createConcession = async (req, res, next) => {
 const getClassDetails = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
+    
     const classList = await sectionsCollection
       .aggregate([
         {
@@ -71,7 +72,7 @@ const getClassDetails = async (req, res, next) => {
         },
         {
           $project: {
-            class_id: 1,
+            _id: 1,
             className: 1,
           },
         },
