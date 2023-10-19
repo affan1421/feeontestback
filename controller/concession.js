@@ -822,6 +822,7 @@ const getStudentWithConcession = async (req, res, next) => {
           status: { $first: "$status" },
           feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
           totals: { $push: { $arrayElemAt: ["$totals", 0] } },
+          attachments: { $first: "$attachments" },
         },
       },
       {
@@ -838,7 +839,7 @@ const getStudentWithConcession = async (req, res, next) => {
           totals: 1,
           attachments: 1,
         },
-      },
+      }
     ]);
 
     res.status(200).json(studentConcessionData?.[0] || {});
@@ -846,6 +847,7 @@ const getStudentWithConcession = async (req, res, next) => {
     console.log(error.message);
   }
 };
+
 
 const getClassesWithConcession = async (req, res, next) => {
   try {
