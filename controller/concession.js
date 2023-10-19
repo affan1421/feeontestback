@@ -237,6 +237,11 @@ const getStudentConcessionData = async (req, res, next) => {
         $match: { schoolId: mongoose.Types.ObjectId(schoolId) },
       },
       {
+        $sort:{
+          createdAt:-1
+        }
+      },
+      {
         $lookup: {
           from: "students",
           foreignField: "_id",
