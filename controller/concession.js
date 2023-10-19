@@ -29,6 +29,8 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
+    console.log(req.body)
+
     const existingConcession = await Concession.findOne({ studentId });
 
     if (existingConcession) {
@@ -821,7 +823,7 @@ const getStudentWithConcession = async (req, res, next) => {
           discountAmount: { $first: "$discountAmount" },
           status: { $first: "$status" },
           feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
-          totals: { $push: { $arrayElemAt: ["$totals", 0] } },
+          totals: { $addToSet: { $arrayElemAt: ["$totals", 0] } },
           attachments: { $first: "$attachments" },
         },
       },
