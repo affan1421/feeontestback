@@ -63,8 +63,7 @@ const createConcession = async (req, res, next) => {
     for (const feeCategory of feeCategoryIds) {
       const feeInstallmentId = feeCategory.feeInstallmentId;
       const concessionAmount = feeCategory.concessionAmount;
-
-      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $set: { concessionAmount } });
+      await FeeInstallment.updateOne({ _id: mongoose.Types.ObjectId(feeInstallmentId) }, { $set: { concessionAmount } });
     }
 
     res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
