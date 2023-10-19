@@ -341,6 +341,7 @@ const getConcessionCardData = async (req, res, next) => {
       {
         $match: {
           schoolId: mongoose.Types.ObjectId(schoolId),
+          status:"APPROVED"
         },
       },
       {
@@ -499,6 +500,7 @@ const getConcessionCardData = async (req, res, next) => {
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
     const maxConcessionSection = totalConcessionResult[0].sectionMaxConcession[0];
     const minConcessionSection = totalConcessionResult[0].sectionMinConcession[0];
+    const reasonTypes = totalConcessionResult[0].reasons[0];
 
     res.status(200).json(
       SuccessResponse(
@@ -966,8 +968,13 @@ const getAllReasonTypes = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
     const data = await Concession.aggregate([
-      { $match: { schoolId: mongoose.Types.ObjectId(schoolId) } },
-      {
+      { 
+        $match: { 
+          schoolId: mongoose.Types.ObjectId(schoolId),
+          status: { $in: ["APPROVED", "REJECTED"] } 
+        } 
+      },
+            {
         $group: {
           _id: "$reason",
           count: { $sum: 1 },
