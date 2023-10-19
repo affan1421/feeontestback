@@ -29,7 +29,6 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
-    console.log(req.body)
 
     const existingConcession = await Concession.findOne({ studentId });
 
@@ -85,7 +84,6 @@ const getStudentsByClass = async (req, res, next) => {
       });
     }
 
-    // Assuming studentsCollection.find is an asynchronous function that returns a promise
     const students = await studentsCollection
       .find({
         section: mongoose.Types.ObjectId(classId),
@@ -99,13 +97,21 @@ const getStudentsByClass = async (req, res, next) => {
       });
     }
 
-    // Return the students as a JSON response
-    res.status(200).json({ students });
+    const studentinConc = await Concession.find({ sectionId: mongoose.Types.ObjectId(classId) });
+
+    const studentIdsInConcession = studentinConc.map(concession => concession.studentId.toString());
+
+    const filteredStudents = students.filter(student => !studentIdsInConcession.includes(student._id.toString()));
+
+    res.status(200).json({ students: filteredStudents });
   } catch (error) {
     console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
+
+
+
 
 const getStudentFeeDetails = async (req, res, next) => {
   try {
