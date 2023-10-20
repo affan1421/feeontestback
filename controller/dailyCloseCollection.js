@@ -8,7 +8,8 @@ const { sendNotification } = require("../socket/socket");
 
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
-    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } = req.body;
+    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } =
+      req.body;
 
     // Check if name and bankName are provided
     if (!name || !bankName) {
@@ -183,7 +184,10 @@ const getCollectionDetails = async (req, res, next) => {
     }
 
     const regexCondition = {
-      $or: [{ name: { $regex: searchQuery, $options: "i" } }, { bankName: { $regex: searchQuery, $options: "i" } }],
+      $or: [
+        { name: { $regex: searchQuery, $options: "i" } },
+        { bankName: { $regex: searchQuery, $options: "i" } },
+      ],
     };
 
     const amountQuery = parseFloat(searchQuery);
