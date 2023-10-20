@@ -1071,6 +1071,25 @@ async function deleteConcessionReason(req, res, next) {
   }
 }
 
+const revokeConcession = async (req, res) => {
+  try {
+    const { concessionId } = req.query;
+    const concession = await Concession.find({ _id: concessionId });
+    for (const feeCategory of feeCategoryIds) {
+      const feeInstallmentId = feeCategory.feeInstallmentId;
+      const concessionAmount = feeCategory.concessionAmount;
+
+      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $unset: { concessionAmount } });
+    }
+
+    res.status(200).json(SuccessResponse(revoke, 1, "Concession revoked successfully"));
+
+    const revoke = await Concession.deleteOne({ _id: concessionId });
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
 module.exports = {
   createConcession,
   getStudentsByClass,
@@ -1086,4 +1105,5 @@ module.exports = {
   getClassesWithConcession,
   deleteConcessionReason,
   getAllReasonTypes,
+  revokeConcession,
 };
