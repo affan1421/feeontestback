@@ -29,7 +29,6 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
-
     const existingConcession = await Concession.findOne({ studentId });
 
     if (existingConcession) {
@@ -64,7 +63,10 @@ const createConcession = async (req, res, next) => {
     for (const feeCategory of feeCategoryIds) {
       const feeInstallmentId = feeCategory.feeInstallmentId;
       const concessionAmount = feeCategory.concessionAmount;
-      await FeeInstallment.updateOne({ _id: mongoose.Types.ObjectId(feeInstallmentId) }, { $set: { concessionAmount } });
+      await FeeInstallment.updateOne(
+        { _id: mongoose.Types.ObjectId(feeInstallmentId) },
+        { $set: { concessionAmount } }
+      );
     }
 
     res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
@@ -99,9 +101,9 @@ const getStudentsByClass = async (req, res, next) => {
 
     const studentinConc = await Concession.find({ sectionId: mongoose.Types.ObjectId(classId) });
 
-    const studentIdsInConcession = studentinConc.map(concession => concession.studentId.toString());
+    const studentIdsInConcession = studentinConc.map((concession) => concession.studentId.toString());
 
-    const filteredStudents = students.filter(student => !studentIdsInConcession.includes(student._id.toString()));
+    const filteredStudents = students.filter((student) => !studentIdsInConcession.includes(student._id.toString()));
 
     res.status(200).json({ students: filteredStudents });
   } catch (error) {
@@ -109,9 +111,6 @@ const getStudentsByClass = async (req, res, next) => {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
-
-
-
 
 const getStudentFeeDetails = async (req, res, next) => {
   try {
@@ -243,9 +242,9 @@ const getStudentConcessionData = async (req, res, next) => {
         $match: { schoolId: mongoose.Types.ObjectId(schoolId) },
       },
       {
-        $sort:{
-          createdAt:-1
-        }
+        $sort: {
+          createdAt: -1,
+        },
       },
       {
         $lookup: {
@@ -352,7 +351,7 @@ const getConcessionCardData = async (req, res, next) => {
       {
         $match: {
           schoolId: mongoose.Types.ObjectId(schoolId),
-          status:"APPROVED"
+          status: "APPROVED",
         },
       },
       {
@@ -801,68 +800,108 @@ const getStudentWithConcession = async (req, res, next) => {
         },
       },
       {
-        $unwind: "$totals",
-      },
-      {
-        $lookup: {
-          from: "feecategories",
-          localField: "totals.id",
-          foreignField: "_id",
-          as: "totals",
-          let: { value: "$totals.value" },
-          pipeline: [
+        $facet: {
+          totals: [
             {
-              $addFields: { concessionTotal: "$$value" },
+              $unwind: "$feeInsta",
+            },
+            {
+              $group: {
+                _id: "$feeInsta.categoryId",
+                totalAmount: { $sum: "$feeInsta.totalAmount" },
+                totalPaidAmount: { $sum: "$feeInsta.paidAmount" },
+                totalConcessionAmount: { $sum: "$feeInsta.concessionAmount" },
+              },
+            },
+            {
+              $lookup: {
+                from: "feecategories",
+                localField: "_id",
+                foreignField: "_id",
+                as: "name",
+                pipeline: [
+                  {
+                    $project: {
+                      _id: 0,
+                      name: 1,
+                      concessionTotal: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $addFields: { name: { $arrayElemAt: ["$name.name", 0] } },
+            },
+          ],
+          data: [
+            {
+              $unwind: "$totals",
+            },
+            {
+              $lookup: {
+                from: "feecategories",
+                localField: "totals.id",
+                foreignField: "_id",
+                as: "totals",
+                let: { value: "$totals.value" },
+                pipeline: [
+                  {
+                    $addFields: { concessionTotal: "$$value" },
+                  },
+                  {
+                    $project: {
+                      _id: 0,
+                      name: 1,
+                      concessionTotal: 1,
+                    },
+                  },
+                ],
+              },
+            },
+            {
+              $group: {
+                _id: "$_id",
+                studentInfo: { $first: "$studentInfo" },
+                classInfo: { $first: "$classInfo" },
+                totalAmount: { $first: "$totalAmount" },
+                paidAmount: { $first: "$paidAmount" },
+                dueAmount: { $first: "$dueAmount" },
+                concessionAmount: { $first: "$totalConcession" },
+                discountAmount: { $first: "$discountAmount" },
+                status: { $first: "$status" },
+                feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
+                totals: { $addToSet: { $arrayElemAt: ["$totals", 0] } },
+                attachments: { $first: "$attachments" },
+              },
             },
             {
               $project: {
-                _id: 0,
-                name: 1,
-                concessionTotal: 1,
+                studentName: { $arrayElemAt: ["$studentInfo.name", 0] },
+                className: { $arrayElemAt: ["$classInfo.className", 0] },
+                totalAmount: 1,
+                paidAmount: 1,
+                dueAmount: 1,
+                concessionAmount: 1,
+                discountAmount: 1,
+                status: 1,
+                feeInsta: 1,
+                totals: 1,
+                attachments: 1,
               },
             },
           ],
         },
       },
-      {
-        $group: {
-          _id: "$_id",
-          studentInfo: { $first: "$studentInfo" },
-          classInfo: { $first: "$classInfo" },
-          totalAmount: { $first: "$totalAmount" },
-          paidAmount: { $first: "$paidAmount" },
-          dueAmount: { $first: "$dueAmount" },
-          concessionAmount: { $first: "$totalConcession" },
-          discountAmount: { $first: "$discountAmount" },
-          status: { $first: "$status" },
-          feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
-          totals: { $addToSet: { $arrayElemAt: ["$totals", 0] } },
-          attachments: { $first: "$attachments" },
-        },
-      },
-      {
-        $project: {
-          studentName: { $arrayElemAt: ["$studentInfo.name", 0] },
-          className: { $arrayElemAt: ["$classInfo.className", 0] },
-          totalAmount: 1,
-          paidAmount: 1,
-          dueAmount: 1,
-          concessionAmount: 1,
-          discountAmount: 1,
-          status: 1,
-          feeInsta: 1,
-          totals: 1,
-          attachments: 1,
-        },
-      }
     ]);
 
-    res.status(200).json(studentConcessionData?.[0] || {});
+    res
+      .status(200)
+      .json({ ...studentConcessionData?.[0]?.data?.[0], totals: studentConcessionData?.[0]?.totals } || {});
   } catch (error) {
     console.log(error.message);
   }
 };
-
 
 const getClassesWithConcession = async (req, res, next) => {
   try {
@@ -979,13 +1018,13 @@ const getAllReasonTypes = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
     const data = await Concession.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           schoolId: mongoose.Types.ObjectId(schoolId),
-          status: { $in: ["APPROVED", "REJECTED"] } 
-        } 
+          status: { $in: ["APPROVED", "REJECTED"] },
+        },
       },
-            {
+      {
         $group: {
           _id: "$reason",
           count: { $sum: 1 },
