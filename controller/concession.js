@@ -1074,19 +1074,30 @@ async function deleteConcessionReason(req, res, next) {
 const revokeConcession = async (req, res) => {
   try {
     const { concessionId } = req.query;
-    const concession = await Concession.find({ _id: concessionId });
-    for (const feeCategory of feeCategoryIds) {
+    const concession = await Concession.findOne({ _id: concessionId }); // Use findOne to retrieve a single concession
+
+    if (!concession) {
+      return res.status(404).json({ message: "Concession not found" });
+    }
+
+    for (const feeCategory of concession.feeCategoryIds) {
       const feeInstallmentId = feeCategory.feeInstallmentId;
       const concessionAmount = feeCategory.concessionAmount;
 
-      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $unset: { concessionAmount } });
+      // Use $unset to remove the concessionAmount field
+      await FeeInstallment.updateOne(
+        { _id: feeInstallmentId },
+        { $unset: { concessionAmount: 1 } }
+      );
     }
 
-    res.status(200).json(SuccessResponse(revoke, 1, "Concession revoked successfully"));
-
     const revoke = await Concession.deleteOne({ _id: concessionId });
+
+    res.status(200).json(SuccessResponse("Concession revoked successfully"));
+
   } catch (error) {
-    console.log(error.message);
+    console.error(error.message);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
