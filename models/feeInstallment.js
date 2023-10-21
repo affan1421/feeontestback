@@ -95,6 +95,7 @@ const FeeInstallmentSchema = new Schema(
 			ref: 'FeeCategory',
 			required: true,
 		},
+		concessionAmount: Number
 	},
 	{ timestamps: true }
 );

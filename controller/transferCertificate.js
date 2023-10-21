@@ -11,19 +11,11 @@ const ErrorResponse = require("../utils/errorResponse");
 const tcReasonModal = require("../models/tcReasons");
 
 const SuccessResponse = require("../utils/successResponse");
+const { sendNotification } = require("../socket/socket");
 
 async function createStudentTransfer(req, res, next) {
   try {
-    const {
-      studentId,
-      schoolId,
-      classId,
-      tcType,
-      reason,
-      comment,
-      transferringSchool,
-      attachments,
-    } = req.body;
+    const { studentId, schoolId, classId, tcType, reason, comment, transferringSchool, attachments } = req.body;
 
     // Check if a student transfer record with the same studentId already exists
     const existingTransfer = await StudentTransfer.findOne({
@@ -82,9 +74,56 @@ async function createStudentTransfer(req, res, next) {
     });
 
     await newStudentTransfer.save();
-    res
-      .status(200)
-      .json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
+
+    const notificationSetup = async () => {
+      try {
+        // get student data to add to notification
+        const student = (
+          await mongoose.connection.db
+            .collection("students")
+            .aggregate([
+              { $match: { _id: mongoose.Types.ObjectId(newStudentTransfer.studentId) } },
+              {
+                $lookup: {
+                  from: "studenttransfers",
+                  localField: "_id",
+                  foreignField: "studentId",
+                  as: "tcStatus",
+                },
+              },
+              {
+                $lookup: {
+                  from: "tcreasons",
+                  localField: "tcStatus.reason",
+                  foreignField: "_id",
+                  as: "reason",
+                },
+              },
+              { $addFields: { tcStatus: { $arrayElemAt: ["$tcStatus.status", 0] } } },
+              { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            ])
+            .toArray()
+        )?.[0];
+
+        // setup notification
+        const notificationData = {
+          title: `${student?.name}'s TC ${transfer.status}`,
+          description: `Created due to ${student.reason}`,
+          type: "TC",
+          action: "/transfer-certificates",
+          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(transfer.schoolId, "MANAGEMENT", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
+
+    res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
     console.error("Error creating student transfer record:", error);
     console.log("error", error.message);
@@ -242,9 +281,56 @@ async function changeStatus(req, res, next) {
     // Update transfer status
     transfer.status = status;
     await transfer.save();
-    res
-      .status(200)
-      .json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
+
+    const notificationSetup = async () => {
+      try {
+        // get student data to add to notification
+        const student = (
+          await mongoose.connection.db
+            .collection("students")
+            .aggregate([
+              { $match: { _id: mongoose.Types.ObjectId(transfer.studentId) } },
+              {
+                $lookup: {
+                  from: "studenttransfers",
+                  localField: "_id",
+                  foreignField: "studentId",
+                  as: "tcStatus",
+                },
+              },
+              {
+                $lookup: {
+                  from: "tcreasons",
+                  localField: "tcStatus.reason",
+                  foreignField: "_id",
+                  as: "reason",
+                },
+              },
+              { $addFields: { tcStatus: { $arrayElemAt: ["$tcStatus.status", 0] } } },
+              { $addFields: { reason: { $arrayElemAt: ["$reason.reason", 0] } } },
+            ])
+            .toArray()
+        )?.[0];
+
+        // setup notification
+        const notificationData = {
+          title: `${student?.name}'s TC ${transfer.status}`,
+          description: `Created due to ${student.reason}`,
+          type: "TC",
+          action: "/transfer-certificates",
+          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(transfer.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
+
+    res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     console.error("Error on update status:", error);
     console.log("error", error.message);
@@ -286,9 +372,7 @@ async function getTc(req, res, next) {
 
     const result = await StudentTransfer.find(query).exec();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
+    res.status(200).json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -296,9 +380,15 @@ async function getTc(req, res, next) {
 
 async function getTcDetails(req, res, next) {
   try {
+    const schoolId = req.params.id
     const tcsCount = await StudentTransfer.countDocuments();
 
     const tsData = await StudentTransfer.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
       {
         $facet: {
           // First Facet : get different types of tc's and its count
@@ -485,8 +575,7 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } =
-      req.query;
+    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } = req.query;
 
     const { schoolId } = req.body;
 
@@ -656,9 +745,7 @@ async function getTcStudentsDetails(req, res, next) {
       { $limit: pageSize },
     ]).exec();
 
-    res
-      .status(200)
-      .json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
+    res.status(200).json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
@@ -686,11 +773,7 @@ const getTcReason = async (req, res, next) => {
         res
           .status(200)
           .json(
-            SuccessResponse(
-              { reasons: result1, totalCount: count },
-              result1?.length,
-              "Tc reasons fetched successfully"
-            )
+            SuccessResponse({ reasons: result1, totalCount: count }, result1?.length, "Tc reasons fetched successfully")
           );
       })
       .catch((err) => {
@@ -727,6 +810,24 @@ const addTcReason = async (req, res, next) => {
   }
 };
 
+
+async function deleteTcReason(req, res, next) {
+  const { id: idInput } = req.query;
+  try {
+    const id = idInput?.trim();
+    if (!id) {
+      return next(new ErrorResponse("Reason Id required!", 403));
+    }
+    const result = await tcReasonModal.findByIdAndDelete(id);
+    if (!result) {
+      return next(new ErrorResponse("No matching document found for deletion", 404));
+    }
+    res.status(200).json(SuccessResponse("Tc reason deleted successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+}
+
 /**
  *
  * For update TcReason.
@@ -762,4 +863,5 @@ module.exports = {
   addTcReason,
   getTcReason,
   updateTcReason,
+  deleteTcReason,
 };

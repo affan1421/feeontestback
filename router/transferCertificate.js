@@ -1,16 +1,17 @@
 const router = require('express').Router();
 const {
-	createStudentTransfer,
-	searchStudentsWithPagination,
-	changeStatus,
-	getTc,
-	getTcDetails,
-	getClasses,
-	getTcStudentsDetails,
-	getTcReason,
-	addTcReason,
-	updateTcReason,
-} = require('../controller/transferCertificate');
+  createStudentTransfer,
+  searchStudentsWithPagination,
+  changeStatus,
+  getTc,
+  getTcDetails,
+  getClasses,
+  getTcStudentsDetails,
+  getTcReason,
+  addTcReason,
+  updateTcReason,
+  deleteTcReason,
+} = require("../controller/transferCertificate");
 
 // create new tranfer certificate
 router.post('/', createStudentTransfer);
@@ -25,7 +26,7 @@ router.put('/changeStatus/:id', changeStatus);
 router.get('/tcList', getTc);
 
 // TC details, which includes document counts also
-router.get('/details', getTcDetails);
+router.get("/details/:id", getTcDetails);
 
 // to view all the available classNames of a particular schools
 router.get('/classes', getClasses);
@@ -40,6 +41,9 @@ router.post('/reasons', addTcReason);
 router.get('/reasons', getTcReason);
 
 // update tc reason
-router.put('/reasons', updateTcReason);
+router.put("/reasons", updateTcReason);
+
+// delete tc reason
+router.delete("/deleteReasons", deleteTcReason);
 
 module.exports = router;

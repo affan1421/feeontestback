@@ -2179,7 +2179,7 @@ exports.reportBySchedules = async (req, res, next) => {
 	const { scheduleId = null, scheduleDates = [], withDisc = false } = req.body;
 	let school_id = null;
 
-	if (!req.user.school_id) {
+	if (!req.user?.school_id) {
 		return next(new ErrorResponse('Not Authorized', 500));
 	}
 	school_id = req.user.school_id;
