@@ -835,8 +835,30 @@ const getStudentWithConcession = async (req, res, next) => {
             },
           ],
           data: [
+            
+            {
+              $lookup: {
+                from: "concessionreasons",
+                localField: "reason",
+                foreignField: "_id",
+                as: "reason",
+                // let: { value: "$reason.reason"},
+                pipeline: [
+                  // {
+                  //   $addFields: { reason: "$$value"}
+                  // },
+                  {
+                    $project: {
+                      _id : 0,
+                      reason: 1
+                    }
+                  }
+                ]
+              }
+            },
             {
               $unwind: "$totals",
+              $unwind: "$reason",
             },
             {
               $lookup: {
@@ -866,6 +888,7 @@ const getStudentWithConcession = async (req, res, next) => {
                 classInfo: { $first: "$classInfo" },
                 totalAmount: { $first: "$totalAmount" },
                 paidAmount: { $first: "$paidAmount" },
+                reason: { $first: "$reason" },
                 dueAmount: { $first: "$dueAmount" },
                 concessionAmount: { $first: "$totalConcession" },
                 discountAmount: { $first: "$discountAmount" },
@@ -873,6 +896,7 @@ const getStudentWithConcession = async (req, res, next) => {
                 feeInsta: { $push: { $arrayElemAt: ["$feeInsta", 0] } },
                 totals: { $addToSet: { $arrayElemAt: ["$totals", 0] } },
                 attachments: { $first: "$attachments" },
+                comment: { $first: "$comment" },
               },
             },
             {
@@ -888,13 +912,14 @@ const getStudentWithConcession = async (req, res, next) => {
                 feeInsta: 1,
                 totals: 1,
                 attachments: 1,
+                comment: 1,
+                reason: "$reason.reason",
               },
             },
           ],
         },
       },
     ]);
-
     res
       .status(200)
       .json({ ...studentConcessionData?.[0]?.data?.[0], totals: studentConcessionData?.[0]?.totals } || {});
