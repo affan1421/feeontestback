@@ -8,8 +8,7 @@ const { sendNotification } = require("../socket/socket");
 
 const generateDailyCloseCollection = async (req, res, next) => {
   try {
-    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } =
-      req.body;
+    const { schoolId, name, bankName, cashAmount, expenseAmount, date, attachments, reason } = req.body;
 
     // Check if name and bankName are provided
     if (!name || !bankName) {
@@ -27,10 +26,9 @@ const generateDailyCloseCollection = async (req, res, next) => {
     }
 
     // Parse the date parameter into a Date object
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
+    const startDate = new Date(date.setHours(0, 0, 0, 0));
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
 
     const income = await FeeReceipt.aggregate([
       {
@@ -177,17 +175,14 @@ const getCollectionDetails = async (req, res, next) => {
     };
 
     if (date) {
-      const startDate = new Date(date);
+      const startDate = new Date(date.setHours(0, 0, 0, 0));
       const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 1);
+      endDate.setHours(23, 59, 59, 999);
       filter.date = { $gte: startDate, $lt: endDate };
     }
 
     const regexCondition = {
-      $or: [
-        { name: { $regex: searchQuery, $options: "i" } },
-        { bankName: { $regex: searchQuery, $options: "i" } },
-      ],
+      $or: [{ name: { $regex: searchQuery, $options: "i" } }, { bankName: { $regex: searchQuery, $options: "i" } }],
     };
 
     const amountQuery = parseFloat(searchQuery);
@@ -227,14 +222,17 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     }
 
     // Parse the date parameter into a Date object
-    const startDate = new Date(date);
+    const startDate = new Date(date.setHours(0, 0, 0, 0));
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
 
     const income = await FeeReceipt.aggregate([
       {
         $match: {
           $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
+          status: {
+            $in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+          },
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },
       },
