@@ -810,6 +810,7 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 			totalDiscountAmount: 1,
 			netAmount: 1,
 			status: 1,
+			concessionAmount:1,
 		})
 		.lean();
 
