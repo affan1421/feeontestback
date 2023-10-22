@@ -19,7 +19,7 @@ const concessionSchema = new Schema(
       required: [true, "Section ID is required"],
     },
     reason: {
-      type:  Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "concessionReasons",
       required: [true, "Reason is required"],
     },
@@ -81,6 +81,6 @@ const concessionSchema = new Schema(
   { timestamps: true }
 );
 
-const Concession = model("Concession", concessionSchema);
+const Concession = model("concession", concessionSchema);
 
 module.exports = Concession;

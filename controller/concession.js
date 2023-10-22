@@ -9,6 +9,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const Concession = require("../models/concession");
 const ConcessionReason = require("../models/concesionReasons");
 const FeeInstallment = require("../models/feeInstallment");
+const { sendNotification } = require("../socket/socket");
 
 const createConcession = async (req, res, next) => {
   try {
@@ -41,6 +42,16 @@ const createConcession = async (req, res, next) => {
       });
     }
 
+    const studentData = await mongoose.connection.db
+      .collection("students")
+      .findOne({ _id: mongoose.Types.ObjectId(studentId) });
+
+    if (!studentData) {
+      return res.status(400).json({
+        message: "Enter a valid Student ID.",
+      });
+    }
+
     const newConcession = new Concession({
       studentId,
       schoolId,
@@ -68,6 +79,26 @@ const createConcession = async (req, res, next) => {
         { $set: { concessionAmount } }
       );
     }
+
+    const notificationSetup = async () => {
+      try {
+        // setup notification
+        const notificationData = {
+          title: `Pending approvement - new concession ${studentData?.name}`,
+          description: `Concession is created for ₹${Number(newConcession?.totalConcession).toFixed(2) || "0.00"}`,
+          type: "DISCOUNT",
+          action: "/concession",
+          status: "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(newConcession.schoolId, "MANAGEMENT", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
 
     res.status(200).json(SuccessResponse(savedConcession, 1, "Concession provided successfully"));
   } catch (error) {
@@ -100,9 +131,7 @@ const getStudentsByClass = async (req, res, next) => {
     }
 
     const studentinConc = await Concession.find({ sectionId: mongoose.Types.ObjectId(classId) });
-
     const studentIdsInConcession = studentinConc.map((concession) => concession.studentId.toString());
-
     const filteredStudents = students.filter((student) => !studentIdsInConcession.includes(student._id.toString()));
 
     res.status(200).json({ students: filteredStudents });
@@ -332,10 +361,34 @@ const changeStatus = async (req, res, next) => {
     }
 
     const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
+    const studentData = await mongoose.connection.db
+      .collection("students")
+      .findOne({ _id: mongoose.Types.ObjectId(concession?.studentId) });
 
     if (!concession) {
       return res.status(404).json({ message: "Concession not found" });
     }
+
+    const notificationSetup = async () => {
+      try {
+        // setup notification
+        const notificationData = {
+          title: `Approved - new concession ${studentData?.name}`,
+          description: `Concession is approved for ₹${Number(concession?.totalConcession).toFixed(2) || "0.00"}`,
+          type: "DISCOUNT",
+          action: "/concession",
+          status: concession?.status == "REJECTED" ? "ERROR" : concession.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+        };
+
+        // sending notifications
+        await sendNotification(concession.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
+
     res.status(200).json(SuccessResponse(concession, 1, "Concession status updated successfully"));
   } catch (error) {
     console.log("error", error.message);
@@ -835,7 +888,6 @@ const getStudentWithConcession = async (req, res, next) => {
             },
           ],
           data: [
-            
             {
               $lookup: {
                 from: "concessionreasons",
@@ -849,12 +901,12 @@ const getStudentWithConcession = async (req, res, next) => {
                   // },
                   {
                     $project: {
-                      _id : 0,
-                      reason: 1
-                    }
-                  }
-                ]
-              }
+                      _id: 0,
+                      reason: 1,
+                    },
+                  },
+                ],
+              },
             },
             {
               $unwind: "$totals",
@@ -1110,16 +1162,37 @@ const revokeConcession = async (req, res) => {
       const concessionAmount = feeCategory.concessionAmount;
 
       // Use $unset to remove the concessionAmount field
-      await FeeInstallment.updateOne(
-        { _id: feeInstallmentId },
-        { $unset: { concessionAmount: 1 } }
-      );
+      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $unset: { concessionAmount: 1 } });
     }
 
     const revoke = await Concession.deleteOne({ _id: concessionId });
 
-    res.status(200).json(SuccessResponse("Concession revoked successfully"));
+    const studentData = await mongoose.connection.db
+      .collection("students")
+      .findOne({ _id: mongoose.Types.ObjectId(concession?.studentId) });
 
+    const notificationSetup = async () => {
+      try {
+        // setup notification
+        const notificationData = {
+          title: `Revocked - concession for ${studentData?.name}`,
+          description: `Concession is Revocked for ₹${Number(concession?.totalConcession).toFixed(2) || "0.00"}`,
+          type: "DISCOUNT",
+          action: "/concession",
+          status: "WARNING",
+        };
+
+        // sending notifications
+        await sendNotification(concession.schoolId, "MANAGEMENT", notificationData);
+        await sendNotification(concession.schoolId, "ADMIN", notificationData);
+      } catch (error) {
+        console.log("NOTIFICATION_ERROR", error);
+      }
+    };
+
+    notificationSetup();
+
+    res.status(200).json(SuccessResponse("Concession revoked successfully"));
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Internal server error" });
