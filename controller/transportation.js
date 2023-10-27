@@ -54,7 +54,26 @@ const getRoutes = async (req, res, next) => {
   }
 };
 
+const editRoutes = async (req, res, next) => {
+  try {
+    const { routeId } = req.query;
+    const updatedData = req.body;
+
+    const data = await BusRoute.findByIdAndUpdate(routeId, updatedData, { new: true });
+
+    if (!data) {
+      return next(new ErrorResponse("Route not found", 404));
+    }
+
+    res.status(200).json(SuccessResponse(data, 1, "Route Updated Successfully"));
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 module.exports = {
   createNewRoute,
   getRoutes,
+  editRoutes,
 };
