@@ -35,3 +35,7 @@ jobs:
           host: 65.2.123.21
           username: ubuntu
           password: erp1234
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      - name: SSH to server and restarting PM2
+        run: sshpass -p "erp1234" ssh -o StrictHostKeyChecking=no ubuntu@65.2.123.21 "pm2 restart backend"
