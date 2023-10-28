@@ -4,7 +4,7 @@ const { Schema, model } = mongoose;
 const busRoutesSchema = new Schema(
   {
     schoolId: {
-      type: mongoose.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "schools",
       required: [true, "schoolID is required"],
     },
