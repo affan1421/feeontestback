@@ -27,15 +27,9 @@ jobs:
       - run: pwd
       - run: npm i --force
       - run: npm run build
-      - name: "Copying Files"
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: /home/runner/work/feeOn-backend/feeOn-backend/dist
-          remote: /home/ubuntu/feeon_backend/
-          host: 65.2.123.21
-          username: ubuntu
-          password: erp1234
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
+      - name: "Copying Files"
+        run: sshpass -p "erp1234" scp -o StrictHostKeyChecking=accept-new  /home/runner/work/feeOn-backend/feeOn-backend/dist/index.js ubuntu@65.2.123.21:/home/ubuntu/feeon_backend/
       - name: SSH to server and restarting PM2
-        run: sshpass -p "erp1234" ssh -o StrictHostKeyChecking=no ubuntu@65.2.123.21 "pm2 restart backend"
+        run: sshpass -p "erp1234" ssh ubuntu@65.2.123.21 "pm2 restart backend"
