@@ -30,7 +30,7 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
-    const existingConcession = await Concession.findOne({ studentId, status: {$ne: 'REJECTED'} });
+    const existingConcession = await Concession.findOne({ studentId, status: { $ne: "REJECTED" } });
 
     if (existingConcession) {
       return res.status(400).json({ message: "Concession already exists for this student." });
@@ -130,7 +130,10 @@ const getStudentsByClass = async (req, res, next) => {
       });
     }
 
-    const studentinConc = await Concession.find({ sectionId: mongoose.Types.ObjectId(classId), status:{$ne:'REJECTED'}});
+    const studentinConc = await Concession.find({
+      sectionId: mongoose.Types.ObjectId(classId),
+      status: { $ne: "REJECTED" },
+    });
     const studentIdsInConcession = studentinConc.map((concession) => concession.studentId.toString());
     const filteredStudents = students.filter((student) => !studentIdsInConcession.includes(student._id.toString()));
 
@@ -910,6 +913,8 @@ const getStudentWithConcession = async (req, res, next) => {
             },
             {
               $unwind: "$totals",
+            },
+            {
               $unwind: "$reason",
             },
             {

@@ -23,7 +23,6 @@ const concessionSchema = new Schema(
       ref: "concessionReasons",
       required: [true, "Reason is required"],
     },
-    comment: String,
     feeCategoryIds: [
       {
         feeInstallmentId: {

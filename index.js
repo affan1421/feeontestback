@@ -4,6 +4,7 @@ const express = require("express");
 const http = require("http");
 const socket = require("socket.io");
 const mongoose = require("mongoose");
+mongoose.set('strictQuery', false);
 require("dotenv").config({ path: `.${NODE_ENV}.env` });
 require("./jobs/installmentDue");
 const fileUpload = require("express-fileupload");

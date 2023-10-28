@@ -560,9 +560,9 @@ exports.totalExpenseFilter = catchAsync(async (req, res, next) => {
   let startDate;
   let endDate;
   if (filterType == "daily") {
-    const { startDate, endDate } = getDailyDates(date);
-    startDate = startDate;
-    endDate = endDate;
+    const dates = getDailyDates(date);
+    startDate = dates.startDate;
+    endDate = dates.endDate;
   } else if (filterType == "weekly") {
     const { weekStart, weekEnd } = getWeekDates(date);
     startDate = weekStart;
