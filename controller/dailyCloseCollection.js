@@ -26,7 +26,8 @@ const generateDailyCloseCollection = async (req, res, next) => {
     }
 
     // Parse the date parameter into a Date object
-    const startDate = new Date(date.setHours(0, 0, 0, 0));
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setHours(23, 59, 59, 999);
 
@@ -175,7 +176,8 @@ const getCollectionDetails = async (req, res, next) => {
     };
 
     if (date) {
-      const startDate = new Date(date.setHours(0, 0, 0, 0));
+      const startDate = new Date(date);
+      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(startDate);
       endDate.setHours(23, 59, 59, 999);
       filter.date = { $gte: startDate, $lt: endDate };
@@ -222,7 +224,8 @@ const dailyTotalFeeCollection = async (req, res, next) => {
     }
 
     // Parse the date parameter into a Date object
-    const startDate = new Date(date.setHours(0, 0, 0, 0));
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setHours(23, 59, 59, 999);
 
@@ -231,7 +234,7 @@ const dailyTotalFeeCollection = async (req, res, next) => {
         $match: {
           $and: [{ createdAt: { $gte: startDate } }, { createdAt: { $lt: endDate } }],
           status: {
-            $in: ['APPROVED', 'REQUESTED', 'REJECTED'],
+            $in: ["APPROVED", "REQUESTED", "REJECTED"],
           },
           "school.schoolId": mongoose.Types.ObjectId(schoolId),
         },

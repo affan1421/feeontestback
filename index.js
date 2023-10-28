@@ -92,6 +92,7 @@ mongoose
     app.use("/api/v1/transfercertificate", require("./router/transferCertificate"));
     app.use("/api/v1/dailyclosecollection", require("./router/dailyCloseCollection"));
     app.use("/api/v1/concession", require("./router/concession"));
+    app.use("/api/v1/transportation", require("./router/transportation"));
 
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({
