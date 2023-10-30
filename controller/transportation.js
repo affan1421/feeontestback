@@ -5,6 +5,7 @@ const SuccessResponse = require("../utils/successResponse");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const BusRoute = require("../models/busRoutes");
+const BusDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -54,6 +55,23 @@ const getRoutes = async (req, res, next) => {
   }
 };
 
+const getEditRoutes = async (req, res, next) => {
+  try {
+    const { routeId } = req.query;
+
+    const data = await BusRoute.findOne({ _id: routeId });
+
+    if (!data) {
+      return next(new ErrorResponse("Route not found", 404));
+    }
+
+    res.status(200).json(SuccessResponse(data, 1, "Route Fetched Successfully"));
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 const editRoutes = async (req, res, next) => {
   try {
     const { routeId } = req.query;
@@ -72,8 +90,11 @@ const editRoutes = async (req, res, next) => {
   }
 };
 
+//-------------------------bus driver---------------------------
+
 module.exports = {
   createNewRoute,
   getRoutes,
   editRoutes,
+  getEditRoutes,
 };
