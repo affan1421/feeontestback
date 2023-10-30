@@ -189,6 +189,35 @@ const deleteDriver = async (req, res, next) => {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
+
+const listDrivers = async (req, res, next) => {
+  try {
+    const { schoolId, searchQuery } = req.query;
+
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.perPage) || 6;
+    const skip = (page - 1) * perPage;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      $or: [
+        { name: { $regex: new RegExp(searchQuery, "i") } },
+        {
+          selectedRoute: { $regex: new RegExp(searchQuery, "i") },
+        },
+      ],
+    };
+
+    const totalCount = await BusDriver.countDocuments(filter);
+    const data = await BusDriver.find(filter).skip(skip).limit(perPage);
+    res
+      .status(200)
+      .json(SuccessResponse(data, data.length, "Data fetched successfully", totalCount));
+  } catch (error) {
+    return next(ErrorResponse("Something went Wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -200,4 +229,5 @@ module.exports = {
   editDriver,
   updateDriver,
   deleteDriver,
+  listDrivers,
 };
