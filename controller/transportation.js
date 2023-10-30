@@ -100,11 +100,13 @@ const addNewDriver = async (req, res, next) => {
       drivingLicense,
       contactNumber,
       emergencyNumber,
+      bloodGroup,
       aadharNumber,
       schoolId,
       selectedRoute,
       assignedVehicle,
       assignedTrips,
+      address,
       attachments,
     } = req.body;
 
@@ -126,17 +128,19 @@ const addNewDriver = async (req, res, next) => {
       drivingLicense,
       contactNumber,
       emergencyNumber,
+      bloodGroup,
       aadharNumber,
       schoolId,
       selectedRoute,
       assignedVehicle,
       assignedTrips,
+      address,
       attachments,
     });
 
     await newDriver.save();
 
-    res.status(200).json(SuccessResponse(newDriver, 1, "New Route Created Successfully"));
+    res.status(200).json(SuccessResponse(newDriver, 1, "New Driver Added Successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }

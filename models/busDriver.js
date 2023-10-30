@@ -23,6 +23,9 @@ const busDriversSchema = new Schema(
       type: Number,
       required: true,
     },
+    bloodGroup: {
+      type: String,
+    },
     aadharNumber: {
       type: Number,
       required: true,
@@ -42,6 +45,10 @@ const busDriversSchema = new Schema(
     },
     assignedTrips: {
       type: Number,
+      required: true,
+    },
+    address: {
+      type: String,
       required: true,
     },
     attachments: [
