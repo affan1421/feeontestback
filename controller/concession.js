@@ -178,7 +178,7 @@ const getStudentFeeDetails = async (req, res, next) => {
             pipeline: [
               {
                 $match: {
-                  $expr: { $in: ["$_id", "$$feeCategoryIds"] },
+                  $expr: { $in: ["$_id", { $ifNull: ["$$feeCategoryIds", []] }] },
                 },
               },
             ],
