@@ -101,11 +101,24 @@ const addNewDriver = async (req, res, next) => {
       contactNumber,
       emergencyNumber,
       aadharNumber,
+      schoolId,
       selectedRoute,
       assignedVehicle,
       assignedTrips,
       attachments,
     } = req.body;
+
+    const existingDriver = await BusDriver.findOne({
+      $or: [{ drivingLicense }, { aadharNumber }, { contactNumber }, { emergencyNumber }],
+    });
+
+    if (existingDriver) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Driver with the same driving license, Aadhar number, contact number, or emergency number already exists.",
+      });
+    }
 
     const newDriver = new BusDriver({
       name,
@@ -114,6 +127,7 @@ const addNewDriver = async (req, res, next) => {
       contactNumber,
       emergencyNumber,
       aadharNumber,
+      schoolId,
       selectedRoute,
       assignedVehicle,
       assignedTrips,
@@ -128,6 +142,49 @@ const addNewDriver = async (req, res, next) => {
   }
 };
 
+const editDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const driver = await BusDriver.findOne({ _id: id });
+
+    if (!driver) {
+      return next(new ErrorResponse("Driver not found", 404));
+    }
+
+    res.status(200).json(SuccessResponse(driver, 1, "Driver Details Fetched successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const updateDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const updatedData = req.body;
+
+    const driver = await BusDriver.findByIdAndUpdate(id, { $set: updatedData }, { new: true });
+
+    if (!driver) {
+      return next(new ErrorResponse("Driver not found", 404));
+    }
+    res.status(200).json(SuccessResponse(driver, 1, "Updated Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const deleteDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const deleteDriver = await BusDriver.deleteOne({ _id: id });
+
+    res.status(200).json(SuccessResponse("Driver Details Deleted Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -136,4 +193,7 @@ module.exports = {
   editRoutes,
   getEditRoutes,
   addNewDriver,
+  editDriver,
+  updateDriver,
+  deleteDriver,
 };
