@@ -5,6 +5,7 @@ const SuccessResponse = require("../utils/successResponse");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const BusRoute = require("../models/busRoutes");
+const BusDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -54,12 +55,29 @@ const getRoutes = async (req, res, next) => {
   }
 };
 
+const getEditRoutes = async (req, res, next) => {
+  try {
+    const { routeId } = req.query;
+
+    const data = await BusRoute.findOne({ _id: routeId });
+
+    if (!data) {
+      return next(new ErrorResponse("Route not found", 404));
+    }
+
+    res.status(200).json(SuccessResponse(data, 1, "Route Fetched Successfully"));
+  } catch (error) {
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 const editRoutes = async (req, res, next) => {
   try {
     const { routeId } = req.query;
     const updatedData = req.body;
 
-    const data = await BusRoute.findByIdAndUpdate(routeId, updatedData, { new: true });
+    const data = await BusRoute.findByIdAndUpdate(routeId, { $set: updatedData }, { new: true });
 
     if (!data) {
       return next(new ErrorResponse("Route not found", 404));
@@ -72,8 +90,110 @@ const editRoutes = async (req, res, next) => {
   }
 };
 
+//-------------------------bus driver---------------------------
+
+const addNewDriver = async (req, res, next) => {
+  try {
+    const {
+      name,
+      salary,
+      drivingLicense,
+      contactNumber,
+      emergencyNumber,
+      aadharNumber,
+      schoolId,
+      selectedRoute,
+      assignedVehicle,
+      assignedTrips,
+      attachments,
+    } = req.body;
+
+    const existingDriver = await BusDriver.findOne({
+      $or: [{ drivingLicense }, { aadharNumber }, { contactNumber }, { emergencyNumber }],
+    });
+
+    if (existingDriver) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Driver with the same driving license, Aadhar number, contact number, or emergency number already exists.",
+      });
+    }
+
+    const newDriver = new BusDriver({
+      name,
+      salary,
+      drivingLicense,
+      contactNumber,
+      emergencyNumber,
+      aadharNumber,
+      schoolId,
+      selectedRoute,
+      assignedVehicle,
+      assignedTrips,
+      attachments,
+    });
+
+    await newDriver.save();
+
+    res.status(200).json(SuccessResponse(newDriver, 1, "New Route Created Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const editDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const driver = await BusDriver.findOne({ _id: id });
+
+    if (!driver) {
+      return next(new ErrorResponse("Driver not found", 404));
+    }
+
+    res.status(200).json(SuccessResponse(driver, 1, "Driver Details Fetched successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const updateDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const updatedData = req.body;
+
+    const driver = await BusDriver.findByIdAndUpdate(id, { $set: updatedData }, { new: true });
+
+    if (!driver) {
+      return next(new ErrorResponse("Driver not found", 404));
+    }
+    res.status(200).json(SuccessResponse(driver, 1, "Updated Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const deleteDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const deleteDriver = await BusDriver.deleteOne({ _id: id });
+
+    res.status(200).json(SuccessResponse("Driver Details Deleted Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+//-------------------------module-exports-----------------------------
+
 module.exports = {
   createNewRoute,
   getRoutes,
   editRoutes,
+  getEditRoutes,
+  addNewDriver,
+  editDriver,
+  updateDriver,
+  deleteDriver,
 };

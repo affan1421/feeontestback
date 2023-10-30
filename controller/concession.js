@@ -30,7 +30,7 @@ const createConcession = async (req, res, next) => {
       totals,
     } = req.body;
 
-    const existingConcession = await Concession.findOne({ studentId, status: {$ne: 'REJECTED'} });
+    const existingConcession = await Concession.findOne({ studentId, status: { $ne: "REJECTED" } });
 
     if (existingConcession) {
       return res.status(400).json({ message: "Concession already exists for this student." });
@@ -130,7 +130,10 @@ const getStudentsByClass = async (req, res, next) => {
       });
     }
 
-    const studentinConc = await Concession.find({ sectionId: mongoose.Types.ObjectId(classId), status:{$ne:'REJECTED'}});
+    const studentinConc = await Concession.find({
+      sectionId: mongoose.Types.ObjectId(classId),
+      status: { $ne: "REJECTED" },
+    });
     const studentIdsInConcession = studentinConc.map((concession) => concession.studentId.toString());
     const filteredStudents = students.filter((student) => !studentIdsInConcession.includes(student._id.toString()));
 
@@ -175,7 +178,7 @@ const getStudentFeeDetails = async (req, res, next) => {
             pipeline: [
               {
                 $match: {
-                  $expr: { $in: ["$_id", "$$feeCategoryIds"] },
+                  $expr: { $in: ["$_id", { $ifNull: ["$$feeCategoryIds", []] }] },
                 },
               },
             ],
@@ -256,7 +259,7 @@ const getStudentFeeDetails = async (req, res, next) => {
 
 const getStudentConcessionData = async (req, res, next) => {
   try {
-    const { schoolId, studentId, status, page, limit, searchQuery } = req.query;
+    const { schoolId, status, page, limit, searchQuery } = req.query;
 
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 5;
@@ -292,10 +295,29 @@ const getStudentConcessionData = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "concessionreasons",
+          localField: "reason",
+          foreignField: "_id",
+          as: "reason",
+          pipeline: [
+            {
+              $project: {
+                _id: 0,
+                reason: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
         $unwind: {
           path: "$studentList",
           preserveNullAndEmptyArrays: true,
         },
+      },
+      {
+        $unwind: "$reason",
       },
       {
         $unwind: {
@@ -315,6 +337,7 @@ const getStudentConcessionData = async (req, res, next) => {
           studentName: "$studentList.name",
           className: "$class.className",
           studentId: "$studentList._id",
+          reason: "$reason.reason",
         },
       },
       {
@@ -894,11 +917,7 @@ const getStudentWithConcession = async (req, res, next) => {
                 localField: "reason",
                 foreignField: "_id",
                 as: "reason",
-                // let: { value: "$reason.reason"},
                 pipeline: [
-                  // {
-                  //   $addFields: { reason: "$$value"}
-                  // },
                   {
                     $project: {
                       _id: 0,
@@ -910,6 +929,8 @@ const getStudentWithConcession = async (req, res, next) => {
             },
             {
               $unwind: "$totals",
+            },
+            {
               $unwind: "$reason",
             },
             {

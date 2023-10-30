@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const AWS = require("aws-sdk");
 const express = require("express");
 
 const studentsCollection = mongoose.connection.db.collection("students");
@@ -380,7 +379,7 @@ async function getTc(req, res, next) {
 
 async function getTcDetails(req, res, next) {
   try {
-    const schoolId = req.params.id
+    const schoolId = req.params.id;
     const tcsCount = await StudentTransfer.countDocuments();
 
     const tsData = await StudentTransfer.aggregate([
@@ -809,7 +808,6 @@ const addTcReason = async (req, res, next) => {
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
-
 
 async function deleteTcReason(req, res, next) {
   const { id: idInput } = req.query;

@@ -7,30 +7,6 @@ on:
     branches:
       - dev
 jobs:
-  # Slack_Approval:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Approval
-  #       uses: varu3/slack-approval@main
-  #       env:
-  #         SLACK_APP_TOKEN: xapp-1-A05QDQ21TSP-5842619626289-bfce7aca7cdf90a63b7926797179bbc046bd5a44c11cd22b61681a830be51295
-  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-  #         SLACK_SIGNING_SECRET: 979c1831c2fb536a156c48de8a359956
-  #         SLACK_CHANNEL_ID: C05R922D2F2
-  #       timeout-minutes: 1
-  # Slack_Notification:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Notify slack success
-  #       if: success()
-  #       id: slack # IMPORTANT: reference this step ID value in future Slack steps
-  #       env:
-  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-  #       uses: voxmedia/github-action-slack-notify-build@v1.1.2
-  #       with:
-  #         channel: actions_notification
-  #         status: STARTING
-  #         color: 0000FF
   Approval:
     runs-on: ubuntu-latest
     steps:
@@ -41,44 +17,6 @@ jobs:
           minimum-approvals: 1
           secret: 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
           approvers: remintroy
-  # Code_Analysis:
-  #   runs-on: ubuntu-latest
-  #   needs: Slack_Notification
-  #   steps:
-  #     - name: Checkout the files
-  #       uses: actions/checkout@v3
-
-  #     - name: SETUP NODE.JS ENVIRONMENT
-  #       uses: actions/setup-node@v3.3.0
-
-  #     - name: NPM INSTALL & NPM BUILD
-  #       run: |
-  #         cd /home/runner/work/feeOn-backend/feeOn-backend
-  #         npm install --verbose --legacy-peer-deps
-  #         npm run test --verbose
-
-  #     - name: Sonar-Scanner
-  #       uses: sonarsource/sonarqube-scan-action@master
-  #       with:
-  #         fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
-  #       env:
-  #         SONAR_TOKEN: sqa_9644a9163797c2173ec6a616a7fbd277f6074a1e
-  #         SONAR_HOST_URL: https://sonar.growon.app/
-
-  # Quality_Gate_Check:
-  #   runs-on: ubuntu-latest
-  #   needs: Code_Analysis
-  #   steps:
-  #     - name: Checkout the files
-  #       uses: actions/checkout@v3
-
-  #     - name: SonarQube Qality Gate check
-  #       uses: sonarsource/sonarqube-quality-gate-action@master
-  #       with:
-  #         scanMetadataReportFile: /home/runner/work/feeOn-backend/feeOn-backend/.scannerwork/report-task.txt
-  #       env:
-  #         SONAR_TOKEN: squ_bd7c4bd9ff143646cea9b60ca8e404b00697d1b7
-  #         SONAR_HOST_URL: https://sonar.growon.app/
 
   Build_And_Copy_files_to_EC2:
     runs-on: ubuntu-latest
@@ -87,63 +25,11 @@ jobs:
       - name: "Checkout repository"
         uses: actions/checkout@v3
       - run: pwd
+      - run: npm i --force
+      - run: npm run build
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
       - name: "Copying Files"
-        uses: garygrossgarten/github-action-scp@release
-        with:
-          local: /home/runner/work/feeOn-backend/feeOn-backend/
-          remote: /home/ubuntu/feeOn-backend/
-          host: 65.2.123.21
-          username: ubuntu
-          password: erp1234
-
-  # Restarting_Backend:
-  #   runs-on: staging
-  #   needs: Build_And_Copy_files_to_EC2
-  #   steps:
-  #     - run: pwd
-  #     - run: npm install
-  #     - run: pwd
-  #     - run: pm2 status
-  #     - run: pm2 restart backend
-
-  # Deployed_To_EC2:
-  #   runs-on: ubuntu-latest
-  #   needs: Restarting_Backend
-  #   steps:
-  #     - name: Notify slack success
-  #       if: success()
-  #       id: slack # IMPORTANT: reference this step ID value in future Slack steps
-  #       env:
-  #         SLACK_BOT_TOKEN: xoxb-3665147489378-4757576253669-zlwTM02QUdXgWhvxUjmPo0wA
-  #       uses: voxmedia/github-action-slack-notify-build@v1.1.2
-  #       with:
-  #         channel: actions_notification
-  #         status: SUCCESS
-  #         color: 0000FF
-
-  # Slack_Notification:
-  #   runs-on: ubuntu-latest
-  #   needs: Deployed_To_EC2
-  #   steps:
-
-  #    -  name: Notify slack success
-  #       if: success()
-  #       env:
-  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-  #       uses: Discontract/github-action-slack-notify-deployment@v1
-  #       with:
-  #         channel_id: C05R922D2F2
-  #         status: SUCCESS
-  #         color: good
-  #         tag: 'DEV'
-
-  #    -  name: Notify slack fail
-  #       if: failure()
-  #       env:
-  #         SLACK_BOT_TOKEN: xoxb-2013552524530-5832392402660-rJbKyu3IfbiMub3cZuehlimt
-  #       uses: Discontract/github-action-slack-notify-deployment@v1
-  #       with:
-  #         channel_id: C05R922D2F2
-  #         status: FAILED
-  #         color: danger
-  #         tag: 'DEV'
+        run: sshpass -p "erp1234" scp -o StrictHostKeyChecking=accept-new  /home/runner/work/feeOn-backend/feeOn-backend/dist/index.js ubuntu@65.2.123.21:/home/ubuntu/feeon_backend/
+      - name: SSH to server and restarting PM2
+        run: sshpass -p "erp1234" ssh ubuntu@65.2.123.21 "pm2 restart backend"
