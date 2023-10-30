@@ -259,7 +259,7 @@ const getStudentFeeDetails = async (req, res, next) => {
 
 const getStudentConcessionData = async (req, res, next) => {
   try {
-    const { schoolId, studentId, status, page, limit, searchQuery } = req.query;
+    const { schoolId, status, page, limit, searchQuery } = req.query;
 
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 5;
@@ -295,10 +295,29 @@ const getStudentConcessionData = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "concessionreasons",
+          localField: "reason",
+          foreignField: "_id",
+          as: "reason",
+          pipeline: [
+            {
+              $project: {
+                _id: 0,
+                reason: 1,
+              },
+            },
+          ],
+        },
+      },
+      {
         $unwind: {
           path: "$studentList",
           preserveNullAndEmptyArrays: true,
         },
+      },
+      {
+        $unwind: "$reason",
       },
       {
         $unwind: {
@@ -318,6 +337,7 @@ const getStudentConcessionData = async (req, res, next) => {
           studentName: "$studentList.name",
           className: "$class.className",
           studentId: "$studentList._id",
+          reason: "$reason.reason",
         },
       },
       {
@@ -897,11 +917,7 @@ const getStudentWithConcession = async (req, res, next) => {
                 localField: "reason",
                 foreignField: "_id",
                 as: "reason",
-                // let: { value: "$reason.reason"},
                 pipeline: [
-                  // {
-                  //   $addFields: { reason: "$$value"}
-                  // },
                   {
                     $project: {
                       _id: 0,
