@@ -7,20 +7,20 @@ on:
     branches:
       - dev
 jobs:
-  Approval:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Approval
-        uses: trstringer/manual-approval@v1
-        timeout-minutes: 5
-        with:
-          minimum-approvals: 1
-          secret: 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
-          approvers: remintroy
+  # Approval:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Approval
+  #       uses: trstringer/manual-approval@v1
+  #       timeout-minutes: 5
+  #       with:
+  #         minimum-approvals: 1
+  #         secret: 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
+  #         approvers: remintroy
 
-  Build_And_Copy_files_to_EC2:
+  build_and_delploy:
     runs-on: ubuntu-latest
-    needs: Approval
+    # needs: Approval
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@v3
