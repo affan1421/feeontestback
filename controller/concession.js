@@ -164,7 +164,7 @@ const getStudentFeeDetails = async (req, res, next) => {
     console.log(feeCategoryIds, "feeCategoryIds");
 
     const feeCategories = await studentsCollection
-      .aggregate([
+      .aggregate([ 
         {
           $match: {
             _id: mongoose.Types.ObjectId(studentId),
