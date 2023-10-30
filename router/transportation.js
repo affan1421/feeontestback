@@ -23,6 +23,5 @@ router.get("/edit-driver", editDriver); // fetech driver data
 router.put("/edit-driver", updateDriver); //update driver data
 router.delete("/delete-driver", deleteDriver); //delete driver
 router.get("/list-drivers", listDrivers); //list drivers
-router.get("/view-drivers", viewDrivers); //view-driver
-
+router.get("/view-driver", viewDrivers);
 module.exports = router;
