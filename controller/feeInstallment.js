@@ -711,7 +711,7 @@ exports.StudentSearch = catchAsync(async (req, res, next) => {
 			$project: {
 				name: 1,
 				class: {
-					$concat: { $first: '$class.name', $first: '$section.name' },
+					$concat: { $first: '$class.name' },
 				},
 				parentName: {
 					$first: '$parent.name',

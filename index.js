@@ -4,6 +4,7 @@ const express = require("express");
 const http = require("http");
 const socket = require("socket.io");
 const mongoose = require("mongoose");
+mongoose.set('strictQuery', false);
 require("dotenv").config({ path: `.${NODE_ENV}.env` });
 require("./jobs/installmentDue");
 const fileUpload = require("express-fileupload");
@@ -92,6 +93,7 @@ mongoose
     app.use("/api/v1/transfercertificate", require("./router/transferCertificate"));
     app.use("/api/v1/dailyclosecollection", require("./router/dailyCloseCollection"));
     app.use("/api/v1/concession", require("./router/concession"));
+    app.use("/api/v1/transportation", require("./router/transportation"));
 
     app.use((err, req, res, next) => {
       res.status(err.statusCode || 500).json({
