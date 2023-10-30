@@ -77,7 +77,7 @@ const editRoutes = async (req, res, next) => {
     const { routeId } = req.query;
     const updatedData = req.body;
 
-    const data = await BusRoute.findByIdAndUpdate(routeId, updatedData, { new: true });
+    const data = await BusRoute.findByIdAndUpdate(routeId, { $set: updatedData }, { new: true });
 
     if (!data) {
       return next(new ErrorResponse("Route not found", 404));
@@ -92,9 +92,48 @@ const editRoutes = async (req, res, next) => {
 
 //-------------------------bus driver---------------------------
 
+const addNewDriver = async (req, res, next) => {
+  try {
+    const {
+      name,
+      salary,
+      drivingLicense,
+      contactNumber,
+      emergencyNumber,
+      aadharNumber,
+      selectedRoute,
+      assignedVehicle,
+      assignedTrips,
+      attachments,
+    } = req.body;
+
+    const newDriver = new BusDriver({
+      name,
+      salary,
+      drivingLicense,
+      contactNumber,
+      emergencyNumber,
+      aadharNumber,
+      selectedRoute,
+      assignedVehicle,
+      assignedTrips,
+      attachments,
+    });
+
+    await newDriver.save();
+
+    res.status(200).json(SuccessResponse(newDriver, 1, "New Route Created Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+//-------------------------module-exports-----------------------------
+
 module.exports = {
   createNewRoute,
   getRoutes,
   editRoutes,
   getEditRoutes,
+  addNewDriver,
 };

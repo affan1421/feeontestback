@@ -11,7 +11,7 @@ const busDriversSchema = new Schema(
       type: Number,
       required: true,
     },
-    DLNumber: {
+    drivingLicense: {
       type: String,
       required: true,
     },
