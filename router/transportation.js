@@ -11,6 +11,9 @@ const {
   deleteDriver,
   listDrivers,
   addNewVehicle,
+  editVehicle,
+  updateVehicle,
+  deleteVehicle,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -25,5 +28,8 @@ router.delete("/delete-driver", deleteDriver); //delete driver
 router.get("/list-driver", listDrivers); //list drivers
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
+router.get("/edit-vehicle", editVehicle);
+router.put("/edit-vehicle", updateVehicle);
+router.delete("/delete-vehicle", deleteVehicle);
 
 module.exports = router;

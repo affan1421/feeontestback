@@ -272,6 +272,49 @@ const addNewVehicle = async (req, res, next) => {
   }
 };
 
+const editVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const vehicle = await SchoolVehicles.findOne({ _id: id });
+
+    if (!vehicle) {
+      return next(ErrorResponse("Vehicle not Found", 404));
+    }
+
+    res.status(200).json({ success: true, message: "Vehicle data fetched Successfully" });
+  } catch (error) {
+    return next(ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const updateVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const updatedData = req.body;
+
+    const vehicle = await SchoolVehicles.findByIdAndUpdate(
+      id,
+      { $set: updatedData },
+      { new: true }
+    );
+
+    res.status(200).json(SuccessResponse(vehicle, 1, "Vehicle Data Updated Successfully"));
+  } catch (error) {
+    return next(ErrorResponse("Something went wrong while updating Vehicle details", 500));
+  }
+};
+
+const deleteVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    await SchoolVehicles.deleteOne({ _id: id });
+    res.status(200).json({ success: true, message: "Vehicle details deleted successfully" });
+  } catch (error) {
+    return next(ErrorResponse("Something Went Wrong while Deleting vehicle data", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -285,4 +328,7 @@ module.exports = {
   deleteDriver,
   listDrivers,
   addNewVehicle,
+  editVehicle,
+  updateVehicle,
+  deleteVehicle,
 };
