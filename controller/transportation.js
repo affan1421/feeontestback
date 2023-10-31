@@ -6,6 +6,7 @@ const SuccessResponse = require("../utils/successResponse");
 const studentsCollection = mongoose.connection.db.collection("students");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
+const SchoolVehicles = require("../models/schoolVehicles");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -222,6 +223,55 @@ const listDrivers = async (req, res, next) => {
 
 //-------------------------vehicles------------------------------
 
+const addNewVehicle = async (req, res, next) => {
+  try {
+    const {
+      schoolId,
+      registrationNumber,
+      assignedVehicleNumber,
+      totalSeats,
+      assignedTrips,
+      driverName,
+      routeName,
+      taxValid,
+      fcValid,
+      vehicleMode,
+      attachments,
+    } = req.body;
+
+    const existingVehicle = await SchoolVehicles.findOne({
+      $or: [{ registrationNumber }, { driverName }],
+    });
+
+    if (existingVehicle) {
+      return res.status(400).json({
+        success: false,
+        message: "Vehicle with Same Registration Number or Same Driver already exists",
+      });
+    }
+
+    const newVehicle = new SchoolVehicles({
+      schoolId,
+      registrationNumber,
+      assignedVehicleNumber,
+      totalSeats,
+      assignedTrips,
+      driverName,
+      routeName,
+      taxValid: new Date(taxValid),
+      fcValid: new Date(fcValid),
+      vehicleMode,
+      attachments,
+    });
+
+    await newVehicle.save();
+
+    res.status(200).json(SuccessResponse(newVehicle, 1, "New Vehicle added successfully"));
+  } catch (error) {
+    return next(ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -234,4 +284,5 @@ module.exports = {
   updateDriver,
   deleteDriver,
   listDrivers,
+  addNewVehicle,
 };

@@ -10,6 +10,7 @@ const {
   editDriver,
   deleteDriver,
   listDrivers,
+  addNewVehicle,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -22,5 +23,7 @@ router.get("/edit-driver", editDriver); // fetech driver data
 router.put("/edit-driver", updateDriver); //update driver data
 router.delete("/delete-driver", deleteDriver); //delete driver
 router.get("/list-driver", listDrivers); //list drivers
+
+router.post("/add-vehicle", addNewVehicle); //add new vehicle
 
 module.exports = router;
