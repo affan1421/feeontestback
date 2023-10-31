@@ -28,7 +28,7 @@ router.post("/add-driver", addNewDriver); // add new driver
 router.get("/edit-driver", editDriver); // fetech driver data
 router.put("/edit-driver", updateDriver); //update driver data
 router.delete("/delete-driver", deleteDriver); //delete driver
-router.get("/list-driver", listDrivers); //list drivers
+router.get("/list-drivers", listDrivers); //list drivers
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
 router.get("/edit-vehicle", editVehicle); //edit vehicle
