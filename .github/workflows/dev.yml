@@ -3,9 +3,9 @@ on:
   push:
     branches:
       - dev
-  pull_request:
-    branches:
-      - dev
+  # pull_request:
+  #   branches:
+  #     - dev
 jobs:
   # Approval:
   #   runs-on: ubuntu-latest
