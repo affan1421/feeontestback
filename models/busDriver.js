@@ -43,6 +43,10 @@ const busDriversSchema = new Schema(
       type: String,
       required: true,
     },
+    assignedVehicleNumber: {
+      type: Number,
+      required: true,
+    },
     assignedTrips: {
       type: Number,
       required: true,

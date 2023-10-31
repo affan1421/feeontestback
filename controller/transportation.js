@@ -105,6 +105,7 @@ const addNewDriver = async (req, res, next) => {
       schoolId,
       selectedRoute,
       assignedVehicle,
+      assignedVehicleNumber,
       assignedTrips,
       address,
       attachments,
@@ -133,6 +134,7 @@ const addNewDriver = async (req, res, next) => {
       schoolId,
       selectedRoute,
       assignedVehicle,
+      assignedVehicleNumber,
       assignedTrips,
       address,
       attachments,
@@ -217,6 +219,8 @@ const listDrivers = async (req, res, next) => {
     return next(ErrorResponse("Something went Wrong", 500));
   }
 };
+
+//-------------------------vehicles------------------------------
 
 //-------------------------module-exports-----------------------------
 
