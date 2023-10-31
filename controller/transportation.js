@@ -376,14 +376,11 @@ module.exports = {
   updateDriver,
   deleteDriver,
   listDrivers,
-<<<<<<< HEAD
   viewDrivers,
-=======
   addNewVehicle,
   editVehicle,
   updateVehicle,
   deleteVehicle,
   listVehicles,
   viewVehicle,
->>>>>>> transport
 };
