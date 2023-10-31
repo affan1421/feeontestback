@@ -6,6 +6,7 @@ const SuccessResponse = require("../utils/successResponse");
 const studentsCollection = mongoose.connection.db.collection("students");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
+const SchoolVehicles = require("../models/schoolVehicles");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -105,6 +106,7 @@ const addNewDriver = async (req, res, next) => {
       schoolId,
       selectedRoute,
       assignedVehicle,
+      assignedVehicleNumber,
       assignedTrips,
       address,
       attachments,
@@ -133,6 +135,7 @@ const addNewDriver = async (req, res, next) => {
       schoolId,
       selectedRoute,
       assignedVehicle,
+      assignedVehicleNumber,
       assignedTrips,
       address,
       attachments,
@@ -214,7 +217,139 @@ const listDrivers = async (req, res, next) => {
       .status(200)
       .json(SuccessResponse(data, data.length, "Data fetched successfully", totalCount));
   } catch (error) {
-    return next(ErrorResponse("Something went Wrong", 500));
+    return next(new ErrorResponse("Something went Wrong", 500));
+  }
+};
+
+//-------------------------vehicles------------------------------
+
+const addNewVehicle = async (req, res, next) => {
+  try {
+    const {
+      schoolId,
+      registrationNumber,
+      assignedVehicleNumber,
+      totalSeats,
+      assignedTrips,
+      driverName,
+      routeName,
+      taxValid,
+      fcValid,
+      vehicleMode,
+      attachments,
+    } = req.body;
+
+    const existingVehicle = await SchoolVehicles.findOne({
+      $or: [{ registrationNumber }, { driverName }],
+    });
+
+    if (existingVehicle) {
+      return res.status(400).json({
+        success: false,
+        message: "Vehicle with Same Registration Number or Same Driver already exists",
+      });
+    }
+
+    const newVehicle = new SchoolVehicles({
+      schoolId,
+      registrationNumber,
+      assignedVehicleNumber,
+      totalSeats,
+      assignedTrips,
+      driverName,
+      routeName,
+      taxValid: new Date(taxValid),
+      fcValid: new Date(fcValid),
+      vehicleMode,
+      attachments,
+    });
+
+    await newVehicle.save();
+
+    res.status(200).json(SuccessResponse(newVehicle, 1, "New Vehicle added successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const editVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    const vehicle = await SchoolVehicles.findOne({ _id: id });
+
+    if (!vehicle) {
+      return next(new ErrorResponse("Vehicle not Found", 404));
+    }
+
+    res.status(200).json({ success: true, message: "Vehicle data fetched Successfully" });
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const updateVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const updatedData = req.body;
+
+    const vehicle = await SchoolVehicles.findByIdAndUpdate(
+      id,
+      { $set: updatedData },
+      { new: true }
+    );
+
+    res.status(200).json(SuccessResponse(vehicle, 1, "Vehicle Data Updated Successfully"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong while updating Vehicle details", 500));
+  }
+};
+
+const deleteVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    await SchoolVehicles.deleteOne({ _id: id });
+    res.status(200).json({ success: true, message: "Vehicle details deleted successfully" });
+  } catch (error) {
+    return next(new ErrorResponse("Something Went Wrong while Deleting vehicle data", 500));
+  }
+};
+
+const listVehicles = async (req, res, next) => {
+  try {
+    const { schoolId, searchQuery } = req.query;
+    const page = req.query.page || 1;
+    const perPage = req.query.limit || 5;
+    const skip = (page - 1) * perPage;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      $or: [
+        { routeName: { $regex: new RegExp(searchQuery, "i") } },
+        {
+          registrationNumber: { $regex: new RegExp(searchQuery, "i") },
+        },
+      ],
+    };
+    const totalCount = await SchoolVehicles.countDocuments(filter);
+    const data = await SchoolVehicles.find(filter).skip(skip).limit(perPage);
+
+    res
+      .status(200)
+      .json(SuccessResponse(data, data.length, "Vehicle data fetched sucessfully", totalCount));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong while listing vehicles", 500));
+  }
+};
+
+const viewVehicle = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const vehicle = await SchoolVehicles.findOne({ _id: id }).select("_id attachments");
+
+    res.status(200).json(SuccessResponse(vehicle, 1, "Successfully Fetched"));
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong while viewing vehicle", 500));
   }
 };
 
@@ -242,4 +377,10 @@ module.exports = {
   deleteDriver,
   listDrivers,
   viewDrivers,
+  addNewVehicle,
+  editVehicle,
+  updateVehicle,
+  deleteVehicle,
+  listVehicles,
+  viewVehicle,
 };
