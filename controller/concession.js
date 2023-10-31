@@ -203,12 +203,14 @@ const getStudentFeeDetails = async (req, res, next) => {
         {
           $lookup: {
             from: "feeinstallments",
-            localField: "feecategories._id",
-            foreignField: "categoryId",
+            let: { feeCategoryIds: "$feecategories._id" },
+            // localField: "feecategories._id",
+            // foreignField: "categoryId",
             as: "feeinstallments",
             pipeline: [
               {
                 $match: {
+                  categoryId: "$$feeCategoryIds",
                   studentId: mongoose.Types.ObjectId(studentId),
                   schoolId: mongoose.Types.ObjectId(schoolId),
                   status: { $in: ["Late", "Upcoming", "Due"] },
