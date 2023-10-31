@@ -369,7 +369,7 @@ const getStudentConcessionData = async (req, res, next) => {
 
     res.status(200).json({ concessions, totalDocuments });
   } catch (error) {
-    console.error("Error:", error.message);
+    console.error("Error:", error);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
