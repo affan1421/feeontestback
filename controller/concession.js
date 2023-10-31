@@ -152,16 +152,11 @@ const getStudentFeeDetails = async (req, res, next) => {
       school_id: mongoose.Types.ObjectId(schoolId),
     });
 
-    console.log(student, "Student");
-
-    if (!student) {
-      return next(new ErrorResponse("Student not found", 404));
-    }
+    if (!student) return next(new ErrorResponse("Student not found", 404));
 
     // Now that you have the student document, you can use its feeCategoryIds
     // to fetch fee category names from the feeCategories collection.
     const feeCategoryIds = student.feeCategoryIds;
-    console.log(feeCategoryIds, "feeCategoryIds");
 
     const feeCategories = await studentsCollection
       .aggregate([
@@ -177,16 +172,8 @@ const getStudentFeeDetails = async (req, res, next) => {
         {
           $lookup: {
             from: "feecategories",
-            // let: { feeCategoryIds: "$feeCategoryIds" },
             localField: "feeCategoryIds",
             foreignField: "_id",
-            // pipeline: [
-            //   {
-            //     $match: {
-            //       $expr: { $in: ["$_id", { $ifNull: ["$$feeCategoryIds", []] }] },
-            //     },
-            //   },
-            // ],
             as: "feecategories",
           },
         },
@@ -203,17 +190,19 @@ const getStudentFeeDetails = async (req, res, next) => {
         {
           $lookup: {
             from: "feeinstallments",
-            let: { feeCategoryIds: "$feecategories._id" },
-            // localField: "feecategories._id",
-            // foreignField: "categoryId",
+            let: { feeCategoryId: "$feecategories._id" },
             as: "feeinstallments",
             pipeline: [
               {
                 $match: {
-                  categoryId: "$$feeCategoryIds",
-                  studentId: mongoose.Types.ObjectId(studentId),
-                  schoolId: mongoose.Types.ObjectId(schoolId),
-                  status: { $in: ["Late", "Upcoming", "Due"] },
+                  $expr: {
+                    $and: [
+                      { $eq: ["$categoryId", "$$feeCategoryId"] },
+                      { $eq: ["$studentId", mongoose.Types.ObjectId(studentId)] },
+                      { $eq: ["$schoolId", mongoose.Types.ObjectId(schoolId)] },
+                      { $in: ["$status", ["Late", "Upcoming", "Due"]] },
+                    ],
+                  },
                 },
               },
               {
