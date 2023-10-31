@@ -522,9 +522,9 @@ async function getTcDetails(req, res, next) {
 
     const countsByType = tsData[0].countsByType[0];
     const reasonsData = tsData[0].reasons[0];
-    const reasonCount = tsData[0].reasonsCount[0].count;
-    const classData = tsData[0].class[0];
-    const classCount = tsData[0].classCount[0].count;
+    const classData = tsData[0].class[0] ;
+    const reasonCount = tsData[0].reasonsCount[0]?.count || 0;
+    const classCount = tsData[0].classCount[0]?.count || 0;
 
     res.status(200).json(
       SuccessResponse(

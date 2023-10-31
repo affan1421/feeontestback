@@ -3,9 +3,9 @@ on:
   push:
     branches:
       - preprod
-  pull_request:
-    branches:
-      - preprod
+  # pull_request:
+  #   branches:
+  #     - preprod
 jobs:
   Approval:
     runs-on: ubuntu-latest
