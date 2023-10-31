@@ -152,19 +152,14 @@ const getStudentFeeDetails = async (req, res, next) => {
       school_id: mongoose.Types.ObjectId(schoolId),
     });
 
-    console.log(student, "Student");
-
-    if (!student) {
-      return next(new ErrorResponse("Student not found", 404));
-    }
+    if (!student) return next(new ErrorResponse("Student not found", 404));
 
     // Now that you have the student document, you can use its feeCategoryIds
     // to fetch fee category names from the feeCategories collection.
     const feeCategoryIds = student.feeCategoryIds;
-    console.log(feeCategoryIds, "feeCategoryIds");
 
     const feeCategories = await studentsCollection
-      .aggregate([ 
+      .aggregate([
         {
           $match: {
             _id: mongoose.Types.ObjectId(studentId),
@@ -172,16 +167,13 @@ const getStudentFeeDetails = async (req, res, next) => {
           },
         },
         {
+          $unwind: "$feeCategoryIds",
+        },
+        {
           $lookup: {
             from: "feecategories",
-            let: { feeCategoryIds: "$feeCategoryIds" },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $in: ["$_id", { $ifNull: ["$$feeCategoryIds", []] }] },
-                },
-              },
-            ],
+            localField: "feeCategoryIds",
+            foreignField: "_id",
             as: "feecategories",
           },
         },
@@ -198,15 +190,19 @@ const getStudentFeeDetails = async (req, res, next) => {
         {
           $lookup: {
             from: "feeinstallments",
-            localField: "feecategories._id",
-            foreignField: "categoryId",
+            let: { feeCategoryId: "$feecategories._id" },
             as: "feeinstallments",
             pipeline: [
               {
                 $match: {
-                  studentId: mongoose.Types.ObjectId(studentId),
-                  schoolId: mongoose.Types.ObjectId(schoolId),
-                  status: { $in: ["Late", "Upcoming", "Due"] },
+                  $expr: {
+                    $and: [
+                      { $eq: ["$categoryId", "$$feeCategoryId"] },
+                      { $eq: ["$studentId", mongoose.Types.ObjectId(studentId)] },
+                      { $eq: ["$schoolId", mongoose.Types.ObjectId(schoolId)] },
+                      { $in: ["$status", ["Late", "Upcoming", "Due"]] },
+                    ],
+                  },
                 },
               },
               {
@@ -259,7 +255,7 @@ const getStudentFeeDetails = async (req, res, next) => {
 
 const getStudentConcessionData = async (req, res, next) => {
   try {
-    const { schoolId, status, page, limit, searchQuery } = req.query;
+    const { schoolId, studentId, status, page, limit, searchQuery } = req.query;
 
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 5;
@@ -295,29 +291,10 @@ const getStudentConcessionData = async (req, res, next) => {
         },
       },
       {
-        $lookup: {
-          from: "concessionreasons",
-          localField: "reason",
-          foreignField: "_id",
-          as: "reason",
-          pipeline: [
-            {
-              $project: {
-                _id: 0,
-                reason: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
         $unwind: {
           path: "$studentList",
           preserveNullAndEmptyArrays: true,
         },
-      },
-      {
-        $unwind: "$reason",
       },
       {
         $unwind: {
@@ -337,7 +314,6 @@ const getStudentConcessionData = async (req, res, next) => {
           studentName: "$studentList.name",
           className: "$class.className",
           studentId: "$studentList._id",
-          reason: "$reason.reason",
         },
       },
       {
@@ -369,7 +345,7 @@ const getStudentConcessionData = async (req, res, next) => {
 
     res.status(200).json({ concessions, totalDocuments });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error:", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
