@@ -240,8 +240,7 @@ const viewDriver = async (req, res, next) => {
 const routeList = async (req, res, next) => {
   try {
     const routelist = await busRoutes.find().select("routeName");
-    const routeNames = routelist.map((route) => route.routeName);
-    res.status(200).json(SuccessResponse(routeNames, routelist.length, "Successfully fetched"));
+    res.status(200).json(SuccessResponse(routelist, routelist.length, "Successfully fetched"));
   } catch (error) {
     console.log("Error while listing routes ", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
