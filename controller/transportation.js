@@ -209,7 +209,11 @@ const listDrivers = async (req, res, next) => {
     };
 
     const totalCount = await BusDriver.countDocuments(filter);
-    const data = await BusDriver.find(filter).skip(skip).limit(perPage);
+    const data = await BusDriver.find(filter)
+      .populate("selectedRoute", "routeName")
+      .skip(skip)
+      .limit(perPage);
+
     res
       .status(200)
       .json(SuccessResponse(data, data.length, "Data fetched successfully", totalCount));
@@ -402,6 +406,7 @@ const getAllClasses = async (req, res, next) => {
       school: mongoose.Types.ObjectId(schoolId),
     };
     const classes = await sectionsCollection.find(filter).select("className");
+    console.log(classes, "classes");
     res.status(200).json(SuccessResponse(classes, classes.length, "fetched successfully"));
   } catch (error) {
     console.error("Issues in fetching class", error.message);
