@@ -7,6 +7,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
+const busRoutes = require("../models/busRoutes");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -231,7 +232,19 @@ const viewDriver = async (req, res, next) => {
     }
     res.status(200).json(SuccessResponse(driver, 1, "data fetched successfully"));
   } catch (error) {
-    return next(new ErrorResponse("Something went wrong while viewing drivers", 500));
+    console.log("Error while viewing drivers", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const routeList = async (req, res, next) => {
+  try {
+    const routelist = await busRoutes.find().select("routeName");
+    const routeNames = routelist.map((route) => route.routeName);
+    res.status(200).json(SuccessResponse(routeNames, routelist.length, "Successfully fetched"));
+  } catch (error) {
+    console.log("Error while listing routes ", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
   }
 };
 
@@ -315,7 +328,8 @@ const updateVehicle = async (req, res, next) => {
 
     res.status(200).json(SuccessResponse(vehicle, 1, "Vehicle Data Updated Successfully"));
   } catch (error) {
-    return next(new ErrorResponse("Something went wrong while updating Vehicle details", 500));
+    console.log("Error while updating Vehicle details", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
   }
 };
 
@@ -325,7 +339,8 @@ const deleteVehicle = async (req, res, next) => {
     await SchoolVehicles.deleteOne({ _id: id });
     res.status(200).json({ success: true, message: "Vehicle details deleted successfully" });
   } catch (error) {
-    return next(new ErrorResponse("Something Went Wrong while Deleting vehicle data", 500));
+    console.log("Error while Deleting vehicle data", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
   }
 };
 
@@ -352,7 +367,8 @@ const listVehicles = async (req, res, next) => {
       .status(200)
       .json(SuccessResponse(data, data.length, "Vehicle data fetched sucessfully", totalCount));
   } catch (error) {
-    return next(new ErrorResponse("Something went wrong while listing vehicles", 500));
+    console.log("Error while listing vehicles", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
   }
 };
 
@@ -363,7 +379,8 @@ const viewVehicle = async (req, res, next) => {
 
     res.status(200).json(SuccessResponse(vehicle, 1, "Successfully Fetched"));
   } catch (error) {
-    return next(new ErrorResponse("Something went wrong while viewing vehicle", 500));
+    console.log("Error while viewing vehicle", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
   }
 };
 
@@ -380,6 +397,7 @@ module.exports = {
   deleteDriver,
   listDrivers,
   viewDriver,
+  routeList,
   addNewVehicle,
   editVehicle,
   updateVehicle,
