@@ -4,6 +4,7 @@ const ErrorResponse = require("../utils/errorResponse");
 const SuccessResponse = require("../utils/successResponse");
 
 const studentsCollection = mongoose.connection.db.collection("students");
+const sectionsCollection = mongoose.connection.db.collection("sections");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
@@ -397,6 +398,22 @@ const driverList = async (req, res, next) => {
   }
 };
 
+//----------------------------students--------------------------------
+
+const getAllClasses = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const filter = {
+      school: mongoose.Types.ObjectId(schoolId),
+    };
+    const classes = await sectionsCollection.find(filter).select("className");
+    res.status(200).json(SuccessResponse(classes, classes.length, "fetched successfully"));
+  } catch (error) {
+    console.error("Issues in fetching class", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -418,4 +435,5 @@ module.exports = {
   listVehicles,
   viewVehicle,
   driverList,
+  getAllClasses,
 };
