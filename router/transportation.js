@@ -16,6 +16,7 @@ const {
   deleteVehicle,
   listVehicles,
   viewVehicle,
+  viewDriver,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes

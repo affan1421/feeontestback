@@ -366,17 +366,6 @@ const viewVehicle = async (req, res, next) => {
   }
 };
 
-const viewDrivers = async (req, res, next) => {
-  try {
-    const { id } = req.query;
-    const driver = await BusDriver.findOne({ _id: id });
-
-    res.status(200).json(SuccessResponse(driver, 1, "Successful"));
-  } catch (error) {
-    return next(ErrorResponse("Something went Wrong", 500));
-  }
-};
-
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -390,7 +379,6 @@ module.exports = {
   deleteDriver,
   listDrivers,
   viewDriver,
-  viewDrivers,
   addNewVehicle,
   editVehicle,
   updateVehicle,
