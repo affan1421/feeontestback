@@ -205,12 +205,7 @@ const listDrivers = async (req, res, next) => {
 
     const filter = {
       schoolId: mongoose.Types.ObjectId(schoolId),
-      $or: [
-        { name: { $regex: new RegExp(searchQuery, "i") } },
-        {
-          selectedRoute: { $regex: new RegExp(searchQuery, "i") },
-        },
-      ],
+      $or: [{ name: { $regex: new RegExp(searchQuery, "i") } }],
     };
 
     const totalCount = await BusDriver.countDocuments(filter);
