@@ -37,8 +37,8 @@ const busDriversSchema = new Schema(
     },
     selectedRoute: {
       type: Schema.Types.ObjectId,
-      ref: "busroutes",
-      required: [true, "Bus routes is required"],
+      ref: "busRoutes",
+      required: true,
     },
     assignedVehicle: {
       type: String,
