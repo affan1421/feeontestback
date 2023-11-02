@@ -221,6 +221,19 @@ const listDrivers = async (req, res, next) => {
   }
 };
 
+const viewDriver = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const driver = await BusDriver.findOne({ _id: id });
+
+    if (!driver) {
+      return next(new ErrorResponse("Driver doesn't exist", 404));
+    }
+  } catch (error) {
+    return next(new ErrorResponse("Something went wrong while viewing drivers", 500));
+  }
+};
+
 //-------------------------vehicles------------------------------
 
 const addNewVehicle = async (req, res, next) => {
@@ -376,6 +389,7 @@ module.exports = {
   updateDriver,
   deleteDriver,
   listDrivers,
+  viewDriver,
   viewDrivers,
   addNewVehicle,
   editVehicle,
