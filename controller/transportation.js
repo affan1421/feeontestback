@@ -387,7 +387,9 @@ const viewVehicle = async (req, res, next) => {
 
 const driverList = async (req, res, next) => {
   try {
-    const driverlist = await BusDriver.find().select("name");
+    const { schoolId } = req.query;
+    filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
+    const driverlist = await BusDriver.find(filter).select("name");
     res.status(200).json(SuccessResponse(driverlist, driverlist.length, "Fetched Successfully"));
   } catch (error) {
     console.log("Error while viewing driver-list", error.message);
