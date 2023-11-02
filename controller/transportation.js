@@ -239,7 +239,9 @@ const viewDriver = async (req, res, next) => {
 
 const routeList = async (req, res, next) => {
   try {
-    const routelist = await busRoutes.find().select("routeName");
+    const { schoolId } = req.query;
+    const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
+    const routelist = await busRoutes.find(filter).select("routeName");
     res.status(200).json(SuccessResponse(routelist, routelist.length, "Successfully fetched"));
   } catch (error) {
     console.log("Error while listing routes ", error.message);
@@ -383,6 +385,16 @@ const viewVehicle = async (req, res, next) => {
   }
 };
 
+const driverList = async (req, res, next) => {
+  try {
+    const driverlist = await BusDriver.find().select("name");
+    res.status(200).json(SuccessResponse(driverlist, driverlist.length, "Fetched Successfully"));
+  } catch (error) {
+    console.log("Error while viewing driver-list", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -403,4 +415,5 @@ module.exports = {
   deleteVehicle,
   listVehicles,
   viewVehicle,
+  driverList,
 };
