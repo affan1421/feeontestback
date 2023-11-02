@@ -229,6 +229,7 @@ const viewDriver = async (req, res, next) => {
     if (!driver) {
       return next(new ErrorResponse("Driver doesn't exist", 404));
     }
+    res.status(200).json(SuccessResponse(driver, 1, "data fetched successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong while viewing drivers", 500));
   }
