@@ -372,7 +372,7 @@ const listVehicles = async (req, res, next) => {
       .json(SuccessResponse(data, data.length, "Vehicle data fetched sucessfully", totalCount));
   } catch (error) {
     console.log("Error while listing vehicles", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    return next(new ErrorResponse("Some thing went wrong", 500));
   }
 };
 
@@ -475,6 +475,20 @@ const getClassWiseStudents = async (req, res, next) => {
   }
 };
 
+const getVehicleNumbers = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const vehicleNumbers = await SchoolVehicles.find({
+      schoolId: mongoose.Types.ObjectId(schoolId),
+    }).select("AssignedVehiclenUmber");
+
+    res.status(200).json(SuccessResponse(vehicleNumbers, vehicleNumbers.length, "Successful"));
+  } catch (error) {
+    console.error("Went wrong while fetching vehicle numbers", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -498,4 +512,5 @@ module.exports = {
   driverList,
   getAllClasses,
   getClassWiseStudents,
+  getVehicleNumbers,
 };

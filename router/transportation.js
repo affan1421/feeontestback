@@ -21,6 +21,7 @@ const {
   driverList,
   getAllClasses,
   getClassWiseStudents,
+  getVehicleNumbers,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -46,5 +47,6 @@ router.get("/driverlist", driverList); //driver-list
 
 router.get("/classes", getAllClasses);
 router.get("/students", getClassWiseStudents);
+router.get("/vehicle-numbers", getVehicleNumbers);
 
 module.exports = router;
