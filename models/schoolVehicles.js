@@ -26,7 +26,7 @@ const vehicleSchema = new Schema(
     },
     driverName: {
       type: Schema.Types.ObjectId,
-      ref: "busdrivers",
+      ref: "busDriver",
       required: true,
     },
     routeName: {

@@ -67,6 +67,6 @@ const busDriversSchema = new Schema(
   }
 );
 
-const BusDriver = model("BusDriver", busDriversSchema);
+const busDriver = model("busDriver", busDriversSchema);
 
-module.exports = BusDriver;
+module.exports = busDriver;
