@@ -480,7 +480,7 @@ const getVehicleNumbers = async (req, res, next) => {
     const { schoolId } = req.query;
     const vehicleNumbers = await SchoolVehicles.find({
       schoolId: mongoose.Types.ObjectId(schoolId),
-    }).select("AssignedVehicleNumber");
+    }).select("assignedVehicleNumber");
 
     res.status(200).json(SuccessResponse(vehicleNumbers, vehicleNumbers.length, "Successful"));
   } catch (error) {
