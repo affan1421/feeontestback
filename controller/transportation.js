@@ -362,7 +362,10 @@ const listVehicles = async (req, res, next) => {
       ],
     };
     const totalCount = await SchoolVehicles.countDocuments(filter);
-    const data = await SchoolVehicles.find(filter).skip(skip).limit(perPage);
+    const data = await SchoolVehicles.find(filter)
+      .populate("driverName", "name")
+      .skip(skip)
+      .limit(perPage);
 
     res
       .status(200)
