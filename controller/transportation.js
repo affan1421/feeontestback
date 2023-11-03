@@ -8,7 +8,7 @@ const sectionsCollection = mongoose.connection.db.collection("sections");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
-const busRoutes = require("../models/busRoutes");
+const StudentsTransport = require("../models/studentsTransport");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -258,6 +258,7 @@ const addNewVehicle = async (req, res, next) => {
       registrationNumber,
       assignedVehicleNumber,
       totalSeats,
+      availableSeats,
       assignedTrips,
       driverName,
       routeName,
@@ -283,6 +284,7 @@ const addNewVehicle = async (req, res, next) => {
       registrationNumber,
       assignedVehicleNumber,
       totalSeats,
+      availableSeats,
       assignedTrips,
       driverName,
       routeName,
@@ -489,6 +491,47 @@ const getVehicleNumbers = async (req, res, next) => {
   }
 };
 
+const addStudentTransport = async (req, res, next) => {
+  try {
+    const {
+      schoolId,
+      sectionId,
+      studentId,
+      studentName,
+      assignedVehicleNumber,
+      selectedRoute,
+      seatsAvailable,
+      feeType,
+      feeAmount,
+      vehicleMode,
+    } = req.body;
+
+    const newStudentTransport = new StudentsTransport({
+      schoolId,
+      sectionId,
+      studentId,
+      studentName,
+      assignedVehicleNumber,
+      selectedRoute,
+      seatsAvailable,
+      feeType,
+      feeAmount,
+      vehicleMode,
+    });
+
+    await newStudentTransport.save();
+
+    res
+      .status(200)
+      .json(
+        SuccessResponse(newStudentTransport, 1, "Student Transport details added successfully")
+      );
+  } catch (error) {
+    console.error("Went wrong while adding student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -513,4 +556,5 @@ module.exports = {
   getAllClasses,
   getClassWiseStudents,
   getVehicleNumbers,
+  addStudentTransport,
 };

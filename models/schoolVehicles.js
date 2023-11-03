@@ -20,6 +20,12 @@ const vehicleSchema = new Schema(
       type: Number,
       required: true,
     },
+    availableSeats: {
+      type: Number,
+      default: function () {
+        return this.totalSeats;
+      },
+    },
     assignedTrips: {
       type: Number,
       required: true,

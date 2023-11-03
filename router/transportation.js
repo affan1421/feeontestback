@@ -48,5 +48,6 @@ router.get("/driverlist", driverList); //driver-list
 router.get("/classes", getAllClasses);
 router.get("/students", getClassWiseStudents);
 router.get("/vehicle-numbers", getVehicleNumbers);
+router.post("/add-studenttransport", addStudentTransport);
 
 module.exports = router;

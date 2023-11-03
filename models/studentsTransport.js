@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
-const vehicleSchema = new Schema(
+const studentTransportSchema = new Schema(
   {
     schoolId: {
       type: Schema.Types.ObjectId,
@@ -54,6 +54,6 @@ const vehicleSchema = new Schema(
   }
 );
 
-const StudentsTransport = model("StudentsTransport", vehicleSchema);
+const StudentsTransport = model("StudentsTransport", studentTransportSchema);
 
 module.exports = StudentsTransport;
