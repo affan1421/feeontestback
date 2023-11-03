@@ -362,7 +362,10 @@ const listVehicles = async (req, res, next) => {
       ],
     };
     const totalCount = await SchoolVehicles.countDocuments(filter);
-    const data = await SchoolVehicles.find(filter).skip(skip).limit(perPage);
+    const data = await SchoolVehicles.find(filter)
+      .populate("driverName", "name")
+      .skip(skip)
+      .limit(perPage);
 
     res
       .status(200)
@@ -402,14 +405,72 @@ const driverList = async (req, res, next) => {
 const getAllClasses = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
-    const filter = {
-      school: mongoose.Types.ObjectId(schoolId),
-    };
-    const classes = await sectionsCollection.find(filter).select("className");
-    console.log(classes, "classes");
-    res.status(200).json(SuccessResponse(classes, classes.length, "fetched successfully"));
+    const classList = await sectionsCollection
+      .aggregate([
+        {
+          $match: {
+            school: mongoose.Types.ObjectId(schoolId),
+          },
+        },
+        {
+          $project: {
+            class_id: 1,
+            className: 1,
+          },
+        },
+      ])
+      .toArray();
+
+    if (classList.length === 0) {
+      return res.status(404).json({ message: "No classes found" });
+    }
+
+    res
+      .status(200)
+      .json(SuccessResponse(classList, classList.length, "Classes details fetch successfully"));
   } catch (error) {
-    console.error("Issues in fetching class", error.message);
+    console.error("Error fetching classes list:", error);
+    console.log("error", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
+const getClassWiseStudents = async (req, res, next) => {
+  try {
+    const { classId, schoolId } = req.query;
+
+    if (!classId || !schoolId) {
+      return res.status(400).json({
+        error: "Both Class ID and School ID are required in the query parameters.",
+      });
+    }
+
+    const students = await studentsCollection
+      .aggregate([
+        {
+          $match: {
+            section: mongoose.Types.ObjectId(classId),
+            school_id: mongoose.Types.ObjectId(schoolId),
+          },
+        },
+        {
+          $project: {
+            name: 1,
+          },
+        },
+      ])
+
+      .toArray();
+
+    if (!students || students.length === 0) {
+      return res.status(404).json({
+        error: "No students found for the specified classId and schoolId.",
+      });
+    }
+
+    res.status(200).json(SuccessResponse(students, students.length, "succesfullly fetched"));
+  } catch (error) {
+    console.error("Went wrong while fetching students data", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
@@ -436,4 +497,5 @@ module.exports = {
   viewVehicle,
   driverList,
   getAllClasses,
+  getClassWiseStudents,
 };
