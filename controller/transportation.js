@@ -503,11 +503,19 @@ const addStudentTransport = async (req, res, next) => {
       studentId,
       assignedVehicleNumber,
       selectedRoute,
-      seatsAvailable,
+      transportSchedule,
       feeType,
       feeAmount,
       vehicleMode,
     } = req.body;
+
+    const existingStudent = await StudentsTransport.findOne({
+      studentId: mongoose.Types.ObjectId(studentId),
+    });
+
+    if (existingStudent) {
+      return next(new ErrorResponse("Student already exist", 404));
+    }
 
     const newStudentTransport = new StudentsTransport({
       schoolId,
@@ -515,11 +523,16 @@ const addStudentTransport = async (req, res, next) => {
       studentId,
       assignedVehicleNumber,
       selectedRoute,
-      seatsAvailable,
+      transportSchedule,
       feeType,
       feeAmount,
       vehicleMode,
     });
+
+    await SchoolVehicles.findOneAndUpdate(
+      { assignedVehicleNumber: assignedVehicleNumber },
+      { $inc: { availableSeats: -1 } }
+    );
 
     await newStudentTransport.save();
 

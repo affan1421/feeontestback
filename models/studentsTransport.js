@@ -27,10 +27,6 @@ const studentTransportSchema = new Schema(
       ref: "busRoutes",
       required: true,
     },
-    seatsAvailable: {
-      type: Number,
-      required: true,
-    },
     feeType: {
       type: String,
       enum: ["Monthly", "Quaterly", "Yearly"],

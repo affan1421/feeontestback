@@ -14,6 +14,7 @@ const vehicleSchema = new Schema(
     },
     assignedVehicleNumber: {
       type: Number,
+      unique: true,
       required: true,
     },
     totalSeats: {
