@@ -18,10 +18,6 @@ const studentTransportSchema = new Schema(
       ref: "students",
       required: [true, "school ID required"],
     },
-    studentName: {
-      type: String,
-      required: true,
-    },
     assignedVehicleNumber: {
       type: Number,
       required: true,
