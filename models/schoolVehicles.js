@@ -36,7 +36,8 @@ const vehicleSchema = new Schema(
       required: true,
     },
     routeName: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "busRoutes",
       required: true,
     },
     taxValid: {

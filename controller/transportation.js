@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const express = require("express");
 const ErrorResponse = require("../utils/errorResponse");
 const SuccessResponse = require("../utils/successResponse");
+const moment = require("moment");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
@@ -279,6 +280,9 @@ const addNewVehicle = async (req, res, next) => {
       });
     }
 
+    const formattedTaxValid = moment(taxValid, "DD/MM/YYYY").toDate();
+    const formattedFcValid = moment(fcValid, "DD/MM/YYYY").toDate();
+
     const newVehicle = new SchoolVehicles({
       schoolId,
       registrationNumber,
@@ -288,8 +292,8 @@ const addNewVehicle = async (req, res, next) => {
       assignedTrips,
       driverName,
       routeName,
-      taxValid: new Date(taxValid),
-      fcValid: new Date(fcValid),
+      taxValid: formattedTaxValid,
+      fcValid: formattedFcValid,
       vehicleMode,
       attachments,
     });
@@ -357,7 +361,6 @@ const listVehicles = async (req, res, next) => {
     const filter = {
       schoolId: mongoose.Types.ObjectId(schoolId),
       $or: [
-        { routeName: { $regex: new RegExp(searchQuery, "i") } },
         {
           registrationNumber: { $regex: new RegExp(searchQuery, "i") },
         },
@@ -366,6 +369,7 @@ const listVehicles = async (req, res, next) => {
     const totalCount = await SchoolVehicles.countDocuments(filter);
     const data = await SchoolVehicles.find(filter)
       .populate("driverName", "name")
+      .populate("routeName", "routeName")
       .skip(skip)
       .limit(perPage);
 
