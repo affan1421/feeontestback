@@ -242,7 +242,7 @@ const routeList = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
-    const routelist = await busRoutes.find(filter).select("routeName");
+    const routelist = await BusRoute.find(filter).select("routeName");
     res.status(200).json(SuccessResponse(routelist, routelist.length, "Successfully fetched"));
   } catch (error) {
     console.log("Error while listing routes ", error.message);
