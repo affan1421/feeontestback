@@ -225,7 +225,7 @@ const listDrivers = async (req, res, next) => {
 const viewDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
-    const driver = await BusDriver.findOne({ _id: id });
+    const driver = await BusDriver.findOne({ _id: id }).populate("selectedRoute", "routeName");
 
     if (!driver) {
       return next(new ErrorResponse("Driver doesn't exist", 404));
