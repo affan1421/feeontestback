@@ -22,6 +22,7 @@ const {
   getAllClasses,
   getClassWiseStudents,
   getVehicleNumbers,
+  addStudentTransport,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes

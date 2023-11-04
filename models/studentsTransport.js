@@ -37,8 +37,8 @@ const studentTransportSchema = new Schema(
     },
     feeType: {
       type: String,
-      enum: [Monthly, Quaterly, Yearly],
-      default: Monthly,
+      enum: ["Monthly", "Quaterly", "Yearly"],
+      default: "Monthly",
     },
     feeAmount: {
       type: Number,
