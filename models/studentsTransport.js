@@ -27,6 +27,12 @@ const studentTransportSchema = new Schema(
       ref: "busRoutes",
       required: true,
     },
+    transportSchedule: {
+      type: String,
+      enum: ["One way", "Round trip"],
+      default: "Round trip",
+      required: true,
+    },
     feeType: {
       type: String,
       enum: ["Monthly", "Quaterly", "Yearly"],
