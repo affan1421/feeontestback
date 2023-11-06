@@ -11,7 +11,6 @@ const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busRoutes = require("../models/busRoutes");
-const busDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -559,7 +558,7 @@ const getDashboardCount = async (req, res, next) => {
       StudentsTransport.countDocuments(filter),
       busRoutes.countDocuments(filter),
       SchoolVehicles.countDocuments(filter),
-      busDriver.countDocuments(filter),
+      BusDriver.countDocuments(filter),
     ]);
     res.status(200).json({ studentsCount, routesCount, vehiclesCount, driverCount });
   } catch (error) {
