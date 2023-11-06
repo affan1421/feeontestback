@@ -567,8 +567,31 @@ const editStudentTransport = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "sectionInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busroutes",
+          localField: "selectedRoute",
+          foreignField: "_id",
+          as: "routeInfo",
+        },
+      },
+      {
         $project: {
-          studentInfo: 1,
+          "studentInfo._id": 1,
+          "studentInfo.name": 1,
+          "sectionInfo._id": 1,
+          "sectionInfo.className": 1,
+          "routeInfo._id": 1,
+          "routeInfo.routeName": 1,
+          transportSchedule: 1,
+          assignedVehicleNumber: 1,
         },
       },
     ]);
