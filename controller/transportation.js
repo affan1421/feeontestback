@@ -10,6 +10,8 @@ const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
+const busRoutes = require("../models/busRoutes");
+const busDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -547,6 +549,25 @@ const addStudentTransport = async (req, res, next) => {
   }
 };
 
+//-------------------------dashboard-data----------------------------
+
+const getDashboardCount = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
+    const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
+      StudentsTransport.countDocuments(filter),
+      busRoutes.countDocuments(filter),
+      SchoolVehicles.countDocuments(filter),
+      busDriver.countDocuments(filter),
+    ]);
+    res.status(200).json({ studentsCount, routesCount, vehiclesCount, driverCount });
+  } catch (error) {
+    console.error("Went wrong while fetching dashboard data", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -572,4 +593,5 @@ module.exports = {
   getClassWiseStudents,
   getVehicleNumbers,
   addStudentTransport,
+  getDashboardCount,
 };
