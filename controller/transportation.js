@@ -549,6 +549,37 @@ const addStudentTransport = async (req, res, next) => {
   }
 };
 
+const editStudentTransport = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const studentData = await StudentsTransport.aggregate([
+      {
+        $match: {
+          _id: mongoose.Types.ObjectId(id),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentInfo",
+        },
+      },
+      {
+        $project: {
+          studentInfo: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
+  } catch (error) {
+    console.error("Went wrong while editing student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------dashboard-data----------------------------
 
 const getDashboardCount = async (req, res, next) => {
@@ -593,5 +624,6 @@ module.exports = {
   getClassWiseStudents,
   getVehicleNumbers,
   addStudentTransport,
+  editStudentTransport,
   getDashboardCount,
 };
