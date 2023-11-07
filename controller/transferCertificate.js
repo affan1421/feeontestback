@@ -208,10 +208,14 @@ async function searchStudentsWithPagination(req, res, next) {
               {
                 $lookup: {
                   from: "feeinstallments",
-                  localField: "_id",
-                  foreignField: "studentId",
+                  let: { studentId: "$_id" },
                   as: "fees",
                   pipeline: [
+                    {
+                      $match: {
+                        studentId: "$$studentId",
+                      },
+                    },
                     {
                       $group: {
                         _id: "totalAmount",
@@ -522,7 +526,7 @@ async function getTcDetails(req, res, next) {
 
     const countsByType = tsData[0].countsByType[0];
     const reasonsData = tsData[0].reasons[0];
-    const classData = tsData[0].class[0] ;
+    const classData = tsData[0].class[0];
     const reasonCount = tsData[0].reasonsCount[0]?.count || 0;
     const classCount = tsData[0].classCount[0]?.count || 0;
 

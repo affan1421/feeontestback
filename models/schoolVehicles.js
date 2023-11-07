@@ -14,11 +14,18 @@ const vehicleSchema = new Schema(
     },
     assignedVehicleNumber: {
       type: Number,
+      unique: true,
       required: true,
     },
     totalSeats: {
       type: Number,
       required: true,
+    },
+    availableSeats: {
+      type: Number,
+      default: function () {
+        return this.totalSeats;
+      },
     },
     assignedTrips: {
       type: Number,
@@ -26,10 +33,12 @@ const vehicleSchema = new Schema(
     },
     driverName: {
       type: Schema.Types.ObjectId,
-      required: [true, "Driver ID is required"],
+      ref: "busDriver",
+      required: true,
     },
     routeName: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "busRoutes",
       required: true,
     },
     taxValid: {

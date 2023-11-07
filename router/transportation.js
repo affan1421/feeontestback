@@ -16,7 +16,18 @@ const {
   deleteVehicle,
   listVehicles,
   viewVehicle,
-  viewDrivers,
+  viewDriver,
+  routeList,
+  driverList,
+  getAllClasses,
+  getClassWiseStudents,
+  getVehicleNumbers,
+  addStudentTransport,
+  getDashboardCount,
+  editStudentTransport,
+  updateStudentTransport,
+  deleteStudentTransport,
+  getStudentTransportList,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -28,7 +39,9 @@ router.post("/add-driver", addNewDriver); // add new driver
 router.get("/edit-driver", editDriver); // fetech driver data
 router.put("/edit-driver", updateDriver); //update driver data
 router.delete("/delete-driver", deleteDriver); //delete driver
-router.get("/list-driver", listDrivers); //list drivers
+router.get("/list-drivers", listDrivers); //list drivers
+router.get("/view-driver", viewDriver); // view Driver
+router.get("/routelist", routeList);
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
 router.get("/edit-vehicle", editVehicle); //edit vehicle
@@ -36,5 +49,17 @@ router.put("/edit-vehicle", updateVehicle); //update-vehicle
 router.delete("/delete-vehicle", deleteVehicle); //delete vehicle
 router.get("/list-vehicles", listVehicles); //list-vehicle
 router.get("/view-vehicle", viewVehicle); //view-vehicle
+router.get("/driverlist", driverList); //driver-list
+
+router.get("/classes", getAllClasses);
+router.get("/students", getClassWiseStudents);
+router.get("/vehicle-numbers", getVehicleNumbers);
+router.post("/add-student-transport", addStudentTransport);
+router.get("/edit-student-transport", editStudentTransport);
+router.put("/edit-student-transport", updateStudentTransport);
+router.delete("/delete-student-transport", deleteStudentTransport);
+router.get("/student-transport-list", getStudentTransportList);
+
+router.get("/dashboard-data", getDashboardCount);
 
 module.exports = router;
