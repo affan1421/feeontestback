@@ -601,6 +601,92 @@ const editStudentTransport = async (req, res, next) => {
   }
 };
 
+const updateStudentTransport = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    const updateData = req.body;
+    const studentData = await StudentsTransport.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    );
+    res.status(200).json(SuccessResponse(studentData, 1, "updated Successfully"));
+  } catch (error) {
+    console.error("Went wrong while updating student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const deleteStudentTransport = async (req, res, next) => {
+  try {
+    const { id } = req.query;
+    await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(id) });
+    res.status(200).json(SuccessResponse("Deleted successfully"));
+  } catch (error) {
+    console.error("Went wrong while deleting student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const getStudentTransportList = async (req, res, next) => {
+  console.log("helllooo");
+  try {
+    const { schoolId } = req.query;
+    const studentData = await StudentsTransport.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "sectionInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busroutes",
+          localField: "selectedRoute",
+          foreignField: "_id",
+          as: "routeInfo",
+        },
+      },
+      {
+        $project: {
+          "studentInfo._id": 1,
+          "studentInfo.name": 1,
+          "sectionInfo._id": 1,
+          "sectionInfo.className": 1,
+          "routeInfo._id": 1,
+          "routeInfo.routeName": 1,
+          transportSchedule: 1,
+          assignedVehicleNumber: 1,
+          feeAmount: 1,
+          vehicleMode: 1,
+        },
+      },
+    ]);
+
+    res
+      .status(200)
+      .json(SuccessResponse(studentData, studentData.length, "Data fetched successfully"));
+  } catch (error) {
+    console.error("Went wrong while listing student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------dashboard-data----------------------------
 
 const getDashboardCount = async (req, res, next) => {
@@ -609,7 +695,7 @@ const getDashboardCount = async (req, res, next) => {
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
     const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
       StudentsTransport.countDocuments(filter),
-      BusRoutes.countDocuments(filter),
+      BusRoute.countDocuments(filter),
       SchoolVehicles.countDocuments(filter),
       BusDriver.countDocuments(filter),
     ]);
@@ -647,4 +733,7 @@ module.exports = {
   addStudentTransport,
   editStudentTransport,
   getDashboardCount,
+  updateStudentTransport,
+  deleteStudentTransport,
+  getStudentTransportList,
 };

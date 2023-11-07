@@ -25,6 +25,9 @@ const {
   addStudentTransport,
   getDashboardCount,
   editStudentTransport,
+  updateStudentTransport,
+  deleteStudentTransport,
+  getStudentTransportList,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -53,6 +56,9 @@ router.get("/students", getClassWiseStudents);
 router.get("/vehicle-numbers", getVehicleNumbers);
 router.post("/add-student-transport", addStudentTransport);
 router.get("/edit-student-transport", editStudentTransport);
+router.put("/edit-student-transport", updateStudentTransport);
+router.delete("/delete-student-transport", deleteStudentTransport);
+router.get("/student-transport-list", getStudentTransportList);
 
 router.get("/dashboard-data", getDashboardCount);
 
