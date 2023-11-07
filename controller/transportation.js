@@ -662,6 +662,7 @@ const getStudentTransportList = async (req, res, next) => {
           as: "routeInfo",
         },
       },
+
       {
         $project: {
           "studentInfo._id": 1,
@@ -695,7 +696,7 @@ const getDashboardCount = async (req, res, next) => {
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
     const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
       StudentsTransport.countDocuments(filter),
-      BusRoute.countDocuments(filter),
+      busRoutes.countDocuments(filter),
       SchoolVehicles.countDocuments(filter),
       BusDriver.countDocuments(filter),
     ]);
