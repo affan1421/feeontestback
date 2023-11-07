@@ -316,7 +316,7 @@ const editVehicle = async (req, res, next) => {
       return next(new ErrorResponse("Vehicle not Found", 404));
     }
 
-    res.status(200).json({ success: true, message: "Vehicle data fetched Successfully" });
+    res.status(200).json(SuccessResponse(vehicle, 1, "Successful"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
