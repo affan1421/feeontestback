@@ -36,7 +36,8 @@ const busDriversSchema = new Schema(
       required: [true, "school ID required"],
     },
     selectedRoute: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: "busRoutes",
       required: true,
     },
     assignedVehicle: {
@@ -66,6 +67,6 @@ const busDriversSchema = new Schema(
   }
 );
 
-const BusDriver = model("BusDriver", busDriversSchema);
+const busDriver = model("busDriver", busDriversSchema);
 
-module.exports = BusDriver;
+module.exports = busDriver;
