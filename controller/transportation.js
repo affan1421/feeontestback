@@ -10,8 +10,6 @@ const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
-const busRoutes = require("../models/busRoutes");
-const busDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -611,7 +609,7 @@ const getDashboardCount = async (req, res, next) => {
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
     const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
       StudentsTransport.countDocuments(filter),
-      busRoutes.countDocuments(filter),
+      BusRoutes.countDocuments(filter),
       SchoolVehicles.countDocuments(filter),
       BusDriver.countDocuments(filter),
     ]);
