@@ -35,23 +35,6 @@ const busDriversSchema = new Schema(
       ref: "schools",
       required: [true, "school ID required"],
     },
-    selectedRoute: {
-      type: Schema.Types.ObjectId,
-      ref: "busRoutes",
-      required: true,
-    },
-    assignedVehicle: {
-      type: String,
-      required: true,
-    },
-    assignedVehicleNumber: {
-      type: Number,
-      required: true,
-    },
-    assignedTrips: {
-      type: Number,
-      required: true,
-    },
     address: {
       type: String,
       required: true,

@@ -201,7 +201,7 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.perPage) || 6;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const filter = {
@@ -619,12 +619,21 @@ const updateStudentTransport = async (req, res, next) => {
 
 const deleteStudentTransport = async (req, res, next) => {
   try {
-    const { id } = req.query;
-    await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(id) });
-    res.status(200).json(SuccessResponse("Deleted successfully"));
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+
+    const result = await StudentsTransport.deleteMany({ _id: { $in: ids } });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "No documents were deleted" });
+    }
+
+    res.status(200).json({ message: `${result.deletedCount} documents deleted successfully` });
   } catch (error) {
-    console.error("Went wrong while deleting student transport", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    console.error("Error while deleting student transport documents", error);
+    return res.status(500).json({ message: "Something went wrong" });
   }
 };
 
