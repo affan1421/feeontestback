@@ -201,10 +201,7 @@ const listDrivers = async (req, res, next) => {
     };
 
     const totalCount = await BusDriver.countDocuments(filter);
-    const data = await BusDriver.find(filter)
-      .populate("selectedRoute", "routeName")
-      .skip(skip)
-      .limit(perPage);
+    const data = await BusDriver.find(filter).skip(skip).limit(perPage);
 
     res
       .status(200)
