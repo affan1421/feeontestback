@@ -16,12 +16,6 @@ const vehicleSchema = new Schema(
       type: Number,
       required: true,
     },
-    availableSeats: {
-      type: Number,
-      default: function () {
-        return this.totalSeats;
-      },
-    },
     taxValid: {
       type: Date,
       required: true,

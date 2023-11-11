@@ -30,6 +30,14 @@ const busRoutesSchema = new Schema(
       required: true,
       unique: true,
     },
+    seatingCapacity: {
+      type: Number,
+      required: true,
+    },
+    availableSeats: {
+      type: Number,
+      required: true,
+    },
     stops: [
       {
         label: {
@@ -41,7 +49,7 @@ const busRoutesSchema = new Schema(
             type: String,
             required: true,
           },
-          onewayFees: {
+          oneWay: {
             type: Number,
             required: true,
             default: 0,
@@ -64,6 +72,14 @@ const busRoutesSchema = new Schema(
     timestamps: true,
   }
 );
+
+const autoIncrementOptions = {
+  model: "busRoutes",
+  field: "tripNo",
+  startAt: 1,
+};
+
+busRoutesSchema.plugin(autoIncrement.plugin, autoIncrementOptions);
 
 const busRoutes = model("busRoutes", busRoutesSchema);
 

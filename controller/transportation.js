@@ -11,6 +11,7 @@ const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busDriver = require("../models/busDriver");
+const busRoutes = require("../models/busRoutes");
 
 const createNewRoute = async (req, res, next) => {
   try {
@@ -24,11 +25,21 @@ const createNewRoute = async (req, res, next) => {
       schoolId,
     } = req.body;
 
+    const existingRoute = await BusRoute.findOne({
+      routeName,
+      registrationNumber,
+      driverId,
+    });
+
+    if (existingRoute) {
+      return next(new ErrorResponse("Route with the same driver and vehicle already exists", 400));
+    }
+
     const driver = await busDriver
       .findOne({ _id: mongoose.Types.ObjectId(driverId) })
       .select("name");
 
-    console.log(driver.name, "name");
+    const seats = await SchoolVehicles.findOne({ registrationNumber }).select("seatingCapacity");
 
     const newRoute = new BusRoute({
       routeName,
@@ -37,6 +48,8 @@ const createNewRoute = async (req, res, next) => {
       driverId,
       driverName: driver.name,
       tripNo,
+      seatingCapacity: seats.seatingCapacity,
+      availableSeats: seats.seatingCapacity,
       stops,
       schoolId,
     });
@@ -265,7 +278,6 @@ const addNewVehicle = async (req, res, next) => {
       registrationNumber,
       assignedVehicleNumber,
       seatingCapacity,
-      availableSeats,
       taxValid,
       fcValid,
       vehicleMode,
@@ -298,7 +310,6 @@ const addNewVehicle = async (req, res, next) => {
       registrationNumber,
       assignedVehicleNumber,
       seatingCapacity,
-      availableSeats,
       taxValid: formattedTaxValid,
       fcValid: formattedFcValid,
       vehicleMode,
