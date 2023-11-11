@@ -3,11 +3,6 @@ const { Schema, model } = mongoose;
 
 const vehicleSchema = new Schema(
   {
-    schoolId: {
-      type: Schema.Types.ObjectId,
-      ref: "schools",
-      required: [true, "school ID required"],
-    },
     registrationNumber: {
       type: String,
       required: true,
@@ -17,7 +12,7 @@ const vehicleSchema = new Schema(
       unique: true,
       required: true,
     },
-    totalSeats: {
+    seatingCapacity: {
       type: Number,
       required: true,
     },
@@ -26,20 +21,6 @@ const vehicleSchema = new Schema(
       default: function () {
         return this.totalSeats;
       },
-    },
-    assignedTrips: {
-      type: Number,
-      required: true,
-    },
-    driverName: {
-      type: Schema.Types.ObjectId,
-      ref: "busDriver",
-      required: true,
-    },
-    routeName: {
-      type: Schema.Types.ObjectId,
-      ref: "busRoutes",
-      required: true,
     },
     taxValid: {
       type: Date,
@@ -52,6 +33,11 @@ const vehicleSchema = new Schema(
     vehicleMode: {
       type: String,
       required: true,
+    },
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "schools",
+      required: [true, "school ID required"],
     },
     attachments: {
       type: [String],

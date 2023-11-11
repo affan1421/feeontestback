@@ -243,28 +243,25 @@ const routeList = async (req, res, next) => {
 const addNewVehicle = async (req, res, next) => {
   try {
     const {
-      schoolId,
       registrationNumber,
       assignedVehicleNumber,
-      totalSeats,
+      seatingCapacity,
       availableSeats,
-      assignedTrips,
-      driverName,
-      routeName,
       taxValid,
       fcValid,
       vehicleMode,
+      schoolId,
       attachments,
     } = req.body;
 
     const existingVehicle = await SchoolVehicles.findOne({
-      $or: [{ registrationNumber }, { driverName }],
+      registrationNumber,
     });
 
     if (existingVehicle) {
       return res.status(400).json({
         success: false,
-        message: "Vehicle with Same Registration Number or Same Driver already exists",
+        message: "Vehicle with Same Registration Number already exists",
       });
     }
 
@@ -272,17 +269,14 @@ const addNewVehicle = async (req, res, next) => {
     const formattedFcValid = moment(fcValid, "DD/MM/YYYY").toDate();
 
     const newVehicle = new SchoolVehicles({
-      schoolId,
       registrationNumber,
       assignedVehicleNumber,
-      totalSeats,
+      seatingCapacity,
       availableSeats,
-      assignedTrips,
-      driverName,
-      routeName,
       taxValid: formattedTaxValid,
       fcValid: formattedFcValid,
       vehicleMode,
+      schoolId,
       attachments,
     });
 
@@ -298,7 +292,7 @@ const editVehicle = async (req, res, next) => {
   try {
     const { id } = req.query;
 
-    const vehicle = await SchoolVehicles.findOne({ _id: id });
+    const vehicle = await SchoolVehicles.findOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (!vehicle) {
       return next(new ErrorResponse("Vehicle not Found", 404));
@@ -355,11 +349,7 @@ const listVehicles = async (req, res, next) => {
       ],
     };
     const totalCount = await SchoolVehicles.countDocuments(filter);
-    const data = await SchoolVehicles.find(filter)
-      .populate("driverName", "name")
-      .populate("routeName", "routeName")
-      .skip(skip)
-      .limit(perPage);
+    const data = await SchoolVehicles.find(filter).skip(skip).limit(perPage);
 
     res
       .status(200)
