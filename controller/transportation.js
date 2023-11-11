@@ -263,6 +263,15 @@ const addNewVehicle = async (req, res, next) => {
       });
     }
 
+    const vehicleNumber = await SchoolVehicles.findOne({ assignedVehicleNumber });
+
+    if (vehicleNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Vehicle Number already exists",
+      });
+    }
+
     const formattedTaxValid = moment(taxValid, "DD/MM/YYYY").toDate();
     const formattedFcValid = moment(fcValid, "DD/MM/YYYY").toDate();
 
