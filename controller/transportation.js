@@ -254,9 +254,7 @@ const addNewVehicle = async (req, res, next) => {
       attachments,
     } = req.body;
 
-    const existingVehicle = await SchoolVehicles.findOne({
-      registrationNumber,
-    });
+    const existingVehicle = await SchoolVehicles.findOne({ registrationNumber });
 
     if (existingVehicle) {
       return res.status(400).json({
