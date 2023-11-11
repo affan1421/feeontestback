@@ -100,18 +100,13 @@ const addNewDriver = async (req, res, next) => {
   try {
     const {
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     } = req.body;
 
@@ -129,18 +124,13 @@ const addNewDriver = async (req, res, next) => {
 
     const newDriver = new BusDriver({
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     });
 
