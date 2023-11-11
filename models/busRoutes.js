@@ -1,20 +1,34 @@
 const mongoose = require("mongoose");
+const autoIncrement = require("mongoose-auto-increment");
 const { Schema, model } = mongoose;
 
 const busRoutesSchema = new Schema(
   {
-    schoolId: {
-      type: Schema.Types.ObjectId,
-      ref: "schools",
-      required: [true, "schoolID is required"],
-    },
     routeName: {
       type: String,
       required: true,
     },
-    startingPoint: {
+    registrationNumber: {
       type: String,
       required: true,
+    },
+    assignedVehicleNumber: {
+      type: Number,
+      required: true,
+    },
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: "busDriver",
+      required: [true, "driverId is required"],
+    },
+    driverName: {
+      type: String,
+      required: true,
+    },
+    tripNo: {
+      type: Number,
+      required: true,
+      unique: true,
     },
     stops: [
       {
@@ -40,6 +54,11 @@ const busRoutesSchema = new Schema(
         },
       },
     ],
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "schools",
+      required: [true, "schoolID is required"],
+    },
   },
   {
     timestamps: true,

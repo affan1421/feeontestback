@@ -10,16 +10,35 @@ const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
+const busDriver = require("../models/busDriver");
 
 const createNewRoute = async (req, res, next) => {
   try {
-    const { schoolId, routeName, startingPoint, stops } = req.body;
+    const {
+      routeName,
+      registrationNumber,
+      assignedVehicleNumber,
+      driverId,
+      tripNo,
+      stops,
+      schoolId,
+    } = req.body;
+
+    const driver = await busDriver
+      .findOne({ _id: mongoose.Types.ObjectId(driverId) })
+      .select("name");
+
+    console.log(driver.name, "name");
 
     const newRoute = new BusRoute({
-      schoolId,
       routeName,
-      startingPoint,
+      registrationNumber,
+      assignedVehicleNumber,
+      driverId,
+      driverName: driver.name,
+      tripNo,
       stops,
+      schoolId,
     });
 
     const savedRoute = await newRoute.save();
