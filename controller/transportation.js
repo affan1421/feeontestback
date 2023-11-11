@@ -100,18 +100,13 @@ const addNewDriver = async (req, res, next) => {
   try {
     const {
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     } = req.body;
 
@@ -129,18 +124,13 @@ const addNewDriver = async (req, res, next) => {
 
     const newDriver = new BusDriver({
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     });
 
@@ -155,8 +145,9 @@ const addNewDriver = async (req, res, next) => {
 const editDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
+    console.log(req.query, "llllllllllllllllllllllllllllllllllllllll");
 
-    const driver = await BusDriver.findOne({ _id: id });
+    const driver = await BusDriver.findOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (!driver) {
       return next(new ErrorResponse("Driver not found", 404));
@@ -316,7 +307,7 @@ const editVehicle = async (req, res, next) => {
       return next(new ErrorResponse("Vehicle not Found", 404));
     }
 
-    res.status(200).json({ success: true, message: "Vehicle data fetched Successfully" });
+    res.status(200).json(SuccessResponse(vehicle, 1, "Successful"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
