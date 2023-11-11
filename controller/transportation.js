@@ -145,6 +145,7 @@ const addNewDriver = async (req, res, next) => {
 const editDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
+    console.log(req.query, "llllllllllllllllllllllllllllllllllllllll");
 
     const driver = await BusDriver.findOne({ _id: mongoose.Types.ObjectId(id) });
 
