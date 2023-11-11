@@ -146,7 +146,7 @@ const editDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
 
-    const driver = await BusDriver.findOne({ _id: id });
+    const driver = await BusDriver.findOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (!driver) {
       return next(new ErrorResponse("Driver not found", 404));
