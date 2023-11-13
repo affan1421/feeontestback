@@ -6,6 +6,7 @@ const moment = require("moment");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
+const schoolCollection = mongoose.connection.db.collection("schools");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
@@ -78,13 +79,42 @@ const getRoutes = async (req, res, next) => {
     if (searchQuery) {
       query.$or = [
         { routeName: { $regex: searchQuery, $options: "i" } },
-        { startingPoint: { $regex: searchQuery, $options: "i" } },
+        { driverName: { $regex: searchQuery, $options: "i" } },
       ];
     }
 
+    // const schoolName = await schoolCollection.aggregate([
+    //   {
+    //     $match: {
+    //       _id: mongoose.Types.ObjectId(schoolId),
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       _id: 0,
+    //       schoolName: 1,
+    //     },
+    //   },
+    // ]);
+
+    const routeCount = await BusRoute.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $project: {
+          _id: 1,
+          routeName: 1,
+          stopsCount: { $size: "$stops" },
+        },
+      },
+    ])
+      .skip(skip)
+      .limit(pageSize);
+
     const routes = await BusRoute.find(query).skip(skip).limit(pageSize);
 
-    res.status(200).json(SuccessResponse(routes, routes.length, "Fetched Successfully"));
+    res.status(200).json({ routes, routeCount });
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -108,7 +138,7 @@ const getEditRoutes = async (req, res, next) => {
   }
 };
 
-const editRoutes = async (req, res, next) => {
+const updateRoutes = async (req, res, next) => {
   try {
     const { routeId } = req.query;
     const updatedData = req.body;
@@ -177,7 +207,6 @@ const addNewDriver = async (req, res, next) => {
 const editDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
-    console.log(req.query, "llllllllllllllllllllllllllllllllllllllll");
 
     const driver = await BusDriver.findOne({ _id: mongoose.Types.ObjectId(id) });
 
@@ -237,7 +266,7 @@ const listDrivers = async (req, res, next) => {
 
     res
       .status(200)
-      .json(SuccessResponse(data, data.length, "Data fetched successfully", totalCount));
+      .json(SuccessResponse(data, totalCount, "Data fetched successfully", totalCount));
   } catch (error) {
     return next(new ErrorResponse("Something went Wrong", 500));
   }
@@ -390,7 +419,7 @@ const listVehicles = async (req, res, next) => {
 
     res
       .status(200)
-      .json(SuccessResponse(data, data.length, "Vehicle data fetched sucessfully", totalCount));
+      .json(SuccessResponse(data, totalCount, "Vehicle data fetched sucessfully", totalCount));
   } catch (error) {
     console.log("Error while listing vehicles", error.message);
     return next(new ErrorResponse("Some thing went wrong", 500));
@@ -736,7 +765,7 @@ const getDashboardCount = async (req, res, next) => {
 module.exports = {
   createNewRoute,
   getRoutes,
-  editRoutes,
+  updateRoutes,
   getEditRoutes,
   addNewDriver,
   editDriver,

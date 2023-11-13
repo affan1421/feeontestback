@@ -18,6 +18,10 @@ const studentTransportSchema = new Schema(
       ref: "students",
       required: [true, "school ID required"],
     },
+    studentName: {
+      type: String,
+      required: true,
+    },
     assignedVehicleNumber: {
       type: Number,
       required: true,
@@ -29,14 +33,11 @@ const studentTransportSchema = new Schema(
     },
     transportSchedule: {
       type: String,
-      enum: ["One way", "Round trip"],
-      default: "Round trip",
       required: true,
     },
-    feeType: {
+    feeMonth: {
       type: String,
-      enum: ["Monthly", "Quaterly", "Yearly"],
-      default: "Monthly",
+      required: true,
     },
     feeAmount: {
       type: Number,
