@@ -35,11 +35,9 @@ const busDriversSchema = new Schema(
       ref: "schools",
       required: [true, "school ID required"],
     },
-    attachments: [
-      {
-        type: [String],
-      },
-    ],
+    attachments: {
+      type: [String],
+    },
   },
   {
     timestamps: true,
