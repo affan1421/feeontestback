@@ -527,10 +527,19 @@ const getClassWiseStudents = async (req, res, next) => {
 
 const getVehicleNumbers = async (req, res, next) => {
   try {
-    const { schoolId } = req.query;
-    const vehicleNumbers = await SchoolVehicles.find({
+    const { schoolId, searchQuery } = req.query;
+
+    const filter = {
       schoolId: mongoose.Types.ObjectId(schoolId),
-    }).select("registrationNumber assignedVehicleNumber");
+      $or: [
+        {
+          registrationNumber: { $regex: new RegExp(searchQuery, "i") },
+        },
+      ],
+    };
+    const vehicleNumbers = await SchoolVehicles.find(filter).select(
+      "registrationNumber assignedVehicleNumber"
+    );
 
     res.status(200).json(SuccessResponse(vehicleNumbers, vehicleNumbers.length, "Successful"));
   } catch (error) {
@@ -628,10 +637,26 @@ const editStudentTransport = async (req, res, next) => {
       },
       {
         $lookup: {
+          from: "parents",
+          localField: "parentsId",
+          foreignField: "_id",
+          as: "parentsInfo",
+        },
+      },
+      {
+        $lookup: {
           from: "busroutes",
           localField: "selectedRoute",
           foreignField: "_id",
           as: "routeInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busdrivers",
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driverInfo",
         },
       },
       {
@@ -640,10 +665,17 @@ const editStudentTransport = async (req, res, next) => {
           "studentInfo.name": 1,
           "sectionInfo._id": 1,
           "sectionInfo.className": 1,
+          "parentsInfo._id": 1,
+          "parentsInfo.name": 1,
           "routeInfo._id": 1,
           "routeInfo.routeName": 1,
+          "driverInfo._id": 1,
+          "driverInfo.routeName": 1,
           transportSchedule: 1,
           assignedVehicleNumber: 1,
+          feeMonth: 1,
+          feeAmount: 1,
+          vehicleMode: 1,
         },
       },
     ]);
