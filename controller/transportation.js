@@ -402,8 +402,8 @@ const deleteVehicle = async (req, res, next) => {
 const listVehicles = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
-    const page = req.query.page || 1;
-    const perPage = req.query.limit || 5;
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const filter = {
