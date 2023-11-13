@@ -22,6 +22,15 @@ const studentTransportSchema = new Schema(
       type: String,
       required: true,
     },
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: "parents",
+      required: [true, "parent Id is required"],
+    },
+    parentName: {
+      type: String,
+      required: true,
+    },
     assignedVehicleNumber: {
       type: Number,
       required: true,
@@ -29,6 +38,15 @@ const studentTransportSchema = new Schema(
     selectedRoute: {
       type: Schema.Types.ObjectId,
       ref: "busRoutes",
+      required: true,
+    },
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: "busDriver",
+      required: true,
+    },
+    driverName: {
+      type: String,
       required: true,
     },
     transportSchedule: {

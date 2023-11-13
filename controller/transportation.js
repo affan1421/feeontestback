@@ -114,7 +114,7 @@ const getRoutes = async (req, res, next) => {
 
     const routes = await BusRoute.find(query).skip(skip).limit(pageSize);
 
-    res.status(200).json({ routes, routeCount });
+    res.status(200).json(SuccessResponse(routes, routes.length, "Successful"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -545,10 +545,15 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
+      studentName,
+      parentId,
+      parentName,
       assignedVehicleNumber,
       selectedRoute,
+      driverId,
+      driverName,
       transportSchedule,
-      feeType,
+      feeMonth,
       feeAmount,
       vehicleMode,
     } = req.body;
@@ -565,15 +570,20 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
+      studentName,
+      parentId,
+      parentName,
       assignedVehicleNumber,
       selectedRoute,
+      driverId,
+      driverName,
       transportSchedule,
-      feeType,
+      feeMonth,
       feeAmount,
       vehicleMode,
     });
 
-    await SchoolVehicles.findOneAndUpdate(
+    await busRoutes.findOneAndUpdate(
       { assignedVehicleNumber: assignedVehicleNumber },
       { $inc: { availableSeats: -1 } }
     );
