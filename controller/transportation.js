@@ -18,6 +18,7 @@ const createNewRoute = async (req, res, next) => {
   try {
     const {
       routeName,
+      vehicleId,
       registrationNumber,
       assignedVehicleNumber,
       driverId,
@@ -44,6 +45,7 @@ const createNewRoute = async (req, res, next) => {
 
     const newRoute = new BusRoute({
       routeName,
+      vehicleId,
       registrationNumber,
       assignedVehicleNumber,
       driverId,
@@ -554,11 +556,10 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
-      studentName,
       parentId,
-      parentName,
       assignedVehicleNumber,
-      selectedRoute,
+      selectedRouteId,
+      routeName,
       driverId,
       driverName,
       transportSchedule,
@@ -583,7 +584,8 @@ const addStudentTransport = async (req, res, next) => {
       parentId,
       parentName,
       assignedVehicleNumber,
-      selectedRoute,
+      selectedRouteId,
+      routeName,
       driverId,
       driverName,
       transportSchedule,

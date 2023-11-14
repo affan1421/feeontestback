@@ -8,6 +8,10 @@ const busRoutesSchema = new Schema(
       type: String,
       required: true,
     },
+    vehicleId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+    },
     registrationNumber: {
       type: String,
       required: true,

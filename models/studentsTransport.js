@@ -35,9 +35,13 @@ const studentTransportSchema = new Schema(
       type: Number,
       required: true,
     },
-    selectedRoute: {
+    selectedRouteId: {
       type: Schema.Types.ObjectId,
       ref: "busRoutes",
+      required: true,
+    },
+    routeName: {
+      type: String,
       required: true,
     },
     driverId: {
