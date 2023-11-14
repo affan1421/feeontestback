@@ -7,6 +7,7 @@ const moment = require("moment");
 const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
 const schoolCollection = mongoose.connection.db.collection("schools");
+const parentsCollection = mongoose.connection.db.collection("parents");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
@@ -559,9 +560,7 @@ const addStudentTransport = async (req, res, next) => {
       parentId,
       assignedVehicleNumber,
       selectedRouteId,
-      routeName,
       driverId,
-      driverName,
       transportSchedule,
       feeMonth,
       feeAmount,
@@ -576,18 +575,28 @@ const addStudentTransport = async (req, res, next) => {
       return next(new ErrorResponse("Student already exist", 404));
     }
 
+    const studentName = await studentsCollection.findOne({
+      _id: mongoose.Types.ObjectId(studentId),
+    });
+
+    const parentName = await parentsCollection.findOne({ _id: mongoose.Types.ObjectId(parentId) });
+
+    const route = await busRoutes.findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) });
+
+    const driver = await busDriver.findOne({ _id: mongoose.Types.ObjectId(driverId) });
+
     const newStudentTransport = new StudentsTransport({
       schoolId,
       sectionId,
       studentId,
-      studentName,
+      studentName: studentName.name,
       parentId,
-      parentName,
+      parentName: parentName.name,
       assignedVehicleNumber,
       selectedRouteId,
-      routeName,
+      routeName: route.routeName,
       driverId,
-      driverName,
+      driverName: driver.name,
       transportSchedule,
       feeMonth,
       feeAmount,
@@ -615,73 +624,7 @@ const addStudentTransport = async (req, res, next) => {
 const editStudentTransport = async (req, res, next) => {
   try {
     const { id } = req.query;
-    const studentData = await StudentsTransport.aggregate([
-      {
-        $match: {
-          _id: mongoose.Types.ObjectId(id),
-        },
-      },
-      {
-        $lookup: {
-          from: "students",
-          localField: "studentId",
-          foreignField: "_id",
-          as: "studentInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "sections",
-          localField: "sectionId",
-          foreignField: "_id",
-          as: "sectionInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "parents",
-          localField: "parentsId",
-          foreignField: "_id",
-          as: "parentsInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busroutes",
-          localField: "selectedRoute",
-          foreignField: "_id",
-          as: "routeInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busdrivers",
-          localField: "driverId",
-          foreignField: "_id",
-          as: "driverInfo",
-        },
-      },
-      {
-        $project: {
-          "studentInfo._id": 1,
-          "studentInfo.name": 1,
-          "sectionInfo._id": 1,
-          "sectionInfo.className": 1,
-          "parentsInfo._id": 1,
-          "parentsInfo.name": 1,
-          "routeInfo._id": 1,
-          "routeInfo.routeName": 1,
-          "driverInfo._id": 1,
-          "driverInfo.routeName": 1,
-          transportSchedule: 1,
-          assignedVehicleNumber: 1,
-          feeMonth: 1,
-          feeAmount: 1,
-          vehicleMode: 1,
-        },
-      },
-    ]);
-
+    const studentData = await StudentsTransport.findOne({ _id: mongoose.Types.ObjectId(id) });
     res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
   } catch (error) {
     console.error("Went wrong while editing student transport", error.message);
@@ -726,59 +669,27 @@ const deleteStudentTransport = async (req, res, next) => {
 };
 
 const getStudentTransportList = async (req, res, next) => {
-  console.log("helllooo");
   try {
-    const { schoolId } = req.query;
-    const studentData = await StudentsTransport.aggregate([
-      {
-        $match: {
-          schoolId: mongoose.Types.ObjectId(schoolId),
-        },
-      },
-      {
-        $lookup: {
-          from: "students",
-          localField: "studentId",
-          foreignField: "_id",
-          as: "studentInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "sections",
-          localField: "sectionId",
-          foreignField: "_id",
-          as: "sectionInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busroutes",
-          localField: "selectedRoute",
-          foreignField: "_id",
-          as: "routeInfo",
-        },
-      },
+    const { schoolId, searchQuery } = req.query;
 
-      {
-        $project: {
-          "studentInfo._id": 1,
-          "studentInfo.name": 1,
-          "sectionInfo._id": 1,
-          "sectionInfo.className": 1,
-          "routeInfo._id": 1,
-          "routeInfo.routeName": 1,
-          transportSchedule: 1,
-          assignedVehicleNumber: 1,
-          feeAmount: 1,
-          vehicleMode: 1,
-        },
-      },
-    ]);
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * perPage;
 
-    res
-      .status(200)
-      .json(SuccessResponse(studentData, studentData.length, "Data fetched successfully"));
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      $or: [
+        { studentName: { $regex: new RegExp(searchQuery, "i") } },
+        { parentName: { $regex: new RegExp(searchQuery, "i") } },
+        { routeName: { $regex: new RegExp(searchQuery, "i") } },
+        { driverName: { $regex: new RegExp(searchQuery, "i") } },
+      ],
+    };
+
+    const studentData = await StudentsTransport.find(filter).skip(skip).limit(perPage);
+    const totalCount = await StudentsTransport.countDocuments();
+
+    res.status(200).json(SuccessResponse(studentData, totalCount, "Data fetched successfully"));
   } catch (error) {
     console.error("Went wrong while listing student transport", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
