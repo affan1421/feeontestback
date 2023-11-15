@@ -17,40 +17,16 @@ const busRoutes = require("../models/busRoutes");
 
 const createNewRoute = async (req, res, next) => {
   try {
-    const {
-      routeName,
-      vehicleId,
-      registrationNumber,
-      assignedVehicleNumber,
-      driverId,
-      tripNo,
-      stops,
-      schoolId,
-    } = req.body;
+    const { routeName, vehicleId, driverId, tripNo, stops, schoolId } = req.body;
 
-    const existingRoute = await BusRoute.findOne({
-      routeName,
-      registrationNumber,
-      driverId,
-    });
+    const seats = await SchoolVehicles.findOne({ _id: mongoose.Types.ObjectId(vehicleId) });
 
-    if (existingRoute) {
-      return next(new ErrorResponse("Route with the same driver and vehicle already exists", 400));
-    }
-
-    const driver = await busDriver
-      .findOne({ _id: mongoose.Types.ObjectId(driverId) })
-      .select("name");
-
-    const seats = await SchoolVehicles.findOne({ registrationNumber }).select("seatingCapacity");
+    console.log(seats, "gggggggggggfffffffffffffffffff");
 
     const newRoute = new BusRoute({
       routeName,
       vehicleId,
-      registrationNumber,
-      assignedVehicleNumber,
       driverId,
-      driverName: driver.name,
       tripNo,
       seatingCapacity: seats.seatingCapacity,
       availableSeats: seats.seatingCapacity,
@@ -80,10 +56,7 @@ const getRoutes = async (req, res, next) => {
     };
 
     if (searchQuery) {
-      query.$or = [
-        { routeName: { $regex: searchQuery, $options: "i" } },
-        { driverName: { $regex: searchQuery, $options: "i" } },
-      ];
+      query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
     // const schoolName = await schoolCollection.aggregate([
@@ -115,7 +88,11 @@ const getRoutes = async (req, res, next) => {
       .skip(skip)
       .limit(pageSize);
 
-    const routes = await BusRoute.find(query).skip(skip).limit(pageSize);
+    const routes = await BusRoute.find(query)
+      .populate("driverId", "name")
+      .populate("vehicleId", "registrationNumber assignedVehicleNumber")
+      .skip(skip)
+      .limit(pageSize);
 
     res.status(200).json(SuccessResponse(routes, routes.length, "Successful"));
   } catch (error) {
@@ -298,6 +275,30 @@ const routeList = async (req, res, next) => {
     res.status(200).json(SuccessResponse(routelist, routelist.length, "Successfully fetched"));
   } catch (error) {
     console.log("Error while listing routes ", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const stopList = async (req, res, next) => {
+  try {
+    const { routeId } = req.query;
+
+    const route = await busRoutes.findById(routeId).select("stops").lean(); // Use lean() to get plain JavaScript objects instead of Mongoose Documents
+
+    if (!route) {
+      return next(new ErrorResponse("Route not found", 404));
+    }
+
+    const responseData = [
+      {
+        _id: route._id,
+        stops: route.stops,
+      },
+    ];
+
+    res.status(200).json(SuccessResponse(responseData, responseData.length, "Successful"));
+  } catch (error) {
+    console.log("Error while listing stops ", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
@@ -729,6 +730,7 @@ module.exports = {
   listDrivers,
   viewDriver,
   routeList,
+  stopList,
   addNewVehicle,
   editVehicle,
   updateVehicle,

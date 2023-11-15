@@ -10,24 +10,13 @@ const busRoutesSchema = new Schema(
     },
     vehicleId: {
       type: Schema.Types.ObjectId,
-      required: true,
-    },
-    registrationNumber: {
-      type: String,
-      required: true,
-    },
-    assignedVehicleNumber: {
-      type: Number,
+      ref: "SchoolVehicles",
       required: true,
     },
     driverId: {
       type: Schema.Types.ObjectId,
       ref: "busDriver",
       required: [true, "driverId is required"],
-    },
-    driverName: {
-      type: String,
-      required: true,
     },
     tripNo: {
       type: Number,
@@ -37,10 +26,12 @@ const busRoutesSchema = new Schema(
     seatingCapacity: {
       type: Number,
       required: true,
+      default: 0,
     },
     availableSeats: {
       type: Number,
       required: true,
+      default: 0,
     },
     stops: [
       {

@@ -29,6 +29,7 @@ const {
   deleteStudentTransport,
   getStudentTransportList,
   updateRoutes,
+  stopList,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -43,6 +44,7 @@ router.delete("/delete-driver", deleteDriver); //delete driver
 router.get("/list-drivers", listDrivers); //list drivers
 router.get("/view-driver", viewDriver); // view Driver
 router.get("/routelist", routeList);
+router.get("/stoplist", stopList);
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
 router.get("/edit-vehicle", editVehicle); //edit vehicle
