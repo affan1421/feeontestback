@@ -9,27 +9,19 @@ const studentTransportSchema = new Schema(
       required: [true, "school ID required"],
     },
     sectionId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "sections",
       required: [true, "school ID required"],
     },
     studentId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "students",
       required: [true, "school ID required"],
-    },
-    studentName: {
-      type: String,
-      required: true,
     },
     parentId: {
       type: Schema.Types.ObjectId,
       ref: "parents",
       required: [true, "parent Id is required"],
-    },
-    parentName: {
-      type: String,
-      required: true,
     },
     assignedVehicleNumber: {
       type: Number,
@@ -40,17 +32,9 @@ const studentTransportSchema = new Schema(
       ref: "busRoutes",
       required: true,
     },
-    routeName: {
-      type: String,
-      required: true,
-    },
     driverId: {
       type: Schema.Types.ObjectId,
       ref: "busDriver",
-      required: true,
-    },
-    driverName: {
-      type: String,
       required: true,
     },
     transportSchedule: {
@@ -68,6 +52,11 @@ const studentTransportSchema = new Schema(
     vehicleMode: {
       type: String,
       required: true,
+    },
+    status: {
+      type: String,
+      default: "Pending",
+      enum: ["Pending", "Paid", "Due", "Upcoming"],
     },
   },
   {
