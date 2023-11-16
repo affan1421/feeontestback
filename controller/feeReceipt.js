@@ -45,7 +45,9 @@ const getWorkSheet = (worksheet, receiptDetails, methodMap) =>
 
       // Grant Total
       worksheet.cell(totalRow, 6).string("Grant Total");
-      worksheet.cell(totalRow, 7).number(Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0));
+      worksheet
+        .cell(totalRow, 7)
+        .number(Array.from(methodMap.values()).reduce((acc, curr) => acc + curr, 0));
 
       resolve();
     } catch (error) {
@@ -446,7 +448,39 @@ const getDateRange = (dateRange, startDate, endDate) => {
 
 const handleError = (next, message, status = 422) => next(new ErrorResponse(message, status));
 
-const updateInstallment = async (installmentId, paidAmount) => {
+// const updateInstallment = async (installmentId, paidAmount) => {
+//   const installment = await FeeInstallment.findOne({
+//     _id: installmentId,
+//   }).lean();
+
+//   if (!installment) {
+//     return null;
+//   }
+
+//   const { paidAmount: insPaidAmount, netAmount, status: insStatus } = installment;
+//   const dueAmount = netAmount - insPaidAmount;
+
+//   if (paidAmount > dueAmount) {
+//     return null;
+//   }
+
+//   const newStatus =
+//     // eslint-disable-next-line no-nested-ternary
+//     dueAmount - paidAmount === 0 ? (insStatus === "Upcoming" ? "Paid" : "Late") : insStatus;
+
+//   return {
+//     filter: { _id: installmentId },
+//     update: {
+//       $set: {
+//         status: newStatus,
+//         paidAmount: insPaidAmount + paidAmount,
+//         paidDate: new Date(),
+//       },
+//     },
+//   };
+// };
+
+const updateInstallment = async (installmentId, paidAmount, paymentMethod) => {
   const installment = await FeeInstallment.findOne({
     _id: installmentId,
   }).lean();
@@ -463,8 +497,13 @@ const updateInstallment = async (installmentId, paidAmount) => {
   }
 
   const newStatus =
-    // eslint-disable-next-line no-nested-ternary
-    dueAmount - paidAmount === 0 ? (insStatus === "Upcoming" ? "Paid" : "Late") : insStatus;
+    dueAmount - paidAmount === 0
+      ? insStatus === "Upcoming"
+        ? "Paid"
+        : "Late"
+      : paymentMethod !== "cash"
+      ? "Pending"
+      : insStatus;
 
   return {
     filter: { _id: installmentId },
@@ -485,7 +524,12 @@ const updatePreviousBalance = async (id, paidAmount) => {
     return null;
   }
 
-  const { paidAmount: prevPaidAmount, dueAmount, status: prevStatus, _id: prevBalanceId } = prevBalance;
+  const {
+    paidAmount: prevPaidAmount,
+    dueAmount,
+    status: prevStatus,
+    _id: prevBalanceId,
+  } = prevBalance;
 
   if (paidAmount > dueAmount) {
     return null;
@@ -624,7 +668,16 @@ const getFeeReceipt = catchAsync(async (req, res, next) => {
 
 const receiptByStudentId = catchAsync(async (req, res, next) => {
   const { school_id } = req.user;
-  const { date, status, paymentMethod, categoryId, studentId = null, username, sectionId, isPrev = false } = req.body;
+  const {
+    date,
+    status,
+    paymentMethod,
+    categoryId,
+    studentId = null,
+    username,
+    sectionId,
+    isPrev = false,
+  } = req.body;
 
   if (!studentId && !username) {
     return next(new ErrorResponse("Please Provide All Fields", 422));
@@ -1157,7 +1210,9 @@ const createReceipt = async (req, res, next) => {
 
   if (lastReceipt) {
     if (lastReceipt.receiptId) {
-      newCount = lastReceipt.receiptId.slice(-5).replace(/\d+/, (n) => String(Number(n) + 1).padStart(n.length, "0"));
+      newCount = lastReceipt.receiptId
+        .slice(-5)
+        .replace(/\d+/, (n) => String(Number(n) + 1).padStart(n.length, "0"));
     }
   }
   const receiptId = `MI${date}${newCount}`; // MI21092100001
@@ -1521,7 +1576,11 @@ const getDashboardData = async (req, res, next) => {
     resObj.paymentMethods = paymentTypeData;
     resObj.financialFlows = { income: miscCollected };
 
-    const [{ totalExpenseCurrent, expenseTypeData }] = await getExpenseData(school_id, dateObj, tempExpAggregation);
+    const [{ totalExpenseCurrent, expenseTypeData }] = await getExpenseData(
+      school_id,
+      dateObj,
+      tempExpAggregation
+    );
 
     // const totalExpenseData = totalExpense[0] || {
     // 	totalAmount: 0,
@@ -1579,7 +1638,13 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
     return next(new ErrorResponse("Receipt Not Found", 400));
   }
 
-  const { receiptType, paidAmount: prevPaidAmount, student, isPreviousBalance, items } = updatedReceipt;
+  const {
+    receiptType,
+    paidAmount: prevPaidAmount,
+    student,
+    isPreviousBalance,
+    items,
+  } = updatedReceipt;
 
   // Need to convert this into switch case
 
@@ -1608,7 +1673,9 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
         const { _id, date, paidAmount } = installment;
         const newPaidAmount =
           paidAmount -
-          updatedReceipt.items.find(({ installmentId }) => installmentId.toString() === _id.toString()).paidAmount;
+          updatedReceipt.items.find(
+            ({ installmentId }) => installmentId.toString() === _id.toString()
+          ).paidAmount;
         const newStatus = moment(date).isAfter(moment()) ? "Upcoming" : "Due";
         const newUpdate = {
           $set: { status: newStatus, paidAmount: newPaidAmount },
@@ -1631,7 +1698,8 @@ const cancelReceipt = catchAsync(async (req, res, next) => {
       for (const installment of installments) {
         const { _id, date, paidAmount: insPaidAmount } = installment;
         const newPaidAmount =
-          insPaidAmount - items.find(({ installmentId }) => installmentId.toString() === _id.toString()).paidAmount;
+          insPaidAmount -
+          items.find(({ installmentId }) => installmentId.toString() === _id.toString()).paidAmount;
         const newStatus = moment(date).isAfter(moment()) ? "Upcoming" : "Due";
         const newUpdate = {
           $set: { status: newStatus, paidAmount: newPaidAmount },
@@ -1721,7 +1789,8 @@ const GetConfirmations = catchAsync(async (req, res, next) => {
   } = req.body;
   const { school_id } = req.user;
 
-  if (paymentMethod === "CASH") return next(new ErrorResponse("Select Online Payment Methods", 422));
+  if (paymentMethod === "CASH")
+    return next(new ErrorResponse("Select Online Payment Methods", 422));
 
   const payload = {
     status: {
@@ -1889,7 +1958,11 @@ const UpdateConfirmations = catchAsync(async (req, res, next) => {
         const update = await updateInstallment(installmentId, paidAmount);
 
         if (!update) {
-          return handleError(next, `Cannot Approve Receipt. Paid Amount is more than Due Amount.`, 422);
+          return handleError(
+            next,
+            `Cannot Approve Receipt. Paid Amount is more than Due Amount.`,
+            422
+          );
         }
 
         bulkOps.push({ updateOne: update });
@@ -1901,7 +1974,11 @@ const UpdateConfirmations = catchAsync(async (req, res, next) => {
       const update = await updatePreviousBalance(id, paidAmount);
 
       if (!update) {
-        return handleError(next, "Cannot Approve Receipt. Paid Amount is more than Due Amount", 422);
+        return handleError(
+          next,
+          "Cannot Approve Receipt. Paid Amount is more than Due Amount",
+          422
+        );
       }
 
       const { filter, update: updateObj } = update;
