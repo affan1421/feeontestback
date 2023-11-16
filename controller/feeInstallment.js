@@ -384,11 +384,46 @@ exports.SectionWiseTransaction = catchAsync(async (req, res, next) => {
     );
 });
 
+// exports.update = catchAsync(async (req, res, next) => {
+//   const { id } = req.params;
+//   const { amount } = req.body;
+
+//   // update the installment
+//   const installment = await FeeInstallment.findOne({ _id: id });
+
+//   const { paidAmount, totalDiscountAmount } = installment;
+
+//   if (!installment) {
+//     return next(new ErrorResponse("Installment not found", 404));
+//   }
+
+//   const update = {
+//     $set: {
+//       totalAmount: amount,
+//       netAmount: amount - totalDiscountAmount,
+//     },
+//   };
+//   if (paidAmount && paidAmount > amount) {
+//     return next(new ErrorResponse("Paid Amount Is Greater Than Total Amount", 400));
+//   }
+//   if (paidAmount > 0) {
+//     update.$set.status = "Due";
+//   }
+
+//   const updatedInstallment = await FeeInstallment.updateOne({ _id: id }, update);
+
+//   if (updatedInstallment.nModified === 0) {
+//     return next(new ErrorResponse("Installment not updated", 400));
+//   }
+
+//   res.status(200).json(SuccessResponse(updatedInstallment, 1, "Updated Successfully"));
+// });
+
 exports.update = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { amount } = req.body;
+  const { amount, paymentMethod } = req.body; // Assuming paymentMethod is provided in the request body
 
-  // update the installment
+  // Update the installment
   const installment = await FeeInstallment.findOne({ _id: id });
 
   const { paidAmount, totalDiscountAmount } = installment;
@@ -403,11 +438,13 @@ exports.update = catchAsync(async (req, res, next) => {
       netAmount: amount - totalDiscountAmount,
     },
   };
+
   if (paidAmount && paidAmount > amount) {
     return next(new ErrorResponse("Paid Amount Is Greater Than Total Amount", 400));
   }
+
   if (paidAmount > 0) {
-    update.$set.status = "Due";
+    update.$set.status = paymentMethod !== "CASH" ? "Pending" : "Due";
   }
 
   const updatedInstallment = await FeeInstallment.updateOne({ _id: id }, update);
@@ -1546,7 +1583,12 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
 
   if (!createdBy) return next(new ErrorResponse("Please Provide Created By", 422));
 
-  if (!status) return next(new ErrorResponse("Please Provide Status", 422));
+  let modifiedStatus = status;
+  if (paymentMethod !== "CASH") {
+    modifiedStatus = "PENDING";
+  }
+
+  // if (!status) return next(new ErrorResponse("Please Provide Status", 422));
 
   const issueDate = req.body.issueDate ? moment(req.body.issueDate, "DD/MM/YYYY") : new Date();
   const bulkWriteOps = [];
@@ -1905,7 +1947,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
     issueDate,
     items,
     createdBy,
-    status,
+    status: modifiedStatus,
     approvedBy: paymentMethod === "CASH" || status === "APPROVED" ? createdBy : null,
   };
 

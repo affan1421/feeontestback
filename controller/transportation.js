@@ -799,6 +799,16 @@ const getStudentTransportList = async (req, res, next) => {
         },
       },
       {
+        $match: {
+          $or: [
+            { "studentInfo.name": { $regex: new RegExp(searchQuery, "i") } },
+            { "parentInfo.name": { $regex: new RegExp(searchQuery, "i") } },
+            { "routeInfo.routeName": { $regex: new RegExp(searchQuery, "i") } },
+            { "driverInfo.name": { $regex: new RegExp(searchQuery, "i") } },
+          ],
+        },
+      },
+      {
         $skip: skip,
       },
       {
