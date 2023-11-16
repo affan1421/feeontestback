@@ -1588,7 +1588,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
     modifiedStatus = "PENDING";
   }
 
-  if (!status) return next(new ErrorResponse("Please Provide Status", 422));
+  // if (!status) return next(new ErrorResponse("Please Provide Status", 422));
 
   const issueDate = req.body.issueDate ? moment(req.body.issueDate, "DD/MM/YYYY") : new Date();
   const bulkWriteOps = [];
@@ -1870,8 +1870,10 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
         paidAmount: item.paidAmount + foundInstallment.paidAmount,
       };
 
-      if (tempDueAmount === 0) {
+      if (tempDueAmount === 0 && paymentMethod == "CASH") {
         updateData.status = foundInstallment.status == "Due" ? "Late" : "Paid";
+      } else {
+        updateData.status = foundInstallment.status == "Pending" ? "Late" : "Paid";
       }
 
       // make bulkwrite query
