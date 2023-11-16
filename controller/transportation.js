@@ -566,6 +566,7 @@ const addStudentTransport = async (req, res, next) => {
       feeMonth,
       feeAmount,
       vehicleMode,
+      status,
     } = req.body;
 
     const existingStudent = await StudentsTransport.findOne({
@@ -576,32 +577,19 @@ const addStudentTransport = async (req, res, next) => {
       return next(new ErrorResponse("Student already exist", 404));
     }
 
-    const studentName = await studentsCollection.findOne({
-      _id: mongoose.Types.ObjectId(studentId),
-    });
-
-    const parentName = await parentsCollection.findOne({ _id: mongoose.Types.ObjectId(parentId) });
-
-    const route = await busRoutes.findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) });
-
-    const driver = await busDriver.findOne({ _id: mongoose.Types.ObjectId(driverId) });
-
     const newStudentTransport = new StudentsTransport({
       schoolId,
       sectionId,
       studentId,
-      studentName: studentName.name,
       parentId,
-      parentName: parentName.name,
       assignedVehicleNumber,
       selectedRouteId,
-      routeName: route.routeName,
       driverId,
-      driverName: driver.name,
       transportSchedule,
       feeMonth,
       feeAmount,
       vehicleMode,
+      status,
     });
 
     await busRoutes.findOneAndUpdate(
@@ -625,7 +613,74 @@ const addStudentTransport = async (req, res, next) => {
 const editStudentTransport = async (req, res, next) => {
   try {
     const { id } = req.query;
-    const studentData = await StudentsTransport.findOne({ _id: mongoose.Types.ObjectId(id) });
+    const studentData = await StudentsTransport.aggregate([
+      {
+        $match: {
+          _id: mongoose.Types.ObjectId(id),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "sectionInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "parents",
+          localField: "parentId",
+          foreignField: "_id",
+          as: "parentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busroutes",
+          localField: "selectedRouteId",
+          foreignField: "_id",
+          as: "routeInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busdrivers",
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driverInfo",
+        },
+      },
+      {
+        $project: {
+          "studentInfo._id": 1,
+          "studentInfo.name": 1,
+          "sectionInfo._id": 1,
+          "sectionInfo.className": 1,
+          "parentInfo._id": 1,
+          "parentInfo.name": 1,
+          "routeInfo._id": 1,
+          "routeInfo.routeName": 1,
+          "driverInfo._id": 1,
+          "driverInfo.name": 1,
+          assignedVehicleNumber: 1,
+          transportSchedule: 1,
+          feeMonth: 1,
+          feeAmount: 1,
+          vehicleMode: 1,
+          status: 1,
+        },
+      },
+    ]);
+
     res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
   } catch (error) {
     console.error("Went wrong while editing student transport", error.message);
@@ -677,17 +732,80 @@ const getStudentTransportList = async (req, res, next) => {
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
-    const filter = {
-      schoolId: mongoose.Types.ObjectId(schoolId),
-      $or: [
-        { studentName: { $regex: new RegExp(searchQuery, "i") } },
-        { parentName: { $regex: new RegExp(searchQuery, "i") } },
-        { routeName: { $regex: new RegExp(searchQuery, "i") } },
-        { driverName: { $regex: new RegExp(searchQuery, "i") } },
-      ],
-    };
+    const studentData = await StudentsTransport.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $lookup: {
+          from: "students",
+          localField: "studentId",
+          foreignField: "_id",
+          as: "studentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "sections",
+          localField: "sectionId",
+          foreignField: "_id",
+          as: "sectionInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "parents",
+          localField: "parentId",
+          foreignField: "_id",
+          as: "parentInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busroutes",
+          localField: "selectedRouteId",
+          foreignField: "_id",
+          as: "routeInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "busdrivers",
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driverInfo",
+        },
+      },
+      {
+        $project: {
+          "studentInfo._id": 1,
+          "studentInfo.name": 1,
+          "sectionInfo._id": 1,
+          "sectionInfo.className": 1,
+          "parentInfo._id": 1,
+          "parentInfo.name": 1,
+          "routeInfo._id": 1,
+          "routeInfo.routeName": 1,
+          "driverInfo._id": 1,
+          "driverInfo.name": 1,
+          assignedVehicleNumber: 1,
+          transportSchedule: 1,
+          feeMonth: 1,
+          feeAmount: 1,
+          vehicleMode: 1,
+          status: 1,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: perPage,
+      },
+    ]);
 
-    const studentData = await StudentsTransport.find(filter).skip(skip).limit(perPage);
     const totalCount = await StudentsTransport.countDocuments();
 
     res.status(200).json(SuccessResponse(studentData, totalCount, "Data fetched successfully"));
