@@ -6,20 +6,32 @@ const moment = require("moment");
 
 const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
+const schoolCollection = mongoose.connection.db.collection("schools");
+const parentsCollection = mongoose.connection.db.collection("parents");
 const BusRoute = require("../models/busRoutes");
 const BusDriver = require("../models/busDriver");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
+const busDriver = require("../models/busDriver");
+const busRoutes = require("../models/busRoutes");
 
 const createNewRoute = async (req, res, next) => {
   try {
-    const { schoolId, routeName, startingPoint, stops } = req.body;
+    const { routeName, vehicleId, driverId, tripNo, stops, schoolId } = req.body;
+
+    const seats = await SchoolVehicles.findOne({ _id: mongoose.Types.ObjectId(vehicleId) });
+
+    console.log(seats, "gggggggggggfffffffffffffffffff");
 
     const newRoute = new BusRoute({
-      schoolId,
       routeName,
-      startingPoint,
+      vehicleId,
+      driverId,
+      tripNo,
+      seatingCapacity: seats.seatingCapacity,
+      availableSeats: seats.seatingCapacity,
       stops,
+      schoolId,
     });
 
     const savedRoute = await newRoute.save();
@@ -44,15 +56,45 @@ const getRoutes = async (req, res, next) => {
     };
 
     if (searchQuery) {
-      query.$or = [
-        { routeName: { $regex: searchQuery, $options: "i" } },
-        { startingPoint: { $regex: searchQuery, $options: "i" } },
-      ];
+      query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    const routes = await BusRoute.find(query).skip(skip).limit(pageSize);
+    // const schoolName = await schoolCollection.aggregate([
+    //   {
+    //     $match: {
+    //       _id: mongoose.Types.ObjectId(schoolId),
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       _id: 0,
+    //       schoolName: 1,
+    //     },
+    //   },
+    // ]);
 
-    res.status(200).json(SuccessResponse(routes, routes.length, "Fetched Successfully"));
+    const routeCount = await BusRoute.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $project: {
+          _id: 1,
+          routeName: 1,
+          stopsCount: { $size: "$stops" },
+        },
+      },
+    ])
+      .skip(skip)
+      .limit(pageSize);
+
+    const routes = await BusRoute.find(query)
+      .populate("driverId", "name")
+      .populate("vehicleId", "registrationNumber assignedVehicleNumber")
+      .skip(skip)
+      .limit(pageSize);
+
+    res.status(200).json(SuccessResponse(routes, routes.length, "Successful"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -76,7 +118,7 @@ const getEditRoutes = async (req, res, next) => {
   }
 };
 
-const editRoutes = async (req, res, next) => {
+const updateRoutes = async (req, res, next) => {
   try {
     const { routeId } = req.query;
     const updatedData = req.body;
@@ -100,18 +142,13 @@ const addNewDriver = async (req, res, next) => {
   try {
     const {
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     } = req.body;
 
@@ -129,18 +166,13 @@ const addNewDriver = async (req, res, next) => {
 
     const newDriver = new BusDriver({
       name,
-      salary,
-      drivingLicense,
       contactNumber,
       emergencyNumber,
-      bloodGroup,
+      drivingLicense,
       aadharNumber,
-      schoolId,
-      selectedRoute,
-      assignedVehicle,
-      assignedVehicleNumber,
-      assignedTrips,
+      bloodGroup,
       address,
+      schoolId,
       attachments,
     });
 
@@ -156,7 +188,7 @@ const editDriver = async (req, res, next) => {
   try {
     const { id } = req.query;
 
-    const driver = await BusDriver.findOne({ _id: id });
+    const driver = await BusDriver.findOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (!driver) {
       return next(new ErrorResponse("Driver not found", 404));
@@ -201,7 +233,7 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.perPage) || 6;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const filter = {
@@ -210,14 +242,11 @@ const listDrivers = async (req, res, next) => {
     };
 
     const totalCount = await BusDriver.countDocuments(filter);
-    const data = await BusDriver.find(filter)
-      .populate("selectedRoute", "routeName")
-      .skip(skip)
-      .limit(perPage);
+    const data = await BusDriver.find(filter).skip(skip).limit(perPage);
 
     res
       .status(200)
-      .json(SuccessResponse(data, data.length, "Data fetched successfully", totalCount));
+      .json(SuccessResponse(data, totalCount, "Data fetched successfully", totalCount));
   } catch (error) {
     return next(new ErrorResponse("Something went Wrong", 500));
   }
@@ -250,33 +279,60 @@ const routeList = async (req, res, next) => {
   }
 };
 
+const stopList = async (req, res, next) => {
+  try {
+    const { routeId } = req.query;
+
+    const route = await busRoutes.findById(routeId).select("stops").lean(); // Use lean() to get plain JavaScript objects instead of Mongoose Documents
+
+    if (!route) {
+      return next(new ErrorResponse("Route not found", 404));
+    }
+
+    const responseData = [
+      {
+        _id: route._id,
+        stops: route.stops,
+      },
+    ];
+
+    res.status(200).json(SuccessResponse(responseData, responseData.length, "Successful"));
+  } catch (error) {
+    console.log("Error while listing stops ", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------vehicles------------------------------
 
 const addNewVehicle = async (req, res, next) => {
   try {
     const {
-      schoolId,
       registrationNumber,
       assignedVehicleNumber,
-      totalSeats,
-      availableSeats,
-      assignedTrips,
-      driverName,
-      routeName,
+      seatingCapacity,
       taxValid,
       fcValid,
       vehicleMode,
+      schoolId,
       attachments,
     } = req.body;
 
-    const existingVehicle = await SchoolVehicles.findOne({
-      $or: [{ registrationNumber }, { driverName }],
-    });
+    const existingVehicle = await SchoolVehicles.findOne({ registrationNumber });
 
     if (existingVehicle) {
       return res.status(400).json({
         success: false,
-        message: "Vehicle with Same Registration Number or Same Driver already exists",
+        message: "Vehicle with Same Registration Number already exists",
+      });
+    }
+
+    const vehicleNumber = await SchoolVehicles.findOne({ assignedVehicleNumber });
+
+    if (vehicleNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "Vehicle Number already exists",
       });
     }
 
@@ -284,17 +340,13 @@ const addNewVehicle = async (req, res, next) => {
     const formattedFcValid = moment(fcValid, "DD/MM/YYYY").toDate();
 
     const newVehicle = new SchoolVehicles({
-      schoolId,
       registrationNumber,
       assignedVehicleNumber,
-      totalSeats,
-      availableSeats,
-      assignedTrips,
-      driverName,
-      routeName,
+      seatingCapacity,
       taxValid: formattedTaxValid,
       fcValid: formattedFcValid,
       vehicleMode,
+      schoolId,
       attachments,
     });
 
@@ -310,13 +362,13 @@ const editVehicle = async (req, res, next) => {
   try {
     const { id } = req.query;
 
-    const vehicle = await SchoolVehicles.findOne({ _id: id });
+    const vehicle = await SchoolVehicles.findOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (!vehicle) {
       return next(new ErrorResponse("Vehicle not Found", 404));
     }
 
-    res.status(200).json({ success: true, message: "Vehicle data fetched Successfully" });
+    res.status(200).json(SuccessResponse(vehicle, 1, "Successful"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -354,8 +406,8 @@ const deleteVehicle = async (req, res, next) => {
 const listVehicles = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
-    const page = req.query.page || 1;
-    const perPage = req.query.limit || 5;
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const filter = {
@@ -367,15 +419,11 @@ const listVehicles = async (req, res, next) => {
       ],
     };
     const totalCount = await SchoolVehicles.countDocuments(filter);
-    const data = await SchoolVehicles.find(filter)
-      .populate("driverName", "name")
-      .populate("routeName", "routeName")
-      .skip(skip)
-      .limit(perPage);
+    const data = await SchoolVehicles.find(filter).skip(skip).limit(perPage);
 
     res
       .status(200)
-      .json(SuccessResponse(data, data.length, "Vehicle data fetched sucessfully", totalCount));
+      .json(SuccessResponse(data, totalCount, "Vehicle data fetched sucessfully", totalCount));
   } catch (error) {
     console.log("Error while listing vehicles", error.message);
     return next(new ErrorResponse("Some thing went wrong", 500));
@@ -483,10 +531,19 @@ const getClassWiseStudents = async (req, res, next) => {
 
 const getVehicleNumbers = async (req, res, next) => {
   try {
-    const { schoolId } = req.query;
-    const vehicleNumbers = await SchoolVehicles.find({
+    const { schoolId, searchQuery } = req.query;
+
+    const filter = {
       schoolId: mongoose.Types.ObjectId(schoolId),
-    }).select("assignedVehicleNumber");
+      $or: [
+        {
+          registrationNumber: { $regex: new RegExp(searchQuery, "i") },
+        },
+      ],
+    };
+    const vehicleNumbers = await SchoolVehicles.find(filter).select(
+      "registrationNumber assignedVehicleNumber"
+    );
 
     res.status(200).json(SuccessResponse(vehicleNumbers, vehicleNumbers.length, "Successful"));
   } catch (error) {
@@ -501,10 +558,12 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
+      parentId,
       assignedVehicleNumber,
-      selectedRoute,
+      selectedRouteId,
+      driverId,
       transportSchedule,
-      feeType,
+      feeMonth,
       feeAmount,
       vehicleMode,
     } = req.body;
@@ -517,19 +576,35 @@ const addStudentTransport = async (req, res, next) => {
       return next(new ErrorResponse("Student already exist", 404));
     }
 
+    const studentName = await studentsCollection.findOne({
+      _id: mongoose.Types.ObjectId(studentId),
+    });
+
+    const parentName = await parentsCollection.findOne({ _id: mongoose.Types.ObjectId(parentId) });
+
+    const route = await busRoutes.findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) });
+
+    const driver = await busDriver.findOne({ _id: mongoose.Types.ObjectId(driverId) });
+
     const newStudentTransport = new StudentsTransport({
       schoolId,
       sectionId,
       studentId,
+      studentName: studentName.name,
+      parentId,
+      parentName: parentName.name,
       assignedVehicleNumber,
-      selectedRoute,
+      selectedRouteId,
+      routeName: route.routeName,
+      driverId,
+      driverName: driver.name,
       transportSchedule,
-      feeType,
+      feeMonth,
       feeAmount,
       vehicleMode,
     });
 
-    await SchoolVehicles.findOneAndUpdate(
+    await busRoutes.findOneAndUpdate(
       { assignedVehicleNumber: assignedVehicleNumber },
       { $inc: { availableSeats: -1 } }
     );
@@ -550,50 +625,7 @@ const addStudentTransport = async (req, res, next) => {
 const editStudentTransport = async (req, res, next) => {
   try {
     const { id } = req.query;
-    const studentData = await StudentsTransport.aggregate([
-      {
-        $match: {
-          _id: mongoose.Types.ObjectId(id),
-        },
-      },
-      {
-        $lookup: {
-          from: "students",
-          localField: "studentId",
-          foreignField: "_id",
-          as: "studentInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "sections",
-          localField: "sectionId",
-          foreignField: "_id",
-          as: "sectionInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busroutes",
-          localField: "selectedRoute",
-          foreignField: "_id",
-          as: "routeInfo",
-        },
-      },
-      {
-        $project: {
-          "studentInfo._id": 1,
-          "studentInfo.name": 1,
-          "sectionInfo._id": 1,
-          "sectionInfo.className": 1,
-          "routeInfo._id": 1,
-          "routeInfo.routeName": 1,
-          transportSchedule: 1,
-          assignedVehicleNumber: 1,
-        },
-      },
-    ]);
-
+    const studentData = await StudentsTransport.findOne({ _id: mongoose.Types.ObjectId(id) });
     res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
   } catch (error) {
     console.error("Went wrong while editing student transport", error.message);
@@ -619,68 +651,46 @@ const updateStudentTransport = async (req, res, next) => {
 
 const deleteStudentTransport = async (req, res, next) => {
   try {
-    const { id } = req.query;
-    await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(id) });
-    res.status(200).json(SuccessResponse("Deleted successfully"));
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Invalid input" });
+    }
+
+    const result = await StudentsTransport.deleteMany({ _id: { $in: ids } });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "No documents were deleted" });
+    }
+
+    res.status(200).json({ message: `${result.deletedCount} documents deleted successfully` });
   } catch (error) {
-    console.error("Went wrong while deleting student transport", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    console.error("Error while deleting student transport documents", error);
+    return res.status(500).json({ message: "Something went wrong" });
   }
 };
 
 const getStudentTransportList = async (req, res, next) => {
-  console.log("helllooo");
   try {
-    const { schoolId } = req.query;
-    const studentData = await StudentsTransport.aggregate([
-      {
-        $match: {
-          schoolId: mongoose.Types.ObjectId(schoolId),
-        },
-      },
-      {
-        $lookup: {
-          from: "students",
-          localField: "studentId",
-          foreignField: "_id",
-          as: "studentInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "sections",
-          localField: "sectionId",
-          foreignField: "_id",
-          as: "sectionInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busroutes",
-          localField: "selectedRoute",
-          foreignField: "_id",
-          as: "routeInfo",
-        },
-      },
-      {
-        $project: {
-          "studentInfo._id": 1,
-          "studentInfo.name": 1,
-          "sectionInfo._id": 1,
-          "sectionInfo.className": 1,
-          "routeInfo._id": 1,
-          "routeInfo.routeName": 1,
-          transportSchedule: 1,
-          assignedVehicleNumber: 1,
-          feeAmount: 1,
-          vehicleMode: 1,
-        },
-      },
-    ]);
+    const { schoolId, searchQuery } = req.query;
 
-    res
-      .status(200)
-      .json(SuccessResponse(studentData, studentData.length, "Data fetched successfully"));
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * perPage;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      $or: [
+        { studentName: { $regex: new RegExp(searchQuery, "i") } },
+        { parentName: { $regex: new RegExp(searchQuery, "i") } },
+        { routeName: { $regex: new RegExp(searchQuery, "i") } },
+        { driverName: { $regex: new RegExp(searchQuery, "i") } },
+      ],
+    };
+
+    const studentData = await StudentsTransport.find(filter).skip(skip).limit(perPage);
+    const totalCount = await StudentsTransport.countDocuments();
+
+    res.status(200).json(SuccessResponse(studentData, totalCount, "Data fetched successfully"));
   } catch (error) {
     console.error("Went wrong while listing student transport", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
@@ -695,7 +705,7 @@ const getDashboardCount = async (req, res, next) => {
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
     const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
       StudentsTransport.countDocuments(filter),
-      BusRoute.countDocuments(filter),
+      busRoutes.countDocuments(filter),
       SchoolVehicles.countDocuments(filter),
       BusDriver.countDocuments(filter),
     ]);
@@ -711,7 +721,7 @@ const getDashboardCount = async (req, res, next) => {
 module.exports = {
   createNewRoute,
   getRoutes,
-  editRoutes,
+  updateRoutes,
   getEditRoutes,
   addNewDriver,
   editDriver,
@@ -720,6 +730,7 @@ module.exports = {
   listDrivers,
   viewDriver,
   routeList,
+  stopList,
   addNewVehicle,
   editVehicle,
   updateVehicle,

@@ -7,14 +7,6 @@ const busDriversSchema = new Schema(
       type: String,
       required: true,
     },
-    salary: {
-      type: Number,
-      required: true,
-    },
-    drivingLicense: {
-      type: String,
-      required: true,
-    },
     contactNumber: {
       type: Number,
       required: true,
@@ -23,11 +15,19 @@ const busDriversSchema = new Schema(
       type: Number,
       required: true,
     },
-    bloodGroup: {
+    drivingLicense: {
       type: String,
+      required: true,
     },
     aadharNumber: {
       type: Number,
+      required: true,
+    },
+    bloodGroup: {
+      type: String,
+    },
+    address: {
+      type: String,
       required: true,
     },
     schoolId: {
@@ -35,32 +35,9 @@ const busDriversSchema = new Schema(
       ref: "schools",
       required: [true, "school ID required"],
     },
-    selectedRoute: {
-      type: Schema.Types.ObjectId,
-      ref: "busRoutes",
-      required: true,
+    attachments: {
+      type: [String],
     },
-    assignedVehicle: {
-      type: String,
-      required: true,
-    },
-    assignedVehicleNumber: {
-      type: Number,
-      required: true,
-    },
-    assignedTrips: {
-      type: Number,
-      required: true,
-    },
-    address: {
-      type: String,
-      required: true,
-    },
-    attachments: [
-      {
-        type: [String],
-      },
-    ],
   },
   {
     timestamps: true,

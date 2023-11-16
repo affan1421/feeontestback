@@ -18,25 +18,48 @@ const studentTransportSchema = new Schema(
       ref: "students",
       required: [true, "school ID required"],
     },
+    studentName: {
+      type: String,
+      required: true,
+    },
+    parentId: {
+      type: Schema.Types.ObjectId,
+      ref: "parents",
+      required: [true, "parent Id is required"],
+    },
+    parentName: {
+      type: String,
+      required: true,
+    },
     assignedVehicleNumber: {
       type: Number,
       required: true,
     },
-    selectedRoute: {
+    selectedRouteId: {
       type: Schema.Types.ObjectId,
       ref: "busRoutes",
       required: true,
     },
-    transportSchedule: {
+    routeName: {
       type: String,
-      enum: ["One way", "Round trip"],
-      default: "Round trip",
       required: true,
     },
-    feeType: {
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: "busDriver",
+      required: true,
+    },
+    driverName: {
       type: String,
-      enum: ["Monthly", "Quaterly", "Yearly"],
-      default: "Monthly",
+      required: true,
+    },
+    transportSchedule: {
+      type: String,
+      required: true,
+    },
+    feeMonth: {
+      type: String,
+      required: true,
     },
     feeAmount: {
       type: Number,
