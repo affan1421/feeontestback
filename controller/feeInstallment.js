@@ -444,7 +444,7 @@ exports.update = catchAsync(async (req, res, next) => {
   }
 
   if (paidAmount > 0) {
-    update.$set.status = paymentMethod !== "cash" ? "Pending" : "Due";
+    update.$set.status = paymentMethod !== "CASH" ? "Pending" : "Due";
   }
 
   const updatedInstallment = await FeeInstallment.updateOne({ _id: id }, update);
@@ -1870,10 +1870,8 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
         paidAmount: item.paidAmount + foundInstallment.paidAmount,
       };
 
-      if (tempDueAmount === 0 && paymentMethod == "CASH") {
+      if (tempDueAmount === 0) {
         updateData.status = foundInstallment.status == "Due" ? "Late" : "Paid";
-      } else {
-        updateData.status = foundInstallment.status == "Pending" ? "Late" : "Paid";
       }
 
       // make bulkwrite query
