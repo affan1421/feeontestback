@@ -283,22 +283,46 @@ const stopList = async (req, res, next) => {
   try {
     const { routeId } = req.query;
 
-    const route = await busRoutes.findById(routeId).select("stops").lean(); // Use lean() to get plain JavaScript objects instead of Mongoose Documents
+    const route = await busRoutes.findById(routeId).select("stops").lean();
 
     if (!route) {
       return next(new ErrorResponse("Route not found", 404));
     }
 
-    const responseData = [
-      {
-        _id: route._id,
-        stops: route.stops,
-      },
-    ];
+    const responseData = route.stops; // Directly use the "stops" array
 
     res.status(200).json(SuccessResponse(responseData, responseData.length, "Successful"));
   } catch (error) {
     console.log("Error while listing stops ", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const listMonths = async (req, res, next) => {
+  try {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    res.status(200).json({
+      success: true,
+      data: months,
+      resultCount: months.length,
+      message: "List of months retrieved successfully",
+    });
+  } catch (error) {
+    console.error("Error while listing months: ", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
@@ -558,14 +582,12 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
-      parentId,
-      assignedVehicleNumber,
-      selectedRouteId,
-      driverId,
       transportSchedule,
+      selectedRouteId,
+      stopId,
       feeMonth,
       feeAmount,
-      vehicleMode,
+      tripNumber,
       status,
     } = req.body;
 
@@ -581,21 +603,19 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
-      parentId,
-      assignedVehicleNumber,
-      selectedRouteId,
-      driverId,
       transportSchedule,
+      selectedRouteId,
+      stopId,
       feeMonth,
       feeAmount,
-      vehicleMode,
+      tripNumber,
       status,
     });
 
-    await busRoutes.findOneAndUpdate(
-      { assignedVehicleNumber: assignedVehicleNumber },
-      { $inc: { availableSeats: -1 } }
-    );
+    // await busRoutes.findOneAndUpdate(
+    //   { assignedVehicleNumber: assignedVehicleNumber },
+    //   { $inc: { availableSeats: -1 } }
+    // );
 
     await newStudentTransport.save();
 
@@ -637,26 +657,26 @@ const editStudentTransport = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "parents",
-          localField: "parentId",
-          foreignField: "_id",
-          as: "parentInfo",
-        },
-      },
-      {
-        $lookup: {
           from: "busroutes",
-          localField: "selectedRouteId",
-          foreignField: "_id",
+          let: { routeId: "$selectedRouteId", stopId: "$stopId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ["$_id", "$$routeId"] }, { $in: ["$$stopId", "$stops._id"] }],
+                },
+              },
+            },
+            {
+              $unwind: "$stops",
+            },
+            {
+              $match: {
+                $expr: { $eq: ["$$stopId", "$stops._id"] },
+              },
+            },
+          ],
           as: "routeInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busdrivers",
-          localField: "driverId",
-          foreignField: "_id",
-          as: "driverInfo",
         },
       },
       {
@@ -665,17 +685,14 @@ const editStudentTransport = async (req, res, next) => {
           "studentInfo.name": 1,
           "sectionInfo._id": 1,
           "sectionInfo.className": 1,
-          "parentInfo._id": 1,
-          "parentInfo.name": 1,
           "routeInfo._id": 1,
           "routeInfo.routeName": 1,
-          "driverInfo._id": 1,
-          "driverInfo.name": 1,
-          assignedVehicleNumber: 1,
+          "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
+          "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
           transportSchedule: 1,
           feeMonth: 1,
           feeAmount: 1,
-          vehicleMode: 1,
+          tripNumber: 1,
           status: 1,
         },
       },
@@ -726,7 +743,7 @@ const deleteStudentTransport = async (req, res, next) => {
 
 const getStudentTransportList = async (req, res, next) => {
   try {
-    const { schoolId, searchQuery } = req.query;
+    const { schoolId, searchQuery, classId } = req.query;
 
     const page = parseInt(req.query.page) || 1;
     const perPage = parseInt(req.query.limit) || 5;
@@ -735,7 +752,10 @@ const getStudentTransportList = async (req, res, next) => {
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
-          schoolId: mongoose.Types.ObjectId(schoolId),
+          $and: [
+            { schoolId: mongoose.Types.ObjectId(schoolId) },
+            { sectionId: mongoose.Types.ObjectId(classId) },
+          ],
         },
       },
       {
@@ -756,26 +776,26 @@ const getStudentTransportList = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "parents",
-          localField: "parentId",
-          foreignField: "_id",
-          as: "parentInfo",
-        },
-      },
-      {
-        $lookup: {
           from: "busroutes",
-          localField: "selectedRouteId",
-          foreignField: "_id",
+          let: { routeId: "$selectedRouteId", stopId: "$stopId" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $eq: ["$_id", "$$routeId"] }, { $in: ["$$stopId", "$stops._id"] }],
+                },
+              },
+            },
+            {
+              $unwind: "$stops",
+            },
+            {
+              $match: {
+                $expr: { $eq: ["$$stopId", "$stops._id"] },
+              },
+            },
+          ],
           as: "routeInfo",
-        },
-      },
-      {
-        $lookup: {
-          from: "busdrivers",
-          localField: "driverId",
-          foreignField: "_id",
-          as: "driverInfo",
         },
       },
       {
@@ -784,17 +804,14 @@ const getStudentTransportList = async (req, res, next) => {
           "studentInfo.name": 1,
           "sectionInfo._id": 1,
           "sectionInfo.className": 1,
-          "parentInfo._id": 1,
-          "parentInfo.name": 1,
           "routeInfo._id": 1,
           "routeInfo.routeName": 1,
-          "driverInfo._id": 1,
-          "driverInfo.name": 1,
-          assignedVehicleNumber: 1,
+          "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
+          "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
           transportSchedule: 1,
           feeMonth: 1,
           feeAmount: 1,
-          vehicleMode: 1,
+          tripNumber: 1,
           status: 1,
         },
       },
@@ -859,6 +876,7 @@ module.exports = {
   viewDriver,
   routeList,
   stopList,
+  listMonths,
   addNewVehicle,
   editVehicle,
   updateVehicle,

@@ -1588,7 +1588,7 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
     modifiedStatus = "PENDING";
   }
 
-  // if (!status) return next(new ErrorResponse("Please Provide Status", 422));
+  if (!status) return next(new ErrorResponse("Please Provide Status", 422));
 
   const issueDate = req.body.issueDate ? moment(req.body.issueDate, "DD/MM/YYYY") : new Date();
   const bulkWriteOps = [];

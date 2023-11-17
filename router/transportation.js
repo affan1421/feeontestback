@@ -30,6 +30,7 @@ const {
   getStudentTransportList,
   updateRoutes,
   stopList,
+  listMonths,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -45,6 +46,7 @@ router.get("/list-drivers", listDrivers); //list drivers
 router.get("/view-driver", viewDriver); // view Driver
 router.get("/routelist", routeList);
 router.get("/stoplist", stopList);
+router.get("/monthlist", listMonths);
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
 router.get("/edit-vehicle", editVehicle); //edit vehicle
