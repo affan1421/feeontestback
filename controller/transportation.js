@@ -136,6 +136,32 @@ const updateRoutes = async (req, res, next) => {
   }
 };
 
+const studentsCount = async (req, res, next) => {
+  try {
+    const { schoolId } = req.query;
+    const routeStudentsCount = await StudentsTransport.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
+        },
+      },
+      {
+        $group: {
+          _id: "$selectedRouteId",
+          totalStudents: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res
+      .status(200)
+      .json(SuccessResponse(routeStudentsCount, routeStudentsCount.length, "Successful"));
+  } catch (error) {
+    console.log("error in students count", error.message);
+    return next(new ErrorResponse("Something Went Wrong", 500));
+  }
+};
+
 //-------------------------bus driver---------------------------
 
 const addNewDriver = async (req, res, next) => {
@@ -868,6 +894,7 @@ module.exports = {
   getRoutes,
   updateRoutes,
   getEditRoutes,
+  studentsCount,
   addNewDriver,
   editDriver,
   updateDriver,
