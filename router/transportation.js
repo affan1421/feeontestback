@@ -28,12 +28,17 @@ const {
   updateStudentTransport,
   deleteStudentTransport,
   getStudentTransportList,
+  updateRoutes,
+  stopList,
+  listMonths,
+  studentsCount,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
 router.get("/searchRoute", getRoutes); // listing routes and searching on route name
-router.put("/editRoutes", editRoutes); //update existing routes
 router.get("/editRoutes", getEditRoutes); // edit the existing routes
+router.put("/editRoutes", updateRoutes); //update existing routes
+router.get("/students-count", studentsCount);
 
 router.post("/add-driver", addNewDriver); // add new driver
 router.get("/edit-driver", editDriver); // fetech driver data
@@ -42,6 +47,8 @@ router.delete("/delete-driver", deleteDriver); //delete driver
 router.get("/list-drivers", listDrivers); //list drivers
 router.get("/view-driver", viewDriver); // view Driver
 router.get("/routelist", routeList);
+router.get("/stoplist", stopList);
+router.get("/monthlist", listMonths);
 
 router.post("/add-vehicle", addNewVehicle); //add new vehicle
 router.get("/edit-vehicle", editVehicle); //edit vehicle
