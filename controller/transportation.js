@@ -84,6 +84,7 @@ const getRoutes = async (req, res, next) => {
         },
       },
     ])
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize);
 
@@ -319,7 +320,7 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit)
+    const perPage = parseInt(req.query.limit);
     const skip = (page - 1) * perPage;
 
     const data = await busDriver.aggregate([
@@ -384,6 +385,9 @@ const listDrivers = async (req, res, next) => {
         $match: {
           $or: [{ name: { $regex: new RegExp(searchQuery, "i") } }],
         },
+      },
+      {
+        $sort: { createdAt: -1 },
       },
       {
         $skip: skip,
@@ -648,6 +652,9 @@ const listVehicles = async (req, res, next) => {
         $match: {
           $or: [{ registrationNumber: { $regex: new RegExp(searchQuery, "i") } }],
         },
+      },
+      {
+        $sort: { createdAt: -1 },
       },
       {
         $skip: skip,
@@ -1038,6 +1045,9 @@ const getStudentTransportList = async (req, res, next) => {
         },
       },
       {
+        $sort: { createdAt: -1 },
+      },
+      {
         $skip: skip,
       },
       {
@@ -1058,15 +1068,74 @@ const getStudentTransportList = async (req, res, next) => {
 
 const getDashboardCount = async (req, res, next) => {
   try {
-    const { schoolId } = req.query;
-    const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
-    const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
-      StudentsTransport.countDocuments(filter),
-      busRoutes.countDocuments(filter),
-      SchoolVehicles.countDocuments(filter),
-      busDriver.countDocuments(filter),
-    ]);
-    res.status(200).json({ studentsCount, routesCount, vehiclesCount, driverCount });
+    const { schoolId, month } = req.query;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+    };
+
+    const [studentsCount, routesCount, vehiclesCount, driverCount, totalStopsCount, feeStats] =
+      await Promise.all([
+        StudentsTransport.countDocuments(filter),
+        busRoutes.countDocuments(filter),
+        SchoolVehicles.countDocuments(filter),
+        busDriver.countDocuments(filter),
+
+        busRoutes.aggregate([
+          {
+            $match: filter,
+          },
+          {
+            $unwind: "$stops",
+          },
+          {
+            $group: {
+              _id: null,
+              stopsCount: { $sum: 1 },
+            },
+          },
+        ]),
+
+        StudentsTransport.aggregate([
+          {
+            $match: {
+              ...filter,
+              feeMonth: month,
+              status: { $in: ["Paid", "Due"] },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalPaidAmount: { $sum: { $cond: [{ $eq: ["$status", "Paid"] }, "$feeAmount", 0] } },
+              totalDueAmount: { $sum: { $cond: [{ $eq: ["$status", "Due"] }, "$feeAmount", 0] } },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalPaidAmount: 1,
+              totalDueAmount: 1,
+            },
+          },
+        ]),
+      ]);
+
+    const stopsCount = totalStopsCount[0]?.stopsCount || 0;
+    const { totalPaidAmount, totalDueAmount } = feeStats[0] || {
+      totalPaidAmount: 0,
+      totalDueAmount: 0,
+    };
+
+    res.status(200).json({
+      studentsCount,
+      routesCount,
+      vehiclesCount,
+      driverCount,
+      stopsCount,
+      totalPaidAmount,
+      totalDueAmount,
+    });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
