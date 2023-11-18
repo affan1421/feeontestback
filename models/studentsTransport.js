@@ -9,42 +9,45 @@ const studentTransportSchema = new Schema(
       required: [true, "school ID required"],
     },
     sectionId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "sections",
       required: [true, "school ID required"],
     },
     studentId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "students",
       required: [true, "school ID required"],
     },
-    assignedVehicleNumber: {
-      type: Number,
-      required: true,
+    transportSchedule: {
+      type: String,
+      enum: ["pickup", "drop", "both"],
+      default: "both",
     },
-    selectedRoute: {
+    selectedRouteId: {
       type: Schema.Types.ObjectId,
       ref: "busRoutes",
       required: true,
     },
-    transportSchedule: {
-      type: String,
-      enum: ["One way", "Round trip"],
-      default: "Round trip",
+    stopId: {
+      type: Schema.Types.ObjectId,
+      ref: "busRoutes",
       required: true,
     },
-    feeType: {
+    feeMonth: {
       type: String,
-      enum: ["Monthly", "Quaterly", "Yearly"],
-      default: "Monthly",
+      required: true,
     },
     feeAmount: {
       type: Number,
       required: true,
     },
-    vehicleMode: {
+    tripNumber: {
+      type: Number,
+    },
+    status: {
       type: String,
-      required: true,
+      default: "Pending",
+      enum: ["Pending", "Paid", "Due", "Upcoming"],
     },
   },
   {

@@ -1,11 +1,10 @@
-/* eslint-disable global-require */
-const NODE_ENV = "development";
+/* eslint-disable global-require */ 
 const express = require("express");
 const http = require("http");
 const socket = require("socket.io");
 const mongoose = require("mongoose");
-mongoose.set('strictQuery', false);
-require("dotenv").config({ path: `.${NODE_ENV}.env` });
+mongoose.set("strictQuery", false);
+require("dotenv").config();
 require("./jobs/installmentDue");
 const fileUpload = require("express-fileupload");
 const compression = require("compression");

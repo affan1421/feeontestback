@@ -1,20 +1,37 @@
 const mongoose = require("mongoose");
+const autoIncrement = require("mongoose-auto-increment");
 const { Schema, model } = mongoose;
 
 const busRoutesSchema = new Schema(
   {
-    schoolId: {
-      type: Schema.Types.ObjectId,
-      ref: "schools",
-      required: [true, "schoolID is required"],
-    },
     routeName: {
       type: String,
       required: true,
     },
-    startingPoint: {
-      type: String,
+    vehicleId: {
+      type: Schema.Types.ObjectId,
+      ref: "SchoolVehicles",
       required: true,
+    },
+    driverId: {
+      type: Schema.Types.ObjectId,
+      ref: "busDriver",
+      required: [true, "driverId is required"],
+    },
+    tripNo: {
+      type: Number,
+      required: true,
+      unique: true,
+    },
+    seatingCapacity: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    availableSeats: {
+      type: Number,
+      required: true,
+      default: 0,
     },
     stops: [
       {
@@ -27,7 +44,7 @@ const busRoutesSchema = new Schema(
             type: String,
             required: true,
           },
-          onewayFees: {
+          oneWay: {
             type: Number,
             required: true,
             default: 0,
@@ -40,11 +57,24 @@ const busRoutesSchema = new Schema(
         },
       },
     ],
+    schoolId: {
+      type: Schema.Types.ObjectId,
+      ref: "schools",
+      required: [true, "schoolID is required"],
+    },
   },
   {
     timestamps: true,
   }
 );
+
+const autoIncrementOptions = {
+  model: "busRoutes",
+  field: "tripNo",
+  startAt: 1,
+};
+
+busRoutesSchema.plugin(autoIncrement.plugin, autoIncrementOptions);
 
 const busRoutes = model("busRoutes", busRoutesSchema);
 
