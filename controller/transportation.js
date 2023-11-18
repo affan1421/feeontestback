@@ -319,7 +319,7 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit) || 5;
+    const perPage = parseInt(req.query.limit)
     const skip = (page - 1) * perPage;
 
     const data = await busDriver.aggregate([
