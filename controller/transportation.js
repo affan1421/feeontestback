@@ -8,7 +8,6 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
 const schoolCollection = mongoose.connection.db.collection("schools");
 const parentsCollection = mongoose.connection.db.collection("parents");
-const BusRoute = require("../models/busRoutes");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busDriver = require("../models/busDriver");
@@ -58,20 +57,6 @@ const getRoutes = async (req, res, next) => {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    // const schoolName = await schoolCollection.aggregate([
-    //   {
-    //     $match: {
-    //       _id: mongoose.Types.ObjectId(schoolId),
-    //     },
-    //   },
-    //   {
-    //     $project: {
-    //       _id: 0,
-    //       schoolName: 1,
-    //     },
-    //   },
-    // ]);
-
     const routeCount = await BusRoute.aggregate([
       {
         $match: query,
@@ -84,6 +69,7 @@ const getRoutes = async (req, res, next) => {
         },
       },
     ])
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize);
 
@@ -93,7 +79,7 @@ const getRoutes = async (req, res, next) => {
       .skip(skip)
       .limit(pageSize);
 
-    res.status(200).json(SuccessResponse(routes, routes.length, "Successful"));
+    res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
@@ -319,8 +305,10 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit)
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
+
+    const totalCount = await busDriver.countDocuments();
 
     const data = await busDriver.aggregate([
       {
@@ -363,6 +351,7 @@ const listDrivers = async (req, res, next) => {
           schoolId: { $first: "$schoolId" },
           attachments: { $first: "$attachments" },
           routesInfo: { $push: "$routesInfo.routeName" },
+          createdAt: { $first: "$createdAt" },
         },
       },
       {
@@ -378,12 +367,16 @@ const listDrivers = async (req, res, next) => {
           schoolId: 1,
           attachments: 1,
           routesInfo: 1,
+          createdAt: 1,
         },
       },
       {
         $match: {
           $or: [{ name: { $regex: new RegExp(searchQuery, "i") } }],
         },
+      },
+      {
+        $sort: { createdAt: -1 },
       },
       {
         $skip: skip,
@@ -393,7 +386,7 @@ const listDrivers = async (req, res, next) => {
       },
     ]);
 
-    res.status(200).json(SuccessResponse(data, data.length, "Data fetched successfully"));
+    res.status(200).json(SuccessResponse(data, totalCount, "Data fetched successfully"));
   } catch (error) {
     console.error("Error in listDrivers:", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
@@ -627,6 +620,7 @@ const listVehicles = async (req, res, next) => {
           schoolId: { $first: "$schoolId" },
           attachments: { $first: "$attachments" },
           vehicleInfo: { $push: "$vehicleInfo.routeName" },
+          createdAt: { $first: "$createdAt" },
         },
       },
       {
@@ -642,12 +636,16 @@ const listVehicles = async (req, res, next) => {
           schoolId: 1,
           attachments: 1,
           vehicleInfo: 1,
+          createdAt: 1,
         },
       },
       {
         $match: {
           $or: [{ registrationNumber: { $regex: new RegExp(searchQuery, "i") } }],
         },
+      },
+      {
+        $sort: { createdAt: -1 },
       },
       {
         $skip: skip,
@@ -799,7 +797,6 @@ const addStudentTransport = async (req, res, next) => {
       stopId,
       feeMonth,
       feeAmount,
-      tripNumber,
       status,
     } = req.body;
 
@@ -811,6 +808,10 @@ const addStudentTransport = async (req, res, next) => {
       return next(new ErrorResponse("Student already exist", 404));
     }
 
+    const trip = await busRoutes
+      .findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) })
+      .select("tripNo");
+
     const newStudentTransport = new StudentsTransport({
       schoolId,
       sectionId,
@@ -820,7 +821,7 @@ const addStudentTransport = async (req, res, next) => {
       stopId,
       feeMonth,
       feeAmount,
-      tripNumber,
+      tripNumber: trip.tripNo,
       status,
     });
 
@@ -964,7 +965,7 @@ const getStudentTransportList = async (req, res, next) => {
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
-          $and: [
+          $or: [
             { schoolId: mongoose.Types.ObjectId(schoolId) },
             { sectionId: mongoose.Types.ObjectId(classId) },
           ],
@@ -1038,6 +1039,9 @@ const getStudentTransportList = async (req, res, next) => {
         },
       },
       {
+        $sort: { createdAt: -1 },
+      },
+      {
         $skip: skip,
       },
       {
@@ -1054,19 +1058,95 @@ const getStudentTransportList = async (req, res, next) => {
   }
 };
 
+const getTripNumber = async (req, res, next) => {
+  try {
+    const { selectedRouteId } = req.query;
+
+    const tripInfo = await busRoutes
+      .findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) })
+      .select("tripNo");
+
+    const tripNo = tripInfo ? tripInfo.tripNo : null;
+
+    res.status(200).json(SuccessResponse(tripNo, 1, "Successful"));
+  } catch (error) {
+    console.error("Went wrong while getting trip number", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------dashboard-data----------------------------
 
 const getDashboardCount = async (req, res, next) => {
   try {
-    const { schoolId } = req.query;
-    const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
-    const [studentsCount, routesCount, vehiclesCount, driverCount] = await Promise.all([
-      StudentsTransport.countDocuments(filter),
-      busRoutes.countDocuments(filter),
-      SchoolVehicles.countDocuments(filter),
-      busDriver.countDocuments(filter),
-    ]);
-    res.status(200).json({ studentsCount, routesCount, vehiclesCount, driverCount });
+    const { schoolId, month } = req.query;
+
+    const filter = {
+      schoolId: mongoose.Types.ObjectId(schoolId),
+    };
+
+    const [studentsCount, routesCount, vehiclesCount, driverCount, totalStopsCount, feeStats] =
+      await Promise.all([
+        StudentsTransport.countDocuments(filter),
+        busRoutes.countDocuments(filter),
+        SchoolVehicles.countDocuments(filter),
+        busDriver.countDocuments(filter),
+
+        busRoutes.aggregate([
+          {
+            $match: filter,
+          },
+          {
+            $unwind: "$stops",
+          },
+          {
+            $group: {
+              _id: null,
+              stopsCount: { $sum: 1 },
+            },
+          },
+        ]),
+
+        StudentsTransport.aggregate([
+          {
+            $match: {
+              ...filter,
+              feeMonth: month,
+              status: { $in: ["Paid", "Due"] },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalPaidAmount: { $sum: { $cond: [{ $eq: ["$status", "Paid"] }, "$feeAmount", 0] } },
+              totalDueAmount: { $sum: { $cond: [{ $eq: ["$status", "Due"] }, "$feeAmount", 0] } },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalPaidAmount: 1,
+              totalDueAmount: 1,
+            },
+          },
+        ]),
+      ]);
+
+    const stopsCount = totalStopsCount[0]?.stopsCount || 0;
+    const { totalPaidAmount, totalDueAmount } = feeStats[0] || {
+      totalPaidAmount: 0,
+      totalDueAmount: 0,
+    };
+
+    res.status(200).json({
+      studentsCount,
+      routesCount,
+      vehiclesCount,
+      driverCount,
+      stopsCount,
+      totalPaidAmount,
+      totalDueAmount,
+    });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
@@ -1106,4 +1186,5 @@ module.exports = {
   updateStudentTransport,
   deleteStudentTransport,
   getStudentTransportList,
+  getTripNumber,
 };
