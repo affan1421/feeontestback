@@ -1015,7 +1015,7 @@ const getStudentTransportList = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "drivers",
+          from: "busdrivers",
           localField: "routeInfo.driverId",
           foreignField: "_id",
           as: "driverInfo",
@@ -1023,7 +1023,7 @@ const getStudentTransportList = async (req, res, next) => {
       },
       {
         $lookup: {
-          from: "vehicles",
+          from: "schoolvehicles",
           localField: "routeInfo.vehicleId",
           foreignField: "_id",
           as: "vehicleInfo",
