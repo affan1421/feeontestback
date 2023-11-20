@@ -380,6 +380,7 @@ const listDrivers = async (req, res, next) => {
           schoolId: 1,
           attachments: 1,
           routesInfo: 1,
+          createdAt: 1,
         },
       },
       {
