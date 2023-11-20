@@ -21,7 +21,7 @@ const createNewRoute = async (req, res, next) => {
 
     console.log(seats, "gggggggggggfffffffffffffffffff");
 
-    const newRoute = new BusRoute({
+    const newRoute = new busRoutes({
       routeName,
       vehicleId,
       driverId,
@@ -74,7 +74,8 @@ const getRoutes = async (req, res, next) => {
       .skip(skip)
       .limit(pageSize);
 
-    const routes = await BusRoute.find(query)
+    const routes = await busRoutes
+      .find(query)
       .populate("driverId", "name")
       .populate("vehicleId", "registrationNumber assignedVehicleNumber")
       .skip(skip)
@@ -91,7 +92,7 @@ const getEditRoutes = async (req, res, next) => {
   try {
     const { routeId } = req.query;
 
-    const data = await BusRoute.findOne({ _id: routeId });
+    const data = await busRoutes.findOne({ _id: routeId });
 
     if (!data) {
       return next(new ErrorResponse("Route not found", 404));
@@ -109,7 +110,7 @@ const updateRoutes = async (req, res, next) => {
     const { routeId } = req.query;
     const updatedData = req.body;
 
-    const data = await BusRoute.findByIdAndUpdate(routeId, { $set: updatedData }, { new: true });
+    const data = await busRoutes.findByIdAndUpdate(routeId, { $set: updatedData }, { new: true });
 
     if (!data) {
       return next(new ErrorResponse("Route not found", 404));
@@ -413,7 +414,7 @@ const routeList = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
     const filter = { schoolId: mongoose.Types.ObjectId(schoolId) };
-    const routelist = await BusRoute.find(filter).select("routeName");
+    const routelist = await busRoutes.find(filter).select("routeName");
     res.status(200).json(SuccessResponse(routelist, routelist.length, "Successfully fetched"));
   } catch (error) {
     console.log("Error while listing routes ", error.message);
