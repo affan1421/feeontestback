@@ -72,7 +72,7 @@ const getRoutes = async (req, res, next) => {
       ])
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(pageSize);
+      .limit(perPage);
 
     const routes = await busRoutes
       .find(query)
