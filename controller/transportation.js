@@ -46,8 +46,8 @@ const getRoutes = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, page, limit } = req.query;
 
-    const pageNumber = parseInt(page) || 1;
-    const pageSize = parseInt(limit) || 5;
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
     const skip = (pageNumber - 1) * pageSize;
 
     const query = {
@@ -319,8 +319,8 @@ const listDrivers = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
 
-    const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit) || 5;
+    const page = parseInt(req.query.page);
+    const perPage = parseInt(req.query.limit);
     const skip = (page - 1) * perPage;
 
     const totalCount = await busDriver.countDocuments();
@@ -586,8 +586,8 @@ const deleteVehicle = async (req, res, next) => {
 const listVehicles = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
-    const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit) || 5;
+    const page = parseInt(req.query.page);
+    const perPage = parseInt(req.query.limit);
     const skip = (page - 1) * perPage;
 
     const totalCount = await SchoolVehicles.countDocuments();
@@ -812,7 +812,6 @@ const addStudentTransport = async (req, res, next) => {
       stopId,
       feeMonth,
       feeAmount,
-      tripNumber,
       status,
     } = req.body;
 
@@ -824,6 +823,10 @@ const addStudentTransport = async (req, res, next) => {
       return next(new ErrorResponse("Student already exist", 404));
     }
 
+    const trip = await busRoutes
+      .findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) })
+      .select("tripNo");
+
     const newStudentTransport = new StudentsTransport({
       schoolId,
       sectionId,
@@ -833,7 +836,7 @@ const addStudentTransport = async (req, res, next) => {
       stopId,
       feeMonth,
       feeAmount,
-      tripNumber,
+      tripNumber: trip.tripNo,
       status,
     });
 
@@ -970,8 +973,8 @@ const getStudentTransportList = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, classId } = req.query;
 
-    const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit) || 5;
+    const page = parseInt(req.query.page);
+    const perPage = parseInt(req.query.limit);
     const skip = (page - 1) * perPage;
 
     const studentData = await StudentsTransport.aggregate([
@@ -1066,6 +1069,23 @@ const getStudentTransportList = async (req, res, next) => {
     res.status(200).json(SuccessResponse(studentData, totalCount, "Data fetched successfully"));
   } catch (error) {
     console.error("Went wrong while listing student transport", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+const getTripNumber = async (req, res, next) => {
+  try {
+    const { selectedRouteId } = req.query;
+
+    const tripInfo = await busRoutes
+      .findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) })
+      .select("tripNo");
+
+    const tripNo = tripInfo ? tripInfo.tripNo : null;
+
+    res.status(200).json(SuccessResponse(tripNo, tripNo ? 1 : 0, "Successful"));
+  } catch (error) {
+    console.error("Went wrong while getting trip number", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
@@ -1181,4 +1201,5 @@ module.exports = {
   updateStudentTransport,
   deleteStudentTransport,
   getStudentTransportList,
+  getTripNumber,
 };

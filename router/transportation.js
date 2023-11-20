@@ -32,6 +32,7 @@ const {
   stopList,
   listMonths,
   studentsCount,
+  getTripNumber,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -66,6 +67,7 @@ router.get("/edit-student-transport", editStudentTransport);
 router.put("/edit-student-transport", updateStudentTransport);
 router.delete("/delete-student-transport", deleteStudentTransport);
 router.get("/student-transport-list", getStudentTransportList);
+router.get("/trip-number", getTripNumber);
 
 router.get("/dashboard-data", getDashboardCount);
 
