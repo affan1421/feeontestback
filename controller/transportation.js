@@ -45,7 +45,7 @@ const getRoutes = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, page, limit } = req.query;
 
-    const pageNumber = parseInt(page) || 0;
+    const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 5;
     const skip = (pageNumber - 1) * pageSize;
 
@@ -318,7 +318,7 @@ const listDrivers = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
 
-    const page = parseInt(req.query.page) || 0;
+    const page = parseInt(req.query.page) || 1;
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
@@ -585,7 +585,7 @@ const deleteVehicle = async (req, res, next) => {
 const listVehicles = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
-    const page = parseInt(req.query.page) || 0;
+    const page = parseInt(req.query.page) || 1;
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
@@ -972,7 +972,7 @@ const getStudentTransportList = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, classId } = req.query;
 
-    const page = parseInt(req.query.page) || 0;
+    const page = parseInt(req.query.page) || 1;
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
