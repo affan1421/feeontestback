@@ -1038,7 +1038,6 @@ const getStudentTransportList = async (req, res, next) => {
           "routeInfo._id": 1,
           "routeInfo.routeName": 1,
           "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
-          "routeInfo.tripNumber": { $arrayElemAt: ["$routeInfo.tripNumber", 0] },
           "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
           "driverInfo._id": { $arrayElemAt: ["$driverInfo._id", 0] },
           "driverInfo.name": { $arrayElemAt: ["$driverInfo.name", 0] },
@@ -1046,7 +1045,9 @@ const getStudentTransportList = async (req, res, next) => {
           "vehicleInfo.registrationNumber": {
             $arrayElemAt: ["$vehicleInfo.registrationNumber", 0],
           },
-          "vehicleInfo.vehicleNumber": { $arrayElemAt: ["$vehicleInfo.vehicleNumber", 0] },
+          "vehicleInfo.assignedVehicleNumber": {
+            $arrayElemAt: ["$vehicleInfo.assignedVehicleNumber", 0],
+          },
           transportSchedule: 1,
           feeMonth: 1,
           feeAmount: 1,
