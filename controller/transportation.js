@@ -43,11 +43,11 @@ const createNewRoute = async (req, res, next) => {
 
 const getRoutes = async (req, res, next) => {
   try {
-    const { schoolId, searchQuery, page, limit } = req.query;
+    const { schoolId, searchQuery } = req.query;
 
-    const pageNumber = parseInt(page) || 1;
-    const pageSize = parseInt(limit) || 5;
-    const skip = (pageNumber - 1) * pageSize;
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.limit) || 5;
+    const skip = (page - 1) * perPage;
 
     const query = {
       schoolId: mongoose.Types.ObjectId(schoolId),
@@ -57,18 +57,19 @@ const getRoutes = async (req, res, next) => {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    const routeCount = await BusRoute.aggregate([
-      {
-        $match: query,
-      },
-      {
-        $project: {
-          _id: 1,
-          routeName: 1,
-          stopsCount: { $size: "$stops" },
+    const routeCount = await busRoutes
+      .aggregate([
+        {
+          $match: query,
         },
-      },
-    ])
+        {
+          $project: {
+            _id: 1,
+            routeName: 1,
+            stopsCount: { $size: "$stops" },
+          },
+        },
+      ])
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize);
