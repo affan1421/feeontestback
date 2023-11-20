@@ -45,8 +45,8 @@ const getRoutes = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, page, limit } = req.query;
 
-    const pageNumber = parseInt(page);
-    const pageSize = parseInt(limit);
+    const pageNumber = parseInt(page) || 0;
+    const pageSize = parseInt(limit) || 5;
     const skip = (pageNumber - 1) * pageSize;
 
     const query = {
@@ -318,8 +318,8 @@ const listDrivers = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
 
-    const page = parseInt(req.query.page);
-    const perPage = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 0;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const totalCount = await busDriver.countDocuments();
@@ -585,8 +585,8 @@ const deleteVehicle = async (req, res, next) => {
 const listVehicles = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
-    const page = parseInt(req.query.page);
-    const perPage = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 0;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const totalCount = await SchoolVehicles.countDocuments();
@@ -972,8 +972,8 @@ const getStudentTransportList = async (req, res, next) => {
   try {
     const { schoolId, searchQuery, classId } = req.query;
 
-    const page = parseInt(req.query.page);
-    const perPage = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 0;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
     const studentData = await StudentsTransport.aggregate([
