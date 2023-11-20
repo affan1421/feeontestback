@@ -1083,7 +1083,7 @@ const getTripNumber = async (req, res, next) => {
 
     const tripNo = tripInfo ? tripInfo.tripNo : null;
 
-    res.status(200).json(SuccessResponse(tripNo, tripNo ? 1 : 0, "Successful"));
+    res.status(200).json(SuccessResponse(tripNo, 1, "Successful"));
   } catch (error) {
     console.error("Went wrong while getting trip number", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
