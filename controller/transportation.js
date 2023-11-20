@@ -320,8 +320,10 @@ const listDrivers = async (req, res, next) => {
     const { schoolId, searchQuery } = req.query;
 
     const page = parseInt(req.query.page) || 1;
-    const perPage = parseInt(req.query.limit) || 6;
+    const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
+
+    const totalCount = await busDriver.countDocuments();
 
     const data = await busDriver.aggregate([
       {
@@ -399,7 +401,7 @@ const listDrivers = async (req, res, next) => {
       },
     ]);
 
-    res.status(200).json(SuccessResponse(data, data.length, "Data fetched successfully"));
+    res.status(200).json(SuccessResponse(data, totalCount, "Data fetched successfully"));
   } catch (error) {
     console.error("Error in listDrivers:", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
@@ -633,6 +635,7 @@ const listVehicles = async (req, res, next) => {
           schoolId: { $first: "$schoolId" },
           attachments: { $first: "$attachments" },
           vehicleInfo: { $push: "$vehicleInfo.routeName" },
+          createdAt: { $first: "$createdAt" },
         },
       },
       {
@@ -648,6 +651,7 @@ const listVehicles = async (req, res, next) => {
           schoolId: 1,
           attachments: 1,
           vehicleInfo: 1,
+          createdAt: 1,
         },
       },
       {
