@@ -57,20 +57,6 @@ const getRoutes = async (req, res, next) => {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    // const schoolName = await schoolCollection.aggregate([
-    //   {
-    //     $match: {
-    //       _id: mongoose.Types.ObjectId(schoolId),
-    //     },
-    //   },
-    //   {
-    //     $project: {
-    //       _id: 0,
-    //       schoolName: 1,
-    //     },
-    //   },
-    // ]);
-
     const routeCount = await BusRoute.aggregate([
       {
         $match: query,
@@ -93,7 +79,7 @@ const getRoutes = async (req, res, next) => {
       .skip(skip)
       .limit(pageSize);
 
-    res.status(200).json(SuccessResponse(routes, routes.length, "Successful"));
+    res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse("Something Went Wrong", 500));
