@@ -79,7 +79,7 @@ const getRoutes = async (req, res, next) => {
       .populate("driverId", "name")
       .populate("vehicleId", "registrationNumber assignedVehicleNumber")
       .skip(skip)
-      .limit(pageSize);
+      .limit(perPage);
 
     res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
   } catch (error) {

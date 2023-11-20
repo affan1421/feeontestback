@@ -43,6 +43,7 @@ const studentTransportSchema = new Schema(
     },
     tripNumber: {
       type: Number,
+      unique: true,
     },
     status: {
       type: String,
