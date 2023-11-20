@@ -1014,6 +1014,22 @@ const getStudentTransportList = async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "drivers",
+          localField: "routeInfo.driverId",
+          foreignField: "_id",
+          as: "driverInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "routeInfo.vehicleId",
+          foreignField: "_id",
+          as: "vehicleInfo",
+        },
+      },
+      {
         $project: {
           "studentInfo._id": 1,
           "studentInfo.name": 1,
@@ -1023,6 +1039,10 @@ const getStudentTransportList = async (req, res, next) => {
           "routeInfo.routeName": 1,
           "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
           "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
+          "driverInfo._id": { $arrayElemAt: ["$driverInfo._id", 0] },
+          "driverInfo.name": { $arrayElemAt: ["$driverInfo.name", 0] },
+          "vehicleInfo._id": { $arrayElemAt: ["$vehicleInfo._id", 0] },
+          "vehicleInfo.vehicleNumber": { $arrayElemAt: ["$vehicleInfo.registrationNumber", 0] },
           transportSchedule: 1,
           feeMonth: 1,
           feeAmount: 1,
