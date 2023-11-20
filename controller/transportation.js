@@ -364,6 +364,7 @@ const listDrivers = async (req, res, next) => {
           schoolId: { $first: "$schoolId" },
           attachments: { $first: "$attachments" },
           routesInfo: { $push: "$routesInfo.routeName" },
+          createdAt: { $first: "$createdAt" },
         },
       },
       {
