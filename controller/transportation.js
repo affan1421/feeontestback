@@ -980,7 +980,7 @@ const getStudentTransportList = async (req, res, next) => {
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
-          $and: [
+          $or: [
             { schoolId: mongoose.Types.ObjectId(schoolId) },
             { sectionId: mongoose.Types.ObjectId(classId) },
           ],
