@@ -84,7 +84,7 @@ const getRoutes = async (req, res, next) => {
     res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
   } catch (error) {
     console.log("error", error.message);
-    return next(new ErrorResponse("Something Went Wrong", 500));
+    return next(new ErrorResponse(error.message || "Something Went Wrong", 500));
   }
 };
 
