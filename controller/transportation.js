@@ -8,7 +8,6 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
 const schoolCollection = mongoose.connection.db.collection("schools");
 const parentsCollection = mongoose.connection.db.collection("parents");
-const BusRoute = require("../models/busRoutes");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busDriver = require("../models/busDriver");
