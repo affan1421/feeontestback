@@ -78,6 +78,7 @@ const getRoutes = async (req, res, next) => {
       .find(query)
       .populate("driverId", "name")
       .populate("vehicleId", "registrationNumber assignedVehicleNumber")
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(perPage);
 
