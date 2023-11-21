@@ -827,11 +827,6 @@ const addStudentTransport = async (req, res, next) => {
       status,
     });
 
-    // await busRoutes.findOneAndUpdate(
-    //   { assignedVehicleNumber: assignedVehicleNumber },
-    //   { $inc: { availableSeats: -1 } }
-    // );
-
     await newStudentTransport.save();
 
     res
