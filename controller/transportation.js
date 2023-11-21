@@ -841,7 +841,7 @@ const addStudentTransport = async (req, res, next) => {
       );
   } catch (error) {
     console.error("Went wrong while adding student transport", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    return next(new ErrorResponse(error.message || "Something went wrong", 500));
   }
 };
 
