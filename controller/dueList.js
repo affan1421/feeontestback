@@ -243,13 +243,15 @@ const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
  */
 
 const getSummary = CatchAsync(async (req, res, next) => {
-  const { scheduleId = [], scheduleDates = [] } = req.body;
+  const { categoryId, scheduleId = [], scheduleDates = [] } = req.body;
   const { school_id } = req.user;
   const response = {};
 
   const sectionList = await getSections(school_id);
 
-  const match = {};
+  const match = {
+    categoryId: mongoose.Types.ObjectId(categoryId),
+  };
 
   if (scheduleId.length) {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
