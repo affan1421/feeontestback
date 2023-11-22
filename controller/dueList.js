@@ -249,15 +249,11 @@ const getSummary = CatchAsync(async (req, res, next) => {
 
   const sectionList = await getSections(school_id);
 
-  console.log(scheduleId, "scheduleiddddddddd");
-
   const match = {};
 
   if (scheduleId.length) {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
   }
-
-  console.log(match.scheduleTypeId, " match.scheduleTypeId");
 
   if (scheduleDates.length) {
     match.$or = scheduleDates.map((date) => {
@@ -271,8 +267,6 @@ const getSummary = CatchAsync(async (req, res, next) => {
       };
     });
   }
-
-  console.log("Matchhhhhhhhhhhhhhhhhhhhhh:", match);
 
   const aggregate = [
     {
@@ -459,19 +453,13 @@ const getSummary = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentList = CatchAsync(async (req, res, next) => {
-  const {
-    scheduleId = null,
-    scheduleDates = [],
-    page = 0,
-    limit = 6,
-    searchTerm = null,
-  } = req.body;
+  const { scheduleId = [], scheduleDates = [], page = 0, limit = 6, searchTerm = null } = req.body;
   let { paymentStatus = null } = req.body;
   const { paymentStatus: psFilter } = req.body;
   const { school_id } = req.user;
 
-  if (!scheduleId || !scheduleDates.length)
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
+  // if (!scheduleId || !scheduleDates.length)
+  //   return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
 
   // add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
   const isInvalidPaymentStatus =
@@ -482,9 +470,11 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
   paymentStatus = paymentStatus?.slice().sort().join(",");
 
+  const mappedScheduleIds = scheduleId.map((id) => mongoose.Types.ObjectId(id));
+
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
+    scheduleTypeId: { $in: mappedScheduleIds },
     netAmount: { $gt: 0 },
     $or: scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();

@@ -798,9 +798,8 @@ const addStudentTransport = async (req, res, next) => {
       transportSchedule,
       selectedRouteId,
       stopId,
-      feeMonth,
-      feeAmount,
-      status,
+      feeMonths,
+      monthlyFees,
     } = req.body;
 
     const existingStudent = await StudentsTransport.findOne({
@@ -822,10 +821,9 @@ const addStudentTransport = async (req, res, next) => {
       transportSchedule,
       selectedRouteId,
       stopId,
-      feeMonth,
-      feeAmount,
+      feeMonths,
+      monthlyFees,
       tripNumber: trip.tripNo,
-      status,
     });
 
     await newStudentTransport.save();
