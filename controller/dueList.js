@@ -453,7 +453,7 @@ const getSummary = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentList = CatchAsync(async (req, res, next) => {
-  const { scheduleId = [], scheduleDates = [], page = 0, limit = 6, searchTerm = null } = req.body;
+  const { scheduleId = [], scheduleDates = [], page = 0, limit = 5, searchTerm = null } = req.body;
   let { paymentStatus = null } = req.body;
   const { paymentStatus: psFilter } = req.body;
   const { school_id } = req.user;
@@ -474,9 +474,15 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: { $in: mappedScheduleIds },
     netAmount: { $gt: 0 },
-    $or: scheduleDates.map((date) => {
+  };
+
+  if (mappedScheduleIds.length > 0) {
+    match.scheduleTypeId = { $in: mappedScheduleIds };
+  }
+
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
       const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
       return {
@@ -485,8 +491,8 @@ const getStudentList = CatchAsync(async (req, res, next) => {
           $lte: endDate,
         },
       };
-    }),
-  };
+    });
+  }
 
   if (searchTerm) {
     const searchPayload = {
