@@ -249,9 +249,11 @@ const getSummary = CatchAsync(async (req, res, next) => {
 
   const sectionList = await getSections(school_id);
 
-  const match = {
-    categoryId: mongoose.Types.ObjectId(categoryId),
-  };
+  const match = {};
+
+  if (categoryId) {
+    match.categoryId = mongoose.Types.ObjectId(categoryId);
+  }
 
   if (scheduleId.length) {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
