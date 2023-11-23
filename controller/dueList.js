@@ -249,7 +249,9 @@ const getSummary = CatchAsync(async (req, res, next) => {
 
   const sectionList = await getSections(school_id);
 
-  const match = {};
+  const match = {
+    schoolId: mongoose.Types.ObjectId(school_id),
+  };
 
   if (categoryId) {
     match.categoryId = mongoose.Types.ObjectId(categoryId);
@@ -462,9 +464,6 @@ const getStudentList = CatchAsync(async (req, res, next) => {
   const { paymentStatus: psFilter } = req.body;
   const { school_id } = req.user;
 
-  // if (!scheduleId || !scheduleDates.length)
-  //   return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-
   // add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
   const isInvalidPaymentStatus =
     paymentStatus && paymentStatus.some((item) => !["FULL", "PARTIAL", "NOT"].includes(item));
@@ -474,15 +473,13 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
   paymentStatus = paymentStatus?.slice().sort().join(",");
 
-  const mappedScheduleIds = scheduleId.map((id) => mongoose.Types.ObjectId(id));
-
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
     netAmount: { $gt: 0 },
   };
 
-  if (mappedScheduleIds.length > 0) {
-    match.scheduleTypeId = { $in: mappedScheduleIds };
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
   }
 
   if (scheduleDates.length > 0) {
