@@ -54,6 +54,10 @@ const studentTransportSchema = new Schema(
           type: Number,
           default: 0,
         },
+        dueAmount: {
+          type: Number,
+          default: 0,
+        },
         status: {
           type: String,
           enum: ["Pending", "Paid", "Due", "Upcoming"],

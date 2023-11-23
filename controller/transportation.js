@@ -49,40 +49,68 @@ const getRoutes = async (req, res, next) => {
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
-    const query = {
-      schoolId: mongoose.Types.ObjectId(schoolId),
-    };
-
     if (searchQuery) {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    const routeCount = await busRoutes
-      .aggregate([
-        {
-          $match: query,
+    const routes = await busRoutes.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
         },
-        {
-          $project: {
-            _id: 1,
-            routeName: 1,
-            stopsCount: { $size: "$stops" },
-          },
+      },
+      {
+        $lookup: {
+          from: "busdrivers",
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driverInfo",
         },
-      ])
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(perPage);
+      },
+      {
+        $lookup: {
+          from: "schoolvehicles",
+          localField: "vehicleId",
+          foreignField: "_id",
+          as: "vehicleInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "studentstransports",
+          localField: "_id",
+          foreignField: "selectedRouteId",
+          as: "studentsInfo",
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          routeName: 1,
+          tripNo: 1,
+          stopsCount: { $size: "$stops" },
+          seatingCapacity: 1,
+          availableSeats: 1,
+          "driverInfo._id": 1,
+          "driverInfo.name": 1,
+          "vehicleInfo._id": 1,
+          "vehicleInfo.registrationNumber": 1,
+          "vehicleInfo.assignedVehicleNumber": 1,
+          studentsCount: { $size: "$studentsInfo" },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: perPage,
+      },
+    ]);
 
-    const routes = await busRoutes
-      .find(query)
-      .populate("driverId", "name")
-      .populate("vehicleId", "registrationNumber assignedVehicleNumber")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(perPage);
-
-    res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
+    res.status(200).json({ routes });
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse(error.message || "Something Went Wrong", 500));
