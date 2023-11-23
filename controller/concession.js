@@ -263,6 +263,19 @@ const getStudentFeeDetails = async (req, res, next) => {
           $addFields: { feeinstallments: { $arrayElemAt: ["$feeinstallments", 0] } },
         },
         {
+          $lookup: {
+            from: "studentstransports",
+            localField: "_id",
+            foreignField: "studentId",
+            as: "studenttransportation",
+          },
+        },
+        {
+          $addFields: {
+            transportationDetails: { $arrayElemAt: ["$studenttransportation", 0] },
+          },
+        },
+        {
           $group: {
             _id: null,
             totalAmount: { $sum: "$feeinstallments.totalAmount" },
@@ -274,27 +287,6 @@ const getStudentFeeDetails = async (req, res, next) => {
         },
         {
           $project: { _id: 0, feeData: 1 },
-        },
-
-        // Add the transportation details to feeData array as a separate object
-        {
-          $lookup: {
-            from: "studentstransports",
-            localField: "_id",
-            foreignField: "studentId",
-            as: "studenttransportation",
-          },
-        },
-        {
-          $addFields: {
-            transportationDetails: {
-              $cond: {
-                if: { $gt: [{ $size: "$studenttransportation" }, 0] },
-                then: { $arrayElemAt: ["$studenttransportation", 0] },
-                else: null,
-              },
-            },
-          },
         },
       ])
       .toArray();

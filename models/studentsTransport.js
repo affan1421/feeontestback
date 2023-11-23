@@ -69,6 +69,14 @@ const studentTransportSchema = new Schema(
         paymentDate: {
           type: Date,
         },
+        discount: {
+          type: Number,
+          default: 0,
+        },
+        concession: {
+          type: Number,
+          default: 0,
+        },
       },
     ],
 
