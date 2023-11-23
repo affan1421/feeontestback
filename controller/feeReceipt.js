@@ -1327,7 +1327,7 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
         _id: item.installmentId,
         deleted: false,
       });
-      item.date = ins.date;
+      item.date = ins?.date;
     }
   }
 

@@ -7,6 +7,7 @@ const PreviousBalance = require("../models/previousFeesBalance");
 const Donations = require("../models/donation");
 const DonorModel = require("../models/donor");
 const FeeInstallment = require("../models/feeInstallment");
+const studentTransport = require("../models/studentsTransport.js");
 const {
   getStartDate,
   getEndDate,
@@ -836,13 +837,17 @@ exports.getStudentFeeStructure = catchAsync(async (req, res, next) => {
 
   const previousBalancePromise = PreviousBalance.findOne({ studentId });
 
-  const [feeDetails, isPreviousExist] = await Promise.all([
+  const studentTransportPromise = studentTransport.findOne({ studentId });
+
+  const [feeDetails, isPreviousExist, isStudentTransportExist] = await Promise.all([
     feeDetailsPromise,
     previousBalancePromise,
+    studentTransportPromise,
   ]);
 
   response.feeDetails = feeDetails;
   if (isPreviousExist) response.previousBalance = isPreviousExist;
+  if (isStudentTransportExist) response.studentTransport = isStudentTransportExist;
 
   return res.status(200).json(SuccessResponse(response, 1, "Fetched Successfully"));
 });
