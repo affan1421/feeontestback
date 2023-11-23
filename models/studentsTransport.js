@@ -33,27 +33,62 @@ const studentTransportSchema = new Schema(
       ref: "busRoutes",
       required: true,
     },
-    feeMonth: {
-      type: String,
+    feeMonths: {
+      type: [String],
       required: true,
     },
-    feeAmount: {
+    monthlyFees: {
       type: Number,
-      required: true,
     },
+    feeDetails: [
+      {
+        monthName: {
+          type: String,
+          required: true,
+        },
+        totalAmount: {
+          type: Number,
+          default: 0,
+        },
+        paidAmount: {
+          type: Number,
+          default: 0,
+        },
+        status: {
+          type: String,
+          enum: ["Pending", "Paid", "Due", "Upcoming"],
+          default: "Pending",
+        },
+        paymentMethod: {
+          type: String,
+        },
+        paymentDate: {
+          type: Date,
+        },
+      },
+    ],
+
     tripNumber: {
       type: Number,
-    },
-    status: {
-      type: String,
-      default: "Pending",
-      enum: ["Pending", "Paid", "Due", "Upcoming"],
     },
   },
   {
     timestamps: true,
   }
 );
+
+studentTransportSchema.pre("save", function (next) {
+  const months = this.feeMonths;
+
+  // Populate feeDetails array based on feeMonth
+  this.feeDetails = months.map((month) => ({
+    monthName: month,
+    paidAmount: 0,
+    totalAmount: this.monthlyFees,
+  }));
+
+  next();
+});
 
 const StudentsTransport = model("StudentsTransport", studentTransportSchema);
 
