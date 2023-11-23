@@ -640,25 +640,18 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 });
 
 const getClassList = CatchAsync(async (req, res, next) => {
-  const {
-    scheduleId = null,
-    scheduleDates = [],
-    page = 0,
-    limit = 6,
-    searchTerm = null,
-  } = req.body;
+  const { scheduleId = [], scheduleDates = [], page = 0, limit = 6, searchTerm = null } = req.body;
   const { school_id } = req.user;
   const skip = page * limit;
   let sectionIds = null;
 
-  if (!scheduleId || !scheduleDates.length) {
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-  }
-
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
   };
+
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
 
   match.$or = scheduleDates.map((date) => {
     const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
