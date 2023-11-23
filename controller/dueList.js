@@ -653,16 +653,18 @@ const getClassList = CatchAsync(async (req, res, next) => {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
   }
 
-  match.$or = scheduleDates.map((date) => {
-    const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
-    const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
-    return {
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    };
-  });
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
+      const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
+      const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
+      return {
+        date: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      };
+    });
+  }
 
   if (searchTerm) {
     const searchPayload = {
