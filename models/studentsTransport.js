@@ -92,11 +92,14 @@ const studentTransportSchema = new Schema(
 studentTransportSchema.pre("save", function (next) {
   const months = this.feeMonths;
 
+  const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+
   // Populate feeDetails array based on feeMonth
   this.feeDetails = months.map((month) => ({
     monthName: month,
     paidAmount: 0,
     totalAmount: this.monthlyFees,
+    status: month === currentMonth ? "Pending" : "Upcoming",
   }));
 
   next();

@@ -243,13 +243,19 @@ const buildAggregation = (match, paymentStatus, scheduleDates, page, limit) => {
  */
 
 const getSummary = CatchAsync(async (req, res, next) => {
-  const { scheduleId = [], scheduleDates = [] } = req.body;
+  const { categoryId, scheduleId = [], scheduleDates = [] } = req.body;
   const { school_id } = req.user;
   const response = {};
 
   const sectionList = await getSections(school_id);
 
-  const match = {};
+  const match = {
+    schoolId: mongoose.Types.ObjectId(school_id),
+  };
+
+  if (categoryId) {
+    match.categoryId = mongoose.Types.ObjectId(categoryId);
+  }
 
   if (scheduleId.length) {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
@@ -453,13 +459,10 @@ const getSummary = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentList = CatchAsync(async (req, res, next) => {
-  const { scheduleId = [], scheduleDates = [], page = 0, limit = 6, searchTerm = null } = req.body;
+  const { scheduleId = [], scheduleDates = [], page = 0, limit = 5, searchTerm = null } = req.body;
   let { paymentStatus = null } = req.body;
   const { paymentStatus: psFilter } = req.body;
   const { school_id } = req.user;
-
-  // if (!scheduleId || !scheduleDates.length)
-  //   return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
 
   // add validation when the payment status in array of ['FULL', 'PARTIAL', 'NOT']
   const isInvalidPaymentStatus =
@@ -470,13 +473,17 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 
   paymentStatus = paymentStatus?.slice().sort().join(",");
 
-  const mappedScheduleIds = scheduleId.map((id) => mongoose.Types.ObjectId(id));
-
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: { $in: mappedScheduleIds },
     netAmount: { $gt: 0 },
-    $or: scheduleDates.map((date) => {
+  };
+
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
       const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
       return {
@@ -485,8 +492,8 @@ const getStudentList = CatchAsync(async (req, res, next) => {
           $lte: endDate,
         },
       };
-    }),
-  };
+    });
+  }
 
   if (searchTerm) {
     const searchPayload = {
@@ -530,11 +537,11 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentListExcel = CatchAsync(async (req, res, next) => {
-  const { scheduleId = null, scheduleDates = [], sectionId = null } = req.body;
+  const { scheduleId = [], scheduleDates = [], sectionId = null } = req.body;
   let { paymentStatus = null } = req.body;
   const { school_id } = req.user;
 
-  if (!scheduleId || !scheduleDates.length)
+  if (!scheduleId.length || !scheduleDates.length)
     return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
 
   const isInvalidPaymentStatus =
@@ -643,16 +650,18 @@ const getClassList = CatchAsync(async (req, res, next) => {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
   }
 
-  match.$or = scheduleDates.map((date) => {
-    const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
-    const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
-    return {
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    };
-  });
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
+      const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
+      const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
+      return {
+        date: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      };
+    });
+  }
 
   if (searchTerm) {
     const searchPayload = {

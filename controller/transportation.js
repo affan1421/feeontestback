@@ -566,7 +566,7 @@ const editVehicle = async (req, res, next) => {
 
     res.status(200).json(SuccessResponse(vehicle, 1, "Successful"));
   } catch (error) {
-    return next(new ErrorResponse("Something Went Wrong", 500));
+    return next(new ErrorResponse(error.message || "Something Went Wrong", 500));
   }
 };
 
@@ -584,7 +584,7 @@ const updateVehicle = async (req, res, next) => {
     res.status(200).json(SuccessResponse(vehicle, 1, "Vehicle Data Updated Successfully"));
   } catch (error) {
     console.log("Error while updating Vehicle details", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    return next(new ErrorResponse(error.message || "Something Went Wrong", 500));
   }
 };
 
@@ -863,7 +863,7 @@ const addStudentTransport = async (req, res, next) => {
       );
   } catch (error) {
     console.error("Went wrong while adding student transport", error.message);
-    return next(new ErrorResponse("Something went wrong", 500));
+    return next(new ErrorResponse(error.message || "Something went wrong", 500));
   }
 };
 
