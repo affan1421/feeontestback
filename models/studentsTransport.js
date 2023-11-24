@@ -60,14 +60,20 @@ const studentTransportSchema = new Schema(
         },
         status: {
           type: String,
-          enum: ["Pending", "Paid", "Due", "Upcoming"],
-          default: "Pending",
+          enum: ["Late", "Paid", "Due", "Upcoming"],
+          default: "Due",
         },
         paymentMethod: {
           type: String,
         },
+        receiptId: {
+          type: String,
+        },
         paymentDate: {
           type: Date,
+        },
+        createdBy: {
+          type: Schema.Types.ObjectId,
         },
         discount: {
           type: Number,
@@ -99,6 +105,7 @@ studentTransportSchema.pre("save", function (next) {
     monthName: month,
     paidAmount: 0,
     totalAmount: this.monthlyFees,
+    dueAmount: this.monthlyFees,
     status: month === currentMonth ? "Pending" : "Upcoming",
   }));
 

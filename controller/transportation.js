@@ -1202,6 +1202,95 @@ const getDashboardCount = async (req, res, next) => {
   }
 };
 
+//------------------------payment-----------------------------------
+
+const makePayment = async (req, res, next) => {
+  try {
+    const {
+      studentId,
+      status,
+      transportId,
+      paidAmount,
+      paymentMethod,
+      createdBy,
+      bankName,
+      transactionId,
+      transactionDate,
+    } = req.body;
+
+    const transport = await StudentsTransport.findOne({
+      studentId: mongoose.Types.ObjectId(studentId),
+    });
+
+    if (!transport) {
+      return next(new ErrorResponse("Transport not found", 404));
+    }
+
+    const feeDetailToUpdate = transport.feeDetails.find(
+      (detail) => detail._id.toString() === transportId
+    );
+
+    if (!feeDetailToUpdate) {
+      return next(new ErrorResponse("Fee detail not found", 404));
+    }
+
+    // Update fee details based on the provided status
+    if (status === "APPROVED") {
+      feeDetailToUpdate.status = "Paid";
+      feeDetailToUpdate.dueAmount -= paidAmount;
+      feeDetailToUpdate.paidAmount = paidAmount;
+
+      const generateReceiptId = () => {
+        const alphanumericChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+        let receiptId = "";
+
+        for (let i = 0; i < 10; i++) {
+          const randomIndex = Math.floor(Math.random() * alphanumericChars.length);
+          receiptId += alphanumericChars.charAt(randomIndex);
+        }
+
+        return receiptId;
+      };
+
+      feeDetailToUpdate.receiptId = generateReceiptId();
+      feeDetailToUpdate.createdBy = createdBy;
+      feeDetailToUpdate.paymentDate = transactionDate;
+      feeDetailToUpdate.paymentMethod = paymentMethod;
+
+      if (paymentMethod !== "CASH") {
+        // Create a separate object under transportId in feeDetail
+        feeDetailToUpdate.bankTransaction = {
+          bankName,
+          transactionId,
+        };
+      }
+
+      await StudentsTransport.updateOne(
+        { _id: transport._id, "feeDetails._id": transportId },
+        {
+          $set: {
+            "feeDetails.$.status": "Paid",
+            "feeDetails.$.dueAmount": feeDetailToUpdate.dueAmount,
+            "feeDetails.$.paidAmount": feeDetailToUpdate.paidAmount,
+            "feeDetails.$.receiptId": feeDetailToUpdate.receiptId,
+            "feeDetails.$.createdBy": feeDetailToUpdate.createdBy,
+            "feeDetails.$.paymentDate": feeDetailToUpdate.paymentDate,
+            "feeDetails.$.paymentMethod": feeDetailToUpdate.paymentMethod,
+            "feeDetails.$.bankTransaction": feeDetailToUpdate.bankTransaction,
+            // Add other fields as needed
+          },
+        }
+      );
+    }
+
+    res.status(200).json(SuccessResponse(transport, 1, "Updated Successfully"));
+  } catch (error) {
+    console.error("Went wrong while making payment", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
 //-------------------------module-exports-----------------------------
 
 module.exports = {
@@ -1236,4 +1325,5 @@ module.exports = {
   deleteStudentTransport,
   getStudentTransportList,
   getTripNumber,
+  makePayment,
 };
