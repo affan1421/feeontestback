@@ -18,6 +18,10 @@ const studentTransportSchema = new Schema(
       ref: "students",
       required: [true, "school ID required"],
     },
+    academicYear: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "academicyears",
+    },
     transportSchedule: {
       type: String,
       enum: ["pickup", "drop", "both"],
@@ -106,7 +110,7 @@ studentTransportSchema.pre("save", function (next) {
     paidAmount: 0,
     totalAmount: this.monthlyFees,
     dueAmount: this.monthlyFees,
-    status: month === currentMonth ? "Pending" : "Upcoming",
+    status: month === currentMonth ? "Due" : "Upcoming",
   }));
 
   next();

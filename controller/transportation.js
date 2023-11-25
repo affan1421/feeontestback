@@ -8,6 +8,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
 const schoolCollection = mongoose.connection.db.collection("schools");
 const parentsCollection = mongoose.connection.db.collection("parents");
+const AcademicYear = require("../models/academicYear");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busDriver = require("../models/busDriver");
@@ -841,6 +842,13 @@ const addStudentTransport = async (req, res, next) => {
       monthlyFees,
     } = req.body;
 
+    const academicYr = await AcademicYear.findOne({
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      isActive: true,
+    }).select("_id");
+
+    console.log(academicYr._id, "academicYear");
+
     const existingStudent = await StudentsTransport.findOne({
       studentId: mongoose.Types.ObjectId(studentId),
     });
@@ -857,6 +865,7 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
+      academicYear: academicYr._id,
       transportSchedule,
       selectedRouteId,
       stopId,
@@ -971,12 +980,12 @@ const updateStudentTransport = async (req, res, next) => {
 
 const deleteStudentTransport = async (req, res, next) => {
   try {
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    const { ids } = req.query;
+    if (!ids) {
       return res.status(400).json({ message: "Invalid input" });
     }
 
-    const result = await StudentsTransport.deleteMany({ _id: { $in: ids } });
+    const result = await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(ids) });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "No documents were deleted" });
