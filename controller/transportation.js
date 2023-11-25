@@ -92,7 +92,11 @@ const getRoutes = async (req, res, next) => {
             $map: {
               input: "$stops",
               as: "stop",
-              in: "$$stop.data.stop",
+              in: {
+                stop: "$$stop.data.stop",
+                oneWay: "$$stop.data.oneWay",
+                roundTrip: "$$stop.data.roundTrip",
+              },
             },
           },
           seatingCapacity: 1,
