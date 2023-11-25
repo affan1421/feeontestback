@@ -984,12 +984,12 @@ const updateStudentTransport = async (req, res, next) => {
 
 const deleteStudentTransport = async (req, res, next) => {
   try {
-    const { ids } = req.query;
-    if (!ids) {
+    const { id } = req.query;
+    if (!id) {
       return res.status(400).json({ message: "Invalid input" });
     }
 
-    const result = await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(ids) });
+    const result = await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "No documents were deleted" });
