@@ -86,7 +86,7 @@ const getRoutes = async (req, res, next) => {
       },
       {
         $project: {
-          _id: 0,
+          _id: 1,
           routeName: 1,
           tripNo: 1,
           stops: {
