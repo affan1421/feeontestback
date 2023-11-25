@@ -46,9 +46,9 @@ const getRoutes = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
 
-    const page = parseInt(req.query.page) + 1 || 1;
-    const perPage = parseInt(req.query.limit) || 5;
-    const skip = (page - 1) * perPage;
+    // const page = parseInt(req.query.page) + 1 || 1;
+    // const perPage = parseInt(req.query.limit) || 5;
+    // const skip = (page - 1) * perPage;
 
     if (searchQuery) {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
@@ -118,12 +118,12 @@ const getRoutes = async (req, res, next) => {
       {
         $sort: { createdAt: -1 },
       },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: perPage,
-      },
+      // {
+      //   $skip: skip,
+      // },
+      // {
+      //   $limit: perPage,
+      // },
     ]);
 
     res.status(200).json({ routes });
