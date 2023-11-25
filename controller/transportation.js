@@ -1258,7 +1258,14 @@ const makePayment = async (req, res, next) => {
 
     // Update fee details based on the provided status
     if (status === "APPROVED") {
-      feeDetailToUpdate.status = "Paid";
+      const transactionDay = new Date(transactionDate).getDate();
+      const transactionMonth = new Date(transactionDate).toLocaleString("en-US", {
+        month: "long",
+      });
+
+      const isLate = transactionMonth === feeDetailToUpdate.monthName && transactionDay > 10;
+
+      feeDetailToUpdate.status = isLate ? "Late" : "Paid";
       feeDetailToUpdate.dueAmount -= paidAmount;
       feeDetailToUpdate.paidAmount = paidAmount;
 
