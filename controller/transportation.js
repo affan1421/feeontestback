@@ -986,6 +986,8 @@ const getStudentTransportList = async (req, res, next) => {
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
 
+    const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
@@ -1071,7 +1073,15 @@ const getStudentTransportList = async (req, res, next) => {
             $arrayElemAt: ["$vehicleInfo.assignedVehicleNumber", 0],
           },
           transportSchedule: 1,
-          feeMonth: 1,
+          feeDetails: {
+            $filter: {
+              input: "$feeDetails",
+              as: "feeDetail",
+              cond: {
+                $eq: ["$$feeDetail.monthName", currentMonth],
+              },
+            },
+          },
           feeAmount: 1,
           tripNumber: 1,
           status: 1,
@@ -1160,32 +1170,29 @@ const getDashboardCount = async (req, res, next) => {
           {
             $match: {
               ...filter,
-              feeMonth: month,
-              status: { $in: ["Paid", "Due"] },
+              "feeDetails.monthName": month,
+              "feeDetails.status": { $in: ["Paid", "Due"] },
             },
+          },
+          {
+            $unwind: "$feeDetails",
           },
           {
             $group: {
-              _id: null,
-              totalPaidAmount: { $sum: { $cond: [{ $eq: ["$status", "Paid"] }, "$feeAmount", 0] } },
-              totalDueAmount: { $sum: { $cond: [{ $eq: ["$status", "Due"] }, "$feeAmount", 0] } },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              totalPaidAmount: 1,
-              totalDueAmount: 1,
+              _id: "$feeDetails.monthName",
+              paidAmount: { $sum: "$feeDetails.paidAmount" },
+              dueAmount: { $sum: "$feeDetails.dueAmount" },
             },
           },
         ]),
       ]);
 
     const stopsCount = totalStopsCount[0]?.stopsCount || 0;
-    const { totalPaidAmount, totalDueAmount } = feeStats[0] || {
-      totalPaidAmount: 0,
-      totalDueAmount: 0,
-    };
+    const feeDetails = feeStats.map(({ _id, paidAmount, dueAmount }) => ({
+      monthName: _id,
+      paidAmount,
+      dueAmount,
+    }));
 
     res.status(200).json({
       studentsCount,
@@ -1193,8 +1200,7 @@ const getDashboardCount = async (req, res, next) => {
       vehiclesCount,
       driverCount,
       stopsCount,
-      totalPaidAmount,
-      totalDueAmount,
+      feeDetails,
     });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
