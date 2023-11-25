@@ -88,7 +88,13 @@ const getRoutes = async (req, res, next) => {
           _id: 0,
           routeName: 1,
           tripNo: 1,
-          stopsCount: { $size: "$stops" },
+          stops: {
+            $map: {
+              input: "$stops",
+              as: "stop",
+              in: "$$stop.data.stop",
+            },
+          },
           seatingCapacity: 1,
           availableSeats: 1,
           "driverInfo._id": 1,
@@ -96,6 +102,7 @@ const getRoutes = async (req, res, next) => {
           "vehicleInfo._id": 1,
           "vehicleInfo.registrationNumber": 1,
           "vehicleInfo.assignedVehicleNumber": 1,
+          stopsCount: { $size: "$stops" },
           studentsCount: { $size: "$studentsInfo" },
         },
       },
