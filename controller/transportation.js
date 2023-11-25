@@ -1178,6 +1178,11 @@ const getDashboardCount = async (req, res, next) => {
             $unwind: "$feeDetails",
           },
           {
+            $match: {
+              "feeDetails.monthName": month,
+            },
+          },
+          {
             $group: {
               _id: "$feeDetails.monthName",
               paidAmount: { $sum: "$feeDetails.paidAmount" },
@@ -1200,7 +1205,7 @@ const getDashboardCount = async (req, res, next) => {
       vehiclesCount,
       driverCount,
       stopsCount,
-      feeDetails,
+      feeDetails: feeDetails.length > 0 ? feeDetails[0] : null, // Sending only the matching month
     });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
