@@ -894,6 +894,8 @@ const addStudentTransport = async (req, res, next) => {
 const editStudentTransport = async (req, res, next) => {
   try {
     const { id } = req.query;
+    const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
@@ -951,13 +953,27 @@ const editStudentTransport = async (req, res, next) => {
           "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
           "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
           transportSchedule: 1,
-          feeMonth: 1,
-          feeAmount: 1,
+          feeDetails: {
+            $filter: {
+              input: "$feeDetails",
+              as: "feeDetail",
+              cond: {
+                $eq: ["$$feeDetail.monthName", currentMonth],
+              },
+            },
+          },
           tripNumber: 1,
           status: 1,
         },
       },
     ]);
+
+    // Assuming totalAmount is a property inside the filtered feeDetail
+    const totalAmount = studentData[0].feeDetails[0].totalAmount;
+
+    // If you want to rename feeAmount to totalAmount
+    studentData[0].feeAmount = totalAmount;
+    delete studentData[0].totalAmount;
 
     res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
   } catch (error) {
