@@ -20,8 +20,6 @@ const createNewRoute = async (req, res, next) => {
 
     const seats = await SchoolVehicles.findOne({ _id: mongoose.Types.ObjectId(vehicleId) });
 
-    console.log(seats, "gggggggggggfffffffffffffffffff");
-
     const newRoute = new busRoutes({
       routeName,
       vehicleId,
@@ -962,6 +960,7 @@ const editStudentTransport = async (req, res, next) => {
               },
             },
           },
+          feeMonths: 1,
           tripNumber: 1,
           status: 1,
         },
