@@ -8,6 +8,7 @@ const studentsCollection = mongoose.connection.db.collection("students");
 const sectionsCollection = mongoose.connection.db.collection("sections");
 const schoolCollection = mongoose.connection.db.collection("schools");
 const parentsCollection = mongoose.connection.db.collection("parents");
+const AcademicYear = require("../models/academicYear");
 const SchoolVehicles = require("../models/schoolVehicles");
 const StudentsTransport = require("../models/studentsTransport");
 const busDriver = require("../models/busDriver");
@@ -45,44 +46,87 @@ const getRoutes = async (req, res, next) => {
   try {
     const { schoolId, searchQuery } = req.query;
 
-    const page = parseInt(req.query.page) + 1 || 1;
-    const perPage = parseInt(req.query.limit) || 5;
-    const skip = (page - 1) * perPage;
-
-    const query = {
-      schoolId: mongoose.Types.ObjectId(schoolId),
-    };
+    // const page = parseInt(req.query.page) + 1 || 1;
+    // const perPage = parseInt(req.query.limit) || 5;
+    // const skip = (page - 1) * perPage;
 
     if (searchQuery) {
       query.$or = [{ routeName: { $regex: searchQuery, $options: "i" } }];
     }
 
-    const routeCount = await busRoutes
-      .aggregate([
-        {
-          $match: query,
+    const routes = await busRoutes.aggregate([
+      {
+        $match: {
+          schoolId: mongoose.Types.ObjectId(schoolId),
         },
-        {
-          $project: {
-            _id: 1,
-            routeName: 1,
-            stopsCount: { $size: "$stops" },
+      },
+      {
+        $lookup: {
+          from: "busdrivers",
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driverInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "schoolvehicles",
+          localField: "vehicleId",
+          foreignField: "_id",
+          as: "vehicleInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "studentstransports",
+          localField: "_id",
+          foreignField: "selectedRouteId",
+          as: "studentsInfo",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          routeName: 1,
+          tripNo: 1,
+          stops: {
+            $map: {
+              input: "$stops",
+              as: "stop",
+              in: {
+                _id: "$$stop._id",
+                data: {
+                  stop: "$$stop.data.stop",
+                  oneWay: "$$stop.data.oneWay",
+                  roundTrip: "$$stop.data.roundTrip",
+                },
+                label: "$$stop.label",
+              },
+            },
           },
+          seatingCapacity: 1,
+          availableSeats: 1,
+          "driverInfo._id": 1,
+          "driverInfo.name": 1,
+          "vehicleInfo._id": 1,
+          "vehicleInfo.registrationNumber": 1,
+          "vehicleInfo.assignedVehicleNumber": 1,
+          stopsCount: { $size: "$stops" },
+          studentsCount: { $size: "$studentsInfo" },
         },
-      ])
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(perPage);
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      // {
+      //   $skip: skip,
+      // },
+      // {
+      //   $limit: perPage,
+      // },
+    ]);
 
-    const routes = await busRoutes
-      .find(query)
-      .populate("driverId", "name")
-      .populate("vehicleId", "registrationNumber assignedVehicleNumber")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(perPage);
-
-    res.status(200).json(SuccessResponse(routes, routeCount, "Successful"));
+    res.status(200).json({ routes });
   } catch (error) {
     console.log("error", error.message);
     return next(new ErrorResponse(error.message || "Something Went Wrong", 500));
@@ -802,6 +846,13 @@ const addStudentTransport = async (req, res, next) => {
       monthlyFees,
     } = req.body;
 
+    const academicYr = await AcademicYear.findOne({
+      schoolId: mongoose.Types.ObjectId(schoolId),
+      isActive: true,
+    }).select("_id");
+
+    console.log(academicYr._id, "academicYear");
+
     const existingStudent = await StudentsTransport.findOne({
       studentId: mongoose.Types.ObjectId(studentId),
     });
@@ -818,6 +869,7 @@ const addStudentTransport = async (req, res, next) => {
       schoolId,
       sectionId,
       studentId,
+      academicYear: academicYr._id,
       transportSchedule,
       selectedRouteId,
       stopId,
@@ -842,6 +894,8 @@ const addStudentTransport = async (req, res, next) => {
 const editStudentTransport = async (req, res, next) => {
   try {
     const { id } = req.query;
+    const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
+
     const studentData = await StudentsTransport.aggregate([
       {
         $match: {
@@ -899,13 +953,27 @@ const editStudentTransport = async (req, res, next) => {
           "routeInfo.stopId": { $arrayElemAt: ["$routeInfo.stops._id", 0] },
           "routeInfo.stop": { $arrayElemAt: ["$routeInfo.stops.data.stop", 0] },
           transportSchedule: 1,
-          feeMonth: 1,
-          feeAmount: 1,
+          feeDetails: {
+            $filter: {
+              input: "$feeDetails",
+              as: "feeDetail",
+              cond: {
+                $eq: ["$$feeDetail.monthName", currentMonth],
+              },
+            },
+          },
           tripNumber: 1,
           status: 1,
         },
       },
     ]);
+
+    // Assuming totalAmount is a property inside the filtered feeDetail
+    const totalAmount = studentData[0].feeDetails[0].totalAmount;
+
+    // If you want to rename feeAmount to totalAmount
+    studentData[0].feeAmount = totalAmount;
+    delete studentData[0].totalAmount;
 
     res.status(200).json(SuccessResponse(studentData, 1, "Successful"));
   } catch (error) {
@@ -932,12 +1000,12 @@ const updateStudentTransport = async (req, res, next) => {
 
 const deleteStudentTransport = async (req, res, next) => {
   try {
-    const { ids } = req.body;
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    const { id } = req.query;
+    if (!id) {
       return res.status(400).json({ message: "Invalid input" });
     }
 
-    const result = await StudentsTransport.deleteMany({ _id: { $in: ids } });
+    const result = await StudentsTransport.deleteOne({ _id: mongoose.Types.ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ message: "No documents were deleted" });
@@ -957,6 +1025,8 @@ const getStudentTransportList = async (req, res, next) => {
     const page = parseInt(req.query.page) + 1 || 1;
     const perPage = parseInt(req.query.limit) || 5;
     const skip = (page - 1) * perPage;
+
+    const currentMonth = new Date().toLocaleString("en-US", { month: "long" });
 
     const studentData = await StudentsTransport.aggregate([
       {
@@ -1043,7 +1113,15 @@ const getStudentTransportList = async (req, res, next) => {
             $arrayElemAt: ["$vehicleInfo.assignedVehicleNumber", 0],
           },
           transportSchedule: 1,
-          feeMonth: 1,
+          feeDetails: {
+            $filter: {
+              input: "$feeDetails",
+              as: "feeDetail",
+              cond: {
+                $eq: ["$$feeDetail.monthName", currentMonth],
+              },
+            },
+          },
           feeAmount: 1,
           tripNumber: 1,
           status: 1,
@@ -1132,32 +1210,34 @@ const getDashboardCount = async (req, res, next) => {
           {
             $match: {
               ...filter,
-              feeMonth: month,
-              status: { $in: ["Paid", "Due"] },
+              "feeDetails.monthName": month,
+              "feeDetails.status": { $in: ["Paid", "Due"] },
+            },
+          },
+          {
+            $unwind: "$feeDetails",
+          },
+          {
+            $match: {
+              "feeDetails.monthName": month,
             },
           },
           {
             $group: {
-              _id: null,
-              totalPaidAmount: { $sum: { $cond: [{ $eq: ["$status", "Paid"] }, "$feeAmount", 0] } },
-              totalDueAmount: { $sum: { $cond: [{ $eq: ["$status", "Due"] }, "$feeAmount", 0] } },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              totalPaidAmount: 1,
-              totalDueAmount: 1,
+              _id: "$feeDetails.monthName",
+              paidAmount: { $sum: "$feeDetails.paidAmount" },
+              dueAmount: { $sum: "$feeDetails.dueAmount" },
             },
           },
         ]),
       ]);
 
     const stopsCount = totalStopsCount[0]?.stopsCount || 0;
-    const { totalPaidAmount, totalDueAmount } = feeStats[0] || {
-      totalPaidAmount: 0,
-      totalDueAmount: 0,
-    };
+    const feeDetails = feeStats.map(({ _id, paidAmount, dueAmount }) => ({
+      monthName: _id,
+      paidAmount,
+      dueAmount,
+    }));
 
     res.status(200).json({
       studentsCount,
@@ -1165,11 +1245,106 @@ const getDashboardCount = async (req, res, next) => {
       vehiclesCount,
       driverCount,
       stopsCount,
-      totalPaidAmount,
-      totalDueAmount,
+      feeDetails: feeDetails.length > 0 ? feeDetails[0] : null, // Sending only the matching month
     });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
+    return next(new ErrorResponse("Something went wrong", 500));
+  }
+};
+
+//------------------------payment-----------------------------------
+
+const makePayment = async (req, res, next) => {
+  try {
+    const {
+      studentId,
+      status,
+      transportId,
+      paidAmount,
+      paymentMethod,
+      createdBy,
+      bankName,
+      transactionId,
+      transactionDate,
+    } = req.body;
+
+    const transport = await StudentsTransport.findOne({
+      studentId: mongoose.Types.ObjectId(studentId),
+    });
+
+    if (!transport) {
+      return next(new ErrorResponse("Transport not found", 404));
+    }
+
+    const feeDetailToUpdate = transport.feeDetails.find(
+      (detail) => detail._id.toString() === transportId
+    );
+
+    if (!feeDetailToUpdate) {
+      return next(new ErrorResponse("Fee detail not found", 404));
+    }
+
+    // Update fee details based on the provided status
+    if (status === "APPROVED") {
+      const transactionDay = new Date(transactionDate).getDate();
+      const transactionMonth = new Date(transactionDate).toLocaleString("en-US", {
+        month: "long",
+      });
+
+      const isLate = transactionMonth === feeDetailToUpdate.monthName && transactionDay > 10;
+
+      feeDetailToUpdate.status = isLate ? "Late" : "Paid";
+      feeDetailToUpdate.dueAmount -= paidAmount;
+      feeDetailToUpdate.paidAmount = paidAmount;
+
+      const generateReceiptId = () => {
+        const alphanumericChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+        let receiptId = "";
+
+        for (let i = 0; i < 10; i++) {
+          const randomIndex = Math.floor(Math.random() * alphanumericChars.length);
+          receiptId += alphanumericChars.charAt(randomIndex);
+        }
+
+        return receiptId;
+      };
+
+      feeDetailToUpdate.receiptId = generateReceiptId();
+      feeDetailToUpdate.createdBy = createdBy;
+      feeDetailToUpdate.paymentDate = transactionDate;
+      feeDetailToUpdate.paymentMethod = paymentMethod;
+
+      if (paymentMethod !== "CASH") {
+        // Create a separate object under transportId in feeDetail
+        feeDetailToUpdate.bankTransaction = {
+          bankName,
+          transactionId,
+        };
+      }
+
+      await StudentsTransport.updateOne(
+        { _id: transport._id, "feeDetails._id": transportId },
+        {
+          $set: {
+            "feeDetails.$.status": "Paid",
+            "feeDetails.$.dueAmount": feeDetailToUpdate.dueAmount,
+            "feeDetails.$.paidAmount": feeDetailToUpdate.paidAmount,
+            "feeDetails.$.receiptId": feeDetailToUpdate.receiptId,
+            "feeDetails.$.createdBy": feeDetailToUpdate.createdBy,
+            "feeDetails.$.paymentDate": feeDetailToUpdate.paymentDate,
+            "feeDetails.$.paymentMethod": feeDetailToUpdate.paymentMethod,
+            "feeDetails.$.bankTransaction": feeDetailToUpdate.bankTransaction,
+            // Add other fields as needed
+          },
+        }
+      );
+    }
+
+    res.status(200).json(SuccessResponse(transport, 1, "Updated Successfully"));
+  } catch (error) {
+    console.error("Went wrong while making payment", error.message);
     return next(new ErrorResponse("Something went wrong", 500));
   }
 };
@@ -1208,4 +1383,5 @@ module.exports = {
   deleteStudentTransport,
   getStudentTransportList,
   getTripNumber,
+  makePayment,
 };

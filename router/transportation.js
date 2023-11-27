@@ -1,5 +1,6 @@
 const router = require("express").Router();
 
+const { MakePayment } = require("../controller/previousFeesBalance");
 const {
   createNewRoute,
   getRoutes,
@@ -33,6 +34,7 @@ const {
   listMonths,
   studentsCount,
   getTripNumber,
+  makePayment,
 } = require("../controller/transportation");
 
 router.post("/createRoute", createNewRoute); // creating new routes
@@ -68,6 +70,8 @@ router.put("/edit-student-transport", updateStudentTransport);
 router.delete("/delete-student-transport", deleteStudentTransport);
 router.get("/student-transport-list", getStudentTransportList);
 router.get("/trip-number", getTripNumber);
+
+router.post("/payment", makePayment);
 
 router.get("/dashboard-data", getDashboardCount);
 

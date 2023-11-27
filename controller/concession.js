@@ -85,7 +85,9 @@ const createConcession = async (req, res, next) => {
         // setup notification
         const notificationData = {
           title: `Pending approvement - new concession ${studentData?.name}`,
-          description: `Concession is created for ₹${Number(newConcession?.totalConcession).toFixed(2) || "0.00"}`,
+          description: `Concession is created for ₹${
+            Number(newConcession?.totalConcession).toFixed(2) || "0.00"
+          }`,
           type: "DISCOUNT",
           action: "/concession",
           status: "DEFAULT",
@@ -134,8 +136,12 @@ const getStudentsByClass = async (req, res, next) => {
       sectionId: mongoose.Types.ObjectId(classId),
       status: { $ne: "REJECTED" },
     });
-    const studentIdsInConcession = studentinConc.map((concession) => concession.studentId.toString());
-    const filteredStudents = students.filter((student) => !studentIdsInConcession.includes(student._id.toString()));
+    const studentIdsInConcession = studentinConc.map((concession) =>
+      concession.studentId.toString()
+    );
+    const filteredStudents = students.filter(
+      (student) => !studentIdsInConcession.includes(student._id.toString())
+    );
 
     res.status(200).json({ students: filteredStudents });
   } catch (error) {
@@ -257,6 +263,19 @@ const getStudentFeeDetails = async (req, res, next) => {
           $addFields: { feeinstallments: { $arrayElemAt: ["$feeinstallments", 0] } },
         },
         {
+          $lookup: {
+            from: "studentstransports",
+            localField: "_id",
+            foreignField: "studentId",
+            as: "studenttransportation",
+          },
+        },
+        {
+          $addFields: {
+            transportationDetails: { $arrayElemAt: ["$studenttransportation", 0] },
+          },
+        },
+        {
           $group: {
             _id: null,
             totalAmount: { $sum: "$feeinstallments.totalAmount" },
@@ -266,7 +285,9 @@ const getStudentFeeDetails = async (req, res, next) => {
             feeData: { $addToSet: "$$ROOT" },
           },
         },
-        { $project: { _id: 0 } },
+        {
+          $project: { _id: 0, feeData: 1 },
+        },
       ])
       .toArray();
 
@@ -383,7 +404,11 @@ const changeStatus = async (req, res, next) => {
       return res.status(400).json({ message: "Concression Id and Status Id are required" });
     }
 
-    const concession = await Concession.findByIdAndUpdate(concessionId, { $set: { status } }, { new: true });
+    const concession = await Concession.findByIdAndUpdate(
+      concessionId,
+      { $set: { status } },
+      { new: true }
+    );
     const studentData = await mongoose.connection.db
       .collection("students")
       .findOne({ _id: mongoose.Types.ObjectId(concession?.studentId) });
@@ -397,10 +422,17 @@ const changeStatus = async (req, res, next) => {
         // setup notification
         const notificationData = {
           title: `Approved - new concession ${studentData?.name}`,
-          description: `Concession is approved for ₹${Number(concession?.totalConcession).toFixed(2) || "0.00"}`,
+          description: `Concession is approved for ₹${
+            Number(concession?.totalConcession).toFixed(2) || "0.00"
+          }`,
           type: "DISCOUNT",
           action: "/concession",
-          status: concession?.status == "REJECTED" ? "ERROR" : concession.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+          status:
+            concession?.status == "REJECTED"
+              ? "ERROR"
+              : concession.status == "APPROVED"
+              ? "SUCCESS"
+              : "DEFAULT",
         };
 
         // sending notifications
@@ -580,7 +612,8 @@ const getConcessionCardData = async (req, res, next) => {
       },
     ]);
 
-    const totalConcessionAmount = totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
+    const totalConcessionAmount =
+      totalConcessionResult[0].totalConcessionAmount[0].totalConcessionSum;
     const studentData = totalConcessionResult[0].studentData;
     const totalStudentCount = totalConcessionResult[0].totalStudentCount[0].count;
     const uniqueClassCount = totalConcessionResult[0].classCount[0].count;
@@ -752,7 +785,11 @@ async function updateConcessionReason(req, res, next) {
     const reason = reasonInput?.trim().toLowerCase();
     const existingReason = await ConcessionReason.findOne({ reason });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
-    const result = await ConcessionReason.findByIdAndUpdate(id, { $set: { reason: reason } }, { new: true });
+    const result = await ConcessionReason.findByIdAndUpdate(
+      id,
+      { $set: { reason: reason } },
+      { new: true }
+    );
     res.status(200).json(SuccessResponse(result, 1, "Concession reasons updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something went wrong", 500));
@@ -995,7 +1032,10 @@ const getStudentWithConcession = async (req, res, next) => {
     ]);
     res
       .status(200)
-      .json({ ...studentConcessionData?.[0]?.data?.[0], totals: studentConcessionData?.[0]?.totals } || {});
+      .json(
+        { ...studentConcessionData?.[0]?.data?.[0], totals: studentConcessionData?.[0]?.totals } ||
+          {}
+      );
   } catch (error) {
     console.log(error.message);
   }
@@ -1183,7 +1223,10 @@ const revokeConcession = async (req, res) => {
       const concessionAmount = feeCategory.concessionAmount;
 
       // Use $unset to remove the concessionAmount field
-      await FeeInstallment.updateOne({ _id: feeInstallmentId }, { $unset: { concessionAmount: 1 } });
+      await FeeInstallment.updateOne(
+        { _id: feeInstallmentId },
+        { $unset: { concessionAmount: 1 } }
+      );
     }
 
     const revoke = await Concession.deleteOne({ _id: concessionId });
@@ -1197,7 +1240,9 @@ const revokeConcession = async (req, res) => {
         // setup notification
         const notificationData = {
           title: `Revocked - concession for ${studentData?.name}`,
-          description: `Concession is Revocked for ₹${Number(concession?.totalConcession).toFixed(2) || "0.00"}`,
+          description: `Concession is Revocked for ₹${
+            Number(concession?.totalConcession).toFixed(2) || "0.00"
+          }`,
           type: "DISCOUNT",
           action: "/concession",
           status: "WARNING",

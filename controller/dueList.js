@@ -537,11 +537,11 @@ const getStudentList = CatchAsync(async (req, res, next) => {
 });
 
 const getStudentListExcel = CatchAsync(async (req, res, next) => {
-  const { scheduleId = null, scheduleDates = [], sectionId = null } = req.body;
+  const { scheduleId = [], scheduleDates = [], sectionId = null } = req.body;
   let { paymentStatus = null } = req.body;
   const { school_id } = req.user;
 
-  if (!scheduleId || !scheduleDates.length)
+  if (!scheduleId.length || !scheduleDates.length)
     return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
 
   const isInvalidPaymentStatus =
