@@ -875,28 +875,29 @@ const getClassList = CatchAsync(async (req, res, next) => {
 });
 
 const getClassListExcel = CatchAsync(async (req, res, next) => {
-  const { scheduleId = null, scheduleDates = [] } = req.body;
+  const { scheduleId = [], scheduleDates = [] } = req.body;
   const { school_id } = req.user;
-
-  if (!scheduleId || !scheduleDates.length) {
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-  }
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
   };
 
-  match.$or = scheduleDates.map((date) => {
-    const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
-    const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
-    return {
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    };
-  });
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
+      const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
+      const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
+      return {
+        date: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      };
+    });
+  }
 
   const aggregate = [
     {
