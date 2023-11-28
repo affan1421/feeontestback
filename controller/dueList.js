@@ -541,9 +541,6 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
   let { paymentStatus = null } = req.body;
   const { school_id } = req.user;
 
-  if (!scheduleId.length || !scheduleDates.length)
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-
   const isInvalidPaymentStatus =
     paymentStatus && paymentStatus.some((item) => !["FULL", "PARTIAL", "NOT"].includes(item));
   if (isInvalidPaymentStatus) {
@@ -554,7 +551,6 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
     netAmount: { $gt: 0 },
     $or: scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
@@ -567,6 +563,11 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
       };
     }),
   };
+
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
   if (sectionId) match.sectionId = mongoose.Types.ObjectId(sectionId);
 
   const aggregate = buildAggregation(match, paymentStatus, scheduleDates);
@@ -1083,16 +1084,17 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 
 const getStudentListByClass = CatchAsync(async (req, res, next) => {
   // No pagination, No search
-  const { sectionId = null, scheduleDates = [], scheduleId = null } = req.body;
+  const { sectionId = null, scheduleDates = [], scheduleId = [] } = req.body;
   const { school_id } = req.user;
-
-  if (!sectionId || !scheduleDates.length || !scheduleId)
-    return next(new ErrorResponse("Please Provide SectionId And Dates", 422));
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
     sectionId: mongoose.Types.ObjectId(sectionId),
   };
+
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
 
   match.$or = scheduleDates.map((date) => {
     const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
