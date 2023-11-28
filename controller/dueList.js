@@ -1088,17 +1088,15 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
   const { school_id } = req.user;
 
   const match = {
-    $or: {
-      schoolId: mongoose.Types.ObjectId(school_id),
-      sectionId: mongoose.Types.ObjectId(sectionId),
-    },
+    schoolId: mongoose.Types.ObjectId(school_id),
+    sectionId: mongoose.Types.ObjectId(sectionId),
   };
 
   if (scheduleId.length) {
-    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+    match.scheduleTypeId = { $in: scheduleId?.map((id) => mongoose.Types.ObjectId(id)) };
   }
 
-  match.$or = scheduleDates.map((date) => {
+  const orConditions = scheduleDates?.map((date) => {
     const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
     const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
     return {
@@ -1108,6 +1106,10 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
       },
     };
   });
+
+  if (orConditions && orConditions.length > 0) {
+    match.$or = orConditions;
+  }
 
   const aggregate = [
     {
