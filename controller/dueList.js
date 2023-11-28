@@ -1088,8 +1088,10 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
   const { school_id } = req.user;
 
   const match = {
-    schoolId: mongoose.Types.ObjectId(school_id),
-    sectionId: mongoose.Types.ObjectId(sectionId),
+    $or: {
+      schoolId: mongoose.Types.ObjectId(school_id),
+      sectionId: mongoose.Types.ObjectId(sectionId),
+    },
   };
 
   if (scheduleId.length) {
