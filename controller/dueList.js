@@ -552,7 +552,11 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
     netAmount: { $gt: 0 },
-    $or: scheduleDates.map((date) => {
+  };
+
+  // Add $or condition only if scheduleDates array is not empty
+  if (scheduleDates.length) {
+    match.$or = scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
       const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
       return {
@@ -561,8 +565,8 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
           $lte: endDate,
         },
       };
-    }),
-  };
+    });
+  }
 
   if (scheduleId.length) {
     match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
