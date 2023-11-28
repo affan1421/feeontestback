@@ -541,9 +541,6 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
   let { paymentStatus = null } = req.body;
   const { school_id } = req.user;
 
-  if (!scheduleId.length || !scheduleDates.length)
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-
   const isInvalidPaymentStatus =
     paymentStatus && paymentStatus.some((item) => !["FULL", "PARTIAL", "NOT"].includes(item));
   if (isInvalidPaymentStatus) {
@@ -554,9 +551,12 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
     netAmount: { $gt: 0 },
-    $or: scheduleDates.map((date) => {
+  };
+
+  // Add $or condition only if scheduleDates array is not empty
+  if (scheduleDates.length) {
+    match.$or = scheduleDates.map((date) => {
       const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
       const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
       return {
@@ -565,8 +565,13 @@ const getStudentListExcel = CatchAsync(async (req, res, next) => {
           $lte: endDate,
         },
       };
-    }),
-  };
+    });
+  }
+
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
   if (sectionId) match.sectionId = mongoose.Types.ObjectId(sectionId);
 
   const aggregate = buildAggregation(match, paymentStatus, scheduleDates);
@@ -870,28 +875,29 @@ const getClassList = CatchAsync(async (req, res, next) => {
 });
 
 const getClassListExcel = CatchAsync(async (req, res, next) => {
-  const { scheduleId = null, scheduleDates = [] } = req.body;
+  const { scheduleId = [], scheduleDates = [] } = req.body;
   const { school_id } = req.user;
-
-  if (!scheduleId || !scheduleDates.length) {
-    return next(new ErrorResponse("Please Provide ScheduleId And Dates", 422));
-  }
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
-    scheduleTypeId: mongoose.Types.ObjectId(scheduleId),
   };
 
-  match.$or = scheduleDates.map((date) => {
-    const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
-    const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
-    return {
-      date: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    };
-  });
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
+  if (scheduleDates.length > 0) {
+    match.$or = scheduleDates.map((date) => {
+      const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
+      const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
+      return {
+        date: {
+          $gte: startDate,
+          $lte: endDate,
+        },
+      };
+    });
+  }
 
   const aggregate = [
     {
@@ -1083,18 +1089,19 @@ const getClassListExcel = CatchAsync(async (req, res, next) => {
 
 const getStudentListByClass = CatchAsync(async (req, res, next) => {
   // No pagination, No search
-  const { sectionId = null, scheduleDates = [], scheduleId = null } = req.body;
+  const { sectionId = null, scheduleDates = [], scheduleId = [] } = req.body;
   const { school_id } = req.user;
-
-  if (!sectionId || !scheduleDates.length || !scheduleId)
-    return next(new ErrorResponse("Please Provide SectionId And Dates", 422));
 
   const match = {
     schoolId: mongoose.Types.ObjectId(school_id),
     sectionId: mongoose.Types.ObjectId(sectionId),
   };
 
-  match.$or = scheduleDates.map((date) => {
+  if (scheduleId.length) {
+    match.scheduleTypeId = { $in: scheduleId?.map((id) => mongoose.Types.ObjectId(id)) };
+  }
+
+  const orConditions = scheduleDates?.map((date) => {
     const startDate = moment(date, "DD/MM/YYYY").startOf("day").toDate();
     const endDate = moment(date, "DD/MM/YYYY").endOf("day").toDate();
     return {
@@ -1104,6 +1111,10 @@ const getStudentListByClass = CatchAsync(async (req, res, next) => {
       },
     };
   });
+
+  if (orConditions && orConditions.length > 0) {
+    match.$or = orConditions;
+  }
 
   const aggregate = [
     {
