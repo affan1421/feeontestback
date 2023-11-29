@@ -111,6 +111,7 @@ const getRoutes = async (req, res, next) => {
           "vehicleInfo.assignedVehicleNumber": 1,
           stopsCount: { $size: "$stops" },
           studentsCount: { $size: "$studentsInfo" },
+          createdAt: 1,
         },
       },
       {
@@ -217,6 +218,30 @@ const addNewDriver = async (req, res, next) => {
         success: false,
         message:
           "Driver with the same driving license, Aadhar number, contact number, or emergency number already exists.",
+      });
+    }
+
+    const phoneNumberPattern = /^\d{10}$/; // 10-digit phone number
+    const aadharNumberPattern = /^\d{12}$/; // 12-digit Aadhar number
+
+    if (!phoneNumberPattern.test(contactNumber) || !phoneNumberPattern.test(emergencyNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number format. Please provide a 10-digit phone number.",
+      });
+    }
+
+    if (!phoneNumberPattern.test(emergencyNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid emergency number format. Please provide a 10-digit phone number.",
+      });
+    }
+
+    if (!aadharNumberPattern.test(aadharNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Aadhar number format. Please provide a 12-digit Aadhar number.",
       });
     }
 
@@ -861,7 +886,21 @@ const addStudentTransport = async (req, res, next) => {
 
     const trip = await busRoutes
       .findOne({ _id: mongoose.Types.ObjectId(selectedRouteId) })
-      .select("tripNo");
+      .select("tripNo availableSeats");
+
+    if (!trip) {
+      return next(new ErrorResponse("Selected route not found", 404));
+    }
+
+    if (trip.availableSeats <= 0) {
+      return next(new ErrorResponse("No available seats on the selected route", 400));
+    }
+
+    await busRoutes.findByIdAndUpdate(
+      selectedRouteId,
+      { $inc: { availableSeats: -1 } },
+      { new: true }
+    );
 
     const newStudentTransport = new StudentsTransport({
       schoolId,
@@ -1124,6 +1163,7 @@ const getStudentTransportList = async (req, res, next) => {
           feeAmount: 1,
           tripNumber: 1,
           status: 1,
+          createdAt: 1,
         },
       },
       {
@@ -1234,9 +1274,18 @@ const getDashboardCount = async (req, res, next) => {
     const stopsCount = totalStopsCount[0]?.stopsCount || 0;
     const feeDetails = feeStats.map(({ _id, paidAmount, dueAmount }) => ({
       monthName: _id,
-      paidAmount,
-      dueAmount,
+      paidAmount: paidAmount || 0,
+      dueAmount: dueAmount || 0,
     }));
+
+    const monthEntry = feeDetails.find((entry) => entry.monthName === month);
+    const feeDetailsResult = monthEntry
+      ? {
+          monthName: monthEntry.monthName,
+          paidAmount: monthEntry.paidAmount,
+          dueAmount: monthEntry.dueAmount,
+        }
+      : { monthName: month, paidAmount: 0, dueAmount: 0 };
 
     res.status(200).json({
       studentsCount,
@@ -1244,7 +1293,7 @@ const getDashboardCount = async (req, res, next) => {
       vehiclesCount,
       driverCount,
       stopsCount,
-      feeDetails: feeDetails.length > 0 ? feeDetails[0] : null, // Sending only the matching month
+      feeDetails: feeDetailsResult, // Sending only the matching month
     });
   } catch (error) {
     console.error("Went wrong while fetching dashboard data", error.message);
