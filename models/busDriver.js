@@ -10,6 +10,7 @@ const busDriversSchema = new Schema(
     contactNumber: {
       type: Number,
       required: true,
+      unique: true,
     },
     emergencyNumber: {
       type: Number,
@@ -18,10 +19,12 @@ const busDriversSchema = new Schema(
     drivingLicense: {
       type: String,
       required: true,
+      unique: true,
     },
     aadharNumber: {
       type: Number,
       required: true,
+      unique: true,
     },
     bloodGroup: {
       type: String,
