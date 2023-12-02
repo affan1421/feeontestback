@@ -26,6 +26,7 @@ const studentTransportSchema = new Schema(
       type: String,
       enum: ["pickup", "drop", "both"],
       default: "both",
+      required: true,
     },
     selectedRouteId: {
       type: Schema.Types.ObjectId,

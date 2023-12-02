@@ -1589,9 +1589,9 @@ exports.MakePayment = catchAsync(async (req, res, next) => {
   if (!createdBy) return next(new ErrorResponse("Please Provide Created By", 422));
 
   let modifiedStatus = status;
-  if (paymentMethod !== "CASH") {
-    modifiedStatus = "PENDING";
-  }
+  // if (paymentMethod !== "CASH") {
+  //   modifiedStatus = "PENDING";
+  // }
 
   if (!status) return next(new ErrorResponse("Please Provide Status", 422));
 
