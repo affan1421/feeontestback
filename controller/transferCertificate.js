@@ -14,7 +14,16 @@ const { sendNotification } = require("../socket/socket");
 
 async function createStudentTransfer(req, res, next) {
   try {
-    const { studentId, schoolId, classId, tcType, reason, comment, transferringSchool, attachments } = req.body;
+    const {
+      studentId,
+      schoolId,
+      classId,
+      tcType,
+      reason,
+      comment,
+      transferringSchool,
+      attachments,
+    } = req.body;
 
     // Check if a student transfer record with the same studentId already exists
     const existingTransfer = await StudentTransfer.findOne({
@@ -110,7 +119,12 @@ async function createStudentTransfer(req, res, next) {
           description: `Created due to ${student.reason}`,
           type: "TC",
           action: "/transfer-certificates",
-          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+          status:
+            transfer.status == "REJECTED"
+              ? "WARNING"
+              : transfer.status == "APPROVED"
+              ? "SUCCESS"
+              : "DEFAULT",
         };
 
         // sending notifications
@@ -122,7 +136,9 @@ async function createStudentTransfer(req, res, next) {
 
     notificationSetup();
 
-    res.status(200).json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
+    res
+      .status(200)
+      .json(SuccessResponse(newStudentTransfer, 1, "Student transfer record created successfully"));
   } catch (error) {
     console.error("Error creating student transfer record:", error);
     console.log("error", error.message);
@@ -321,7 +337,12 @@ async function changeStatus(req, res, next) {
           description: `Created due to ${student.reason}`,
           type: "TC",
           action: "/transfer-certificates",
-          status: transfer.status == "REJECTED" ? "WARNING" : transfer.status == "APPROVED" ? "SUCCESS" : "DEFAULT",
+          status:
+            transfer.status == "REJECTED"
+              ? "WARNING"
+              : transfer.status == "APPROVED"
+              ? "SUCCESS"
+              : "DEFAULT",
         };
 
         // sending notifications
@@ -333,7 +354,9 @@ async function changeStatus(req, res, next) {
 
     notificationSetup();
 
-    res.status(200).json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
+    res
+      .status(200)
+      .json(SuccessResponse(null, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     console.error("Error on update status:", error);
     console.log("error", error.message);
@@ -375,7 +398,9 @@ async function getTc(req, res, next) {
 
     const result = await StudentTransfer.find(query).exec();
 
-    res.status(200).json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
+    res
+      .status(200)
+      .json(SuccessResponse(result, 1, "Transfer certificate status updated successfully"));
   } catch (error) {
     return next(new ErrorResponse("Something Went Wrong", 500));
   }
@@ -578,7 +603,8 @@ async function getClasses(req, res, next) {
 
 async function getTcStudentsDetails(req, res, next) {
   try {
-    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } = req.query;
+    const { searchQuery, tcType, status, classId, page, limit, hideMessage, studentTcId } =
+      req.query;
 
     const { schoolId } = req.body;
 
@@ -748,7 +774,9 @@ async function getTcStudentsDetails(req, res, next) {
       { $limit: pageSize },
     ]).exec();
 
-    res.status(200).json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
+    res
+      .status(200)
+      .json(SuccessResponse(result, 1, hideMessage ? null : "Student details fetch successfully"));
   } catch (error) {
     console.error("Error Student details fetch:", error);
     console.log("error", error.message);
@@ -776,7 +804,11 @@ const getTcReason = async (req, res, next) => {
         res
           .status(200)
           .json(
-            SuccessResponse({ reasons: result1, totalCount: count }, result1?.length, "Tc reasons fetched successfully")
+            SuccessResponse(
+              { reasons: result1, totalCount: count },
+              result1?.length,
+              "Tc reasons fetched successfully"
+            )
           );
       })
       .catch((err) => {
@@ -803,7 +835,7 @@ const addTcReason = async (req, res, next) => {
     if (!reason) {
       return next(new ErrorResponse(`reason is required`, 403));
     }
-    const existingReason = await tcReasonModal.findOne({ reason });
+    const existingReason = await tcReasonModal.findOne({ reason, schoolId });
     if (existingReason) return next(new ErrorResponse("Reason already exists", 403));
     const result = await tcReasonModal.create({ reason, schoolId });
     res.status(200).json(SuccessResponse(result, 1, "Tc reason created successfully"));
@@ -815,12 +847,16 @@ const addTcReason = async (req, res, next) => {
 
 async function deleteTcReason(req, res, next) {
   const { id: idInput } = req.query;
+  const { school_id: schoolId } = req?.user;
   try {
     const id = idInput?.trim();
+    if (!schoolId?.trim()) {
+      return next(new ErrorResponse(`School Id is required`, 403));
+    }
     if (!id) {
       return next(new ErrorResponse("Reason Id required!", 403));
     }
-    const result = await tcReasonModal.findByIdAndDelete(id);
+    const result = await tcReasonModal.findByIdAndDelete({ id, schoolId });
     if (!result) {
       return next(new ErrorResponse("No matching document found for deletion", 404));
     }
@@ -836,6 +872,11 @@ async function deleteTcReason(req, res, next) {
  */
 async function updateTcReason(req, res, next) {
   const { id: idInput, reason: reasonInput } = req.body;
+  const { school_id: schoolId } = req?.user;
+  if (!schoolId?.trim()) {
+    return next(new ErrorResponse(`School Id is required`, 403));
+  }
+
   if (!reasonInput?.trim()) {
     return next(new ErrorResponse("reason required!", 403));
   }
@@ -845,7 +886,7 @@ async function updateTcReason(req, res, next) {
       return next(new ErrorResponse("Reason Id required!", 403));
     }
     const reason = reasonInput?.trim().toLowerCase();
-    const existingReason = await tcReasonModal.findOne({ reason });
+    const existingReason = await tcReasonModal.findOne({ reason, schoolId });
     if (existingReason) return next(new ErrorResponse("This reason name already exists", 403));
     const result = await tcReasonModal.findByIdAndUpdate(id, { $set: { reason } }, { new: true });
     res.status(200).json(SuccessResponse(result, 1, "Tc reasons updated successfully"));
