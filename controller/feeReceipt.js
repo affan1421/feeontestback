@@ -861,6 +861,7 @@ const getFeeReceiptSummary = catchAsync(async (req, res, next) => {
               parentName: "$parent.name",
               amount: "$paidAmount",
               items: 1,
+              payment: 1,
               receiptId: 1,
               comment: 1,
               issueDate: 1,
