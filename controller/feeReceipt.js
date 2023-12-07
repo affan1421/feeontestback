@@ -25,10 +25,11 @@ const getWorkSheet = (worksheet, receiptDetails, methodMap) =>
         worksheet.cell(index + 2, 2).string(`${receipt.class} - ${receipt.section}`);
         worksheet.cell(index + 2, 3).string(receipt.description.join(","));
         worksheet.cell(index + 2, 4).string(receipt.receiptId);
+        worksheet.cell(index + 2, 5).string(receipt.No);
         // 20-05-2023
-        worksheet.cell(index + 2, 5).string(moment(receipt.issueDate).format("DD-MM-YYYY"));
-        worksheet.cell(index + 2, 6).string(receipt.method);
-        worksheet.cell(index + 2, 7).number(receipt.amount);
+        worksheet.cell(index + 2, 6).string(moment(receipt.issueDate).format("DD-MM-YYYY"));
+        worksheet.cell(index + 2, 7).string(receipt.method);
+        worksheet.cell(index + 2, 8).number(receipt.amount);
 
         methodMap.set(receipt.method, (methodMap.get(receipt.method) || 0) + receipt.amount);
 
@@ -1341,6 +1342,7 @@ const getFeeReceiptById = catchAsync(async (req, res, next) => {
 
 const getExcel = catchAsync(async (req, res, next) => {
   // Name	Class	Amount	Description	Receipt ID	Date	Payment Mode
+  console.log("here getExcel")
   const { schoolId, sectionId, paymentMode, startDate, endDate } = req.query;
   const payload = {
     status: {
@@ -1411,6 +1413,15 @@ const getExcel = catchAsync(async (req, res, next) => {
         receiptId: {
           $first: "$receiptId",
         },
+        No: {
+          $first: {
+            $cond: {
+              if: { $gt: ["$payment.chequeNumber", null] },
+              then: "$payment.chequeNumber",
+              else: "$payment.transactionId"
+            }
+          },
+        },
         issueDate: {
           $first: "$issueDate",
         },
@@ -1426,12 +1437,11 @@ const getExcel = catchAsync(async (req, res, next) => {
     },
   ]);
   if (!receiptDetails.length) return next(new ErrorResponse("No Receipts Found", 404));
-
   const workbook = new excel.Workbook();
   // Add Worksheets to the workbook
   const worksheet = workbook.addWorksheet("Income Details");
 
-  const header = ["Name", "Class", "Description", "Receipt ID", "Date", "Payment Mode", "Amount"];
+  const header = ["Name", "Class", "Description", "Receipt ID","No", "Date", "Payment Mode", "Amount"];
 
   header.forEach((item, index) => {
     worksheet.cell(1, index + 1).string(item);
