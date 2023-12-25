@@ -30,6 +30,6 @@ jobs:
       - name: Install sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
       - name: "Copying Files"
-        run: sshpass -p "erp1234" scp -o StrictHostKeyChecking=accept-new  /home/runner/work/feeOn-backend/feeOn-backend/dist/index.js ubuntu@65.1.196.45:/home/ubuntu/feeon_backend/
+        run: sshpass -p "erp1234" scp -o StrictHostKeyChecking=accept-new  /home/runner/work/feeOn-backend/feeOn-backend/dist/index.js ubuntu@54.248.13.6:/home/ubuntu/feeon_backend/
       - name: SSH to server and restarting PM2
-        run: sshpass -p "erp1234" ssh ubuntu@65.1.196.45 "pm2 restart backend"
+        run: sshpass -p "erp1234" ssh ubuntu@54.248.13.6 "pm2 restart backend"
