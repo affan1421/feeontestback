@@ -7,8 +7,26 @@ on:
   #   branches:
   #     - main
 jobs:
+  SonarCloudSCan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+            fetch-depth: 0
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+            GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+              -Dsonar.organization=rekhugopal
+              -Dsonar.projectKey=SonarCloudCodeAnalyisi
+
+
   build_and_delploy:
     runs-on: ubuntu-latest
+    needs: SonarCloudSCan
     steps:
       - name: "Checkout repository"
         uses: actions/checkout@v3
