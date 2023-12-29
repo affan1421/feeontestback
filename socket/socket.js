@@ -12,6 +12,7 @@ const saveNotificationToDatabase = async (clientId, notificationData) => {
   });
 };
 
+
 // sends notifications to specific user
 const sendNotification = async (schoolId, role, notificationData) => {
   try {
