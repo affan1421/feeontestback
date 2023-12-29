@@ -20,4 +20,4 @@ jobs:
       - name: "Copying Files"
         run: sshpass -p "1421@Ffan" scp -o StrictHostKeyChecking=accept-new  /home/runner/work/feeontestback/feeontestback/dist/index.js ubuntu@54.224.100.175:/home/ubuntu/feeon_backend/
       - name: SSH to server and restarting PM2
-        run: sshpass -p "1421@Ffan" ssh ubuntu@54.224.100.175  "pm2 restart index.js"
+        run: sshpass -p "1421@Ffan" ssh ubuntu@54.224.100.175  "pm2 restart backend"
