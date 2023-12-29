@@ -1,4 +1,4 @@
-name: Prod-Backend
+name: Backend
 on:
   push:
     branches:
